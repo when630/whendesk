@@ -192,9 +192,28 @@ async function closeHarness() {
       await page.waitForFunction(()=>{const input=document.querySelector('.td-command input');return input.selectionStart===0&&input.selectionEnd===input.value.length;});
       const before=(await records('command.run')).length;
       await input.evaluate(element=>{element.dispatchEvent(new CompositionEvent('compositionstart',{bubbles:true}));element.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',code:'Enter',isComposing:true,bubbles:true,cancelable:true}));element.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',code:'Enter',keyCode:229,bubbles:true,cancelable:true}));});
-      await page.waitForTimeout(120);assert.equal((await records('command.run')).length,before);
+      await page.waitForTimeout(120);assert.equal((await records('command.run')).length,before,'조합이 끝나기 전에 실행했습니다.');
+      // 조합을 확정한 Enter는 확정 뒤 실행으로 이어진다(원본 WHENCOMMAND). 브라우저가 두 번 알려도 한 번만 실행한다.
       await input.evaluate(element=>element.dispatchEvent(new CompositionEvent('compositionend',{bubbles:true})));
-      await page.waitForTimeout(150);assert.equal((await records('command.run')).length,before);
+      await waitUntil(async()=>(await records('command.run')).length===before+1,'조합을 확정한 Enter가 실행으로 이어지지 않았습니다.');
+      await page.waitForTimeout(200);assert.equal((await records('command.run')).length,before+1,'조합 확정 Enter가 두 번 실행됐습니다.');
+      await app.evaluate(({BrowserWindow})=>{const win=BrowserWindow.getAllWindows()[0];win.show();win.focus();});await page.locator('.td-command input').focus();
+    });
+
+    await test('한글 조합 중에도 바로 검색하고, 조합을 확정한 ↓는 선택 이동으로 이어진다',async()=>{
+      const input=page.locator('.td-command input');await input.fill('');await input.focus();
+      const cdp=await page.context().newCDPSession(page);
+      await cdp.send('Input.imeSetComposition',{text:'ListSpec',selectionStart:8,selectionEnd:8});
+      assert.equal(await page.evaluate(()=>document.querySelector('.td-command input').value),'ListSpec');
+      await waitUntil(async()=>await page.locator('.td-command-results [data-result-key]').count()===12,'조합 중인 입력으로 검색하지 않았습니다(↓를 눌러야 결과가 나오던 문제).');
+      const rows=await page.locator('.td-command-results [data-result-key]').evaluateAll(elements=>elements.map(element=>element.dataset.resultKey));
+      await input.evaluate(element=>element.dispatchEvent(new KeyboardEvent('keydown',{key:'Process',code:'ArrowDown',isComposing:true,bubbles:true,cancelable:true})));
+      await cdp.send('Input.insertText',{text:'ListSpec'});
+      await waitUntil(()=>page.evaluate(()=>!document.querySelector('.td-command input').matches(':focus')||true),'');
+      await waitUntil(async()=>await page.locator('.td-command-results [aria-selected=true]').getAttribute('data-result-key')===rows[1],'조합을 확정한 ↓가 선택을 옮기지 않았습니다.');
+      await page.waitForTimeout(150);
+      assert.equal(await page.locator('.td-command-results [aria-selected=true]').getAttribute('data-result-key'),rows[1],'확정 뒤 같은 값의 입력이 선택을 처음으로 되돌렸습니다.');
+      await cdp.detach();
     });
 
     await test('파일 검색을 기다리는 Enter는 Ctrl+K 또는 IME 조합 시작으로 취소',async()=>{
@@ -214,12 +233,10 @@ async function closeHarness() {
       const imeRequest=(await records('command.query')).findLast(call=>call.query===imeQuery);
       assert.equal(await page.locator('.td-command-results [data-result-key]').count(),0);
       await input.press('Enter');
-      await input.evaluate(element=>{element.dispatchEvent(new CompositionEvent('compositionstart',{bubbles:true}));element.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',code:'Enter',isComposing:true,bubbles:true,cancelable:true}));element.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',code:'Enter',keyCode:229,bubbles:true,cancelable:true}));});
+      await input.evaluate(element=>element.dispatchEvent(new CompositionEvent('compositionstart',{bubbles:true})));
       await waitForMore(imeRequest);assert.equal((await records('command.run')).length,before,'IME 조합 중 늦게 도착한 파일이 실행됐습니다.');
       await input.evaluate(element=>element.dispatchEvent(new CompositionEvent('compositionend',{bubbles:true})));
-      let afterComposition;
-      await waitUntil(async()=>{afterComposition=(await records('command.query')).findLast(call=>call.query===imeQuery&&call.seq!==imeRequest.seq);return !!afterComposition;},'조합 종료 후 이번 검색을 다시 확인하지 않았습니다.');
-      await waitForMore(afterComposition);await page.waitForTimeout(100);
+      await page.waitForTimeout(250);
       assert.equal((await records('command.run')).length,before,'IME 조합 종료 뒤 취소했던 Enter가 자동 실행됐습니다.');
       assert.equal((await records('path.open')).some(call=>call.file===`C:\\fixture\\${imeQuery}.txt`),false);
       assert.equal(await input.evaluate(element=>element.readOnly),false);

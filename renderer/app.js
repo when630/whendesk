@@ -646,14 +646,31 @@
       commandNotice(`${kind.label} · ${text.split('\n')[0]}`);
     } finally { command.running = false; }
   }
+  /* 한글 조합 중에 눌린 ↑↓·Enter: 브라우저는 확정에만 쓰고 같은 키를 다시 보내지 않으므로 확정 뒤 여기서 마저 처리한다. */
+  const COMPOSITION_KEYS = ['ArrowDown','ArrowUp','Enter','NumpadEnter'];
+  function deferCompositionKey(event) {
+    if (state.shell !== 'command' || event.target !== commandInput || !COMPOSITION_KEYS.includes(event.code)) return;
+    command.afterComposition = { code:event.code, mod:!!(event.ctrlKey || event.metaKey), alt:event.altKey };
+  }
+  function runDeferredKey({ code, mod, alt }) {
+    command.deferredKey = null; command.deferredCode = null;
+    if (state.shell !== 'command' || document.activeElement !== commandInput || helpOpen) return;
+    const enter = code === 'Enter' || code === 'NumpadEnter';
+    if (command.capture) { if (enter) safe(() => saveCapture({ open:mod })); return; }
+    if (!enter) { if (!command.actions) moveCommandSelection(code === 'ArrowDown' ? 1 : -1); return; }
+    if (command.running || command.activating) return;
+    if (alt && !mod) { safe(openCommandActions); return; }
+    const menu = command.actions;
+    safe(() => menu ? executeCommand({ item:menu.item, query:menu.query, actionId:menu.item.actions[menu.selected]?.id }) : executeCommand({ alternate:mod && !alt }));
+  }
   function queueCommandQuery(query, delay = 85, force = false) {
     if (command.running || !force && query === command.query) return;
     clearTimeout(command.timer); command.timer = null;
     ++command.seq; command.request = null; command.more = null;
     notifyCommandWaiters();
-    command.query = query; command.renderedQuery = null; command.items = []; command.selected = 0; command.pending = !!query.trim(); command.notice = '';
+    command.query = query; command.renderedQuery = null; if (!query.trim()) command.items = []; command.selected = 0; command.pending = !!query.trim(); command.notice = '';
     closeCommandActions(false); clearCommandOutput(); renderCommand();
-    if (!command.composing) command.timer = setTimeout(() => { command.timer = null; safe(() => queryCommand(commandInput.value)); }, query.trim() ? delay : 0);
+    command.timer = setTimeout(() => { command.timer = null; safe(() => queryCommand(commandInput.value)); }, query.trim() ? delay : 0);
   }
   function applyCommandMore(message) {
     if (message.seq !== command.seq || message.query != null && message.query !== command.query.trim().slice(0,8192)) return;
@@ -668,7 +685,7 @@
     notifyCommandWaiters();
   }
   function queryCommand(query, preserve = false) {
-    if (command.running || command.composing) return Promise.resolve(false);
+    if (command.running) return Promise.resolve(false);
     const seq = ++command.seq; command.query = query;
     const selectedKey = preserve ? command.items[command.selected]?.key : null;
     const request = { seq, query, promise:null }; command.request = request; command.more = null;
@@ -1105,14 +1122,23 @@
   modalLayer.addEventListener('input',()=>{modalDirty=true;});modalLayer.addEventListener('change',()=>{modalDirty=true;});
   commandInput.addEventListener('input',()=>{if(commandInput.classList.contains('has-notice'))clearCommandNotice();});
   root.addEventListener('compositionend',event=>{if(event.target.matches('[data-work-search]')){workComposing=false;state.workQuery=event.target.value;renderMainView();}});
-  commandInput.addEventListener('compositionstart',()=>{command.composing=true;cancelCommandActivation();clearTimeout(command.timer);command.timer=null;++command.seq;command.request=null;});
-  commandInput.addEventListener('compositionend',()=>{command.composing=false;if(!command.capture)queueCommandQuery(commandInput.value,0,true);});
+  commandInput.addEventListener('compositionstart',()=>{command.composing=true;cancelCommandActivation();});
+  // 조합을 확정한 ↑↓·Enter는 확정만 하고 사라지지 않게, 확정 직후 원래 동작을 이어서 한다(원본 WHENCOMMAND 함정 #12).
+  // 값이 같은 확정은 새 입력으로 보지 않는다 — 옮긴 선택이 처음으로 돌아가지 않도록.
+  commandInput.addEventListener('compositionend',()=>{
+    command.composing=false;
+    if(!command.capture&&commandInput.value!==command.query)queueCommandQuery(commandInput.value,0);
+    const pending=command.afterComposition;command.afterComposition=null;
+    if(pending){clearTimeout(command.deferredKey);command.deferredCode=pending.code;command.deferredKey=setTimeout(()=>runDeferredKey(pending),0);}
+  });
   commandBox.addEventListener('pointermove',event=>{const row=event.target.closest('[data-result]');if(row&&!command.running&&!command.actions&&command.selected!==Number(row.dataset.result)){command.selected=Number(row.dataset.result);syncCommandSelection();}});
   commandActions.addEventListener('pointermove',event=>{const row=event.target.closest('[data-command-action]');if(row&&command.actions&&!command.running){const index=command.actions.item.actions.findIndex(action=>action.id===row.dataset.commandAction);if(index>=0&&index!==command.actions.selected){command.actions.selected=index;syncCommandSelection();}}});
   root.addEventListener('focusin',syncHints);
   root.addEventListener('focusout',event=>{if(event.target.matches('[data-field]')){const element=event.target;dashboardFocus={id:element.closest('[data-editor]')?.dataset.editor,field:element.dataset.field,start:element.selectionStart,end:element.selectionEnd,scroll:element.scrollTop};}});
   document.addEventListener('keydown',event=>{
-    if(event.isComposing||event.keyCode===229||command.composing)return;
+    if(event.isComposing||event.keyCode===229||command.composing){deferCompositionKey(event);return;}
+    // 확정 직후 브라우저가 같은 키를 다시 보내면 미뤄 둔 처리는 버린다(두 번 움직이지 않게).
+    if(command.deferredKey&&event.target===commandInput&&event.code===command.deferredCode){clearTimeout(command.deferredKey);command.deferredKey=null;command.deferredCode=null;}
     const section=K.section(event);
     const reservedFieldKey=K.is(event,'app.save')||K.is(event,'help.toggle')||!!section;
     if(event.target.matches('[data-shortcut]')&&!helpOpen&&!reservedFieldKey){recordShortcut(event);return;}
