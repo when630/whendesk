@@ -133,6 +133,19 @@ async function closeApp(){
       await press('u');await waitUntil(async()=>!(await task(inboxTask.id)).due,'U가 처음 마감 지정까지 되돌리지 않았습니다.');
     });
 
+    await test('설정의 시작과 알림: 아침 브리핑을 키보드로 끄고 켜며, 개발 실행에서는 자동 시작을 막는다',async()=>{
+      await press('Alt+s');await page.locator('[data-pref=briefEnabled]').waitFor();
+      for(let step=0;step<30&&!await focused('[data-pref=briefEnabled]');step++)await press('Tab');
+      await waitFocus('[data-pref=briefEnabled]');
+      assert.equal((await call('preferences.get')).briefEnabled,true);
+      await press('Space');await waitUntil(async()=>(await call('preferences.get')).briefEnabled===false,'아침 브리핑을 끄지 못했습니다.');
+      await press('Space');await waitUntil(async()=>(await call('preferences.get')).briefEnabled===true,'아침 브리핑을 다시 켜지 못했습니다.');
+      assert.equal(await page.locator('[data-pref=briefAt]').inputValue(),'09:00');
+      const info=await call('app.info');
+      assert.equal(await page.locator('[data-pref=launchAtLogin]').isDisabled(),!info.launchAtLoginSupported,'자동 시작 칸의 사용 가능 여부가 실행 형태와 다릅니다.');
+      await screenshot('04-settings-startup');
+    });
+
     await test('하단 힌트는 포커스 자리에 맞는 키를 보여 준다',async()=>{
       const hints=()=>page.locator('.td-hints').innerText();
       await press('Alt+i');await waitWithin('.td-main');for(let step=0;step<4;step++)await press('Tab');

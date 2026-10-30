@@ -142,3 +142,9 @@
 #whendesk-command-first .td-hints:empty{display:none}
 #whendesk-command-first .td-hints span{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
 #whendesk-command-first .td-hints kbd{font:11px Pretendard,"Segoe UI",sans-serif;background:var(--td-wash);border:0;border-radius:3px;padding:2px 6px;color:var(--td-text)}
+/* 할 일 행의 구분선은 본문 폭(탭·검색 줄)에 맞춘다. 선택 배경과 막대는 행 전체를 쓴다. */
+#whendesk-command-first .td-task,#whendesk-command-first .td-task.selected{border-bottom:0;background-image:linear-gradient(var(--td-line),var(--td-line));background-size:calc(100% - 20px) 1px;background-position:10px 100%;background-repeat:no-repeat}
+
+/* 설정: 시작과 알림 */
+#whendesk-command-first .settings-check{display:flex;align-items:center;gap:8px;font-size:13px;margin:4px 0 10px}
+#whendesk-command-first .settings-time{max-width:160px}

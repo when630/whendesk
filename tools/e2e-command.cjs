@@ -161,7 +161,9 @@ async function closeHarness() {
       await input.press('Control+3');await page.waitForTimeout(100);
       assert.equal((await records('command.run')).length,beforeNumber,'이전 Ctrl+3 숫자 키가 결과를 실행했습니다.');
       await input.press('ArrowDown');await input.press('ArrowDown');await input.press('Enter');
-      await waitUntil(async()=>!!(await records('command.run')).find(call=>call.key===rows[2]),'방향키와 Enter가 세 번째 결과를 실행하지 않았습니다.');
+      // 실패하면 원인을 바로 알 수 있게 선택 상태와 최근 실행 기록을 남긴다(전체 연속 실행에서 가끔 실패).
+      try{await waitUntil(async()=>!!(await records('command.run')).find(call=>call.key===rows[2]),'x');}
+      catch{const detail={want:rows[2],selected:await page.evaluate(()=>document.querySelector('.td-command-results [aria-selected=true]')?.dataset.resultKey||null),input:await input.inputValue(),busy:await page.evaluate(()=>document.querySelector('#cf-command-panel').getAttribute('aria-busy')),visible:await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isVisible()),runs:(await records('command.run')).slice(-3)};assert.fail('방향키와 Enter가 세 번째 결과를 실행하지 않았습니다. '+JSON.stringify(detail));}
       await executionDone();
       await app.evaluate(()=>globalThis.__commandTest.setCommandHeightLimit(320));
       try{

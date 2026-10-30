@@ -5,6 +5,7 @@ import {fileURLToPath,pathToFileURL} from 'node:url';
 import {createPreferences} from './preferences.mjs';
 import {createShortcutManager,SHORTCUT_FIELDS} from './shortcuts.mjs';
 import {createPositionTracker} from './media-position.mjs';
+import {briefDecision,briefingLines,dayKey,STALE_WAITING_DAYS} from '../modules/work/main/brief.mjs';
 import {exportWorkspace,prepareRestore,prepareLegacy,installPrepared} from './data.mjs';
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const argv=process.argv.slice(1);
@@ -167,9 +168,9 @@ async function bootstrap(){
    const patch=payload&&typeof payload==='object'&&!Array.isArray(payload)?payload:{};
    const before=preferences.get(),changesShortcut=SHORTCUT_FIELDS.some(field=>Object.hasOwn(patch,field));
    const value=changesShortcut?shortcutManager.update({...before,...patch},next=>preferences.set({...patch,...Object.fromEntries(SHORTCUT_FIELDS.map(field=>[field,next[field]]))})):preferences.set(patch);
-   nativeTheme.themeSource=value.mode;if('launchAtLogin'in patch&&!testMode)app.setLoginItemSettings({openAtLogin:value.launchAtLogin});return value;
+   nativeTheme.themeSource=value.mode;if('launchAtLogin'in patch&&!testMode&&app.isPackaged)app.setLoginItemSettings({openAtLogin:value.launchAtLogin,args:['--hidden']});return value;
   },
-  'app.info':()=>({name:'WHENDESK',version:app.getVersion(),dataDir,...shortcutManager.status(),commandReady,commandFailure,platform:process.platform,isPackaged:app.isPackaged}),
+  'app.info':()=>({name:'WHENDESK',version:app.getVersion(),dataDir,launchAtLoginSupported:app.isPackaged&&!testMode,...shortcutManager.status(),commandReady,commandFailure,platform:process.platform,isPackaged:app.isPackaged}),
   'data.export':()=>dataOperation('export'),
   'data.exportIcs':payload=>dataOperation('ics',payload),
   'data.restore':()=>dataOperation('restore'),
@@ -209,7 +210,25 @@ async function bootstrap(){
  win.webContents.on('render-process-gone',(_event,details)=>{console.error('renderer stopped',details);});
  app.on('before-quit',()=>{quitting=true;shortcutManager.dispose();clearInterval(mediaTimer);mediaControl?.stop();stopServices();tray?.destroy();});
  await win.loadFile(path.join(ROOT,'renderer','index.html'));
- if(!argv.includes('--headless')){win.show();win.focus();}
+ if(!argv.includes('--headless')&&!argv.includes('--hidden')){win.show();win.focus();}
+ /* 아침 브리핑(원본 WHENWORK jobs.mjs): 하루 한 번, 설정 시각이 지난 뒤, 그 창(3시간)을 놓친 날은 조용히 넘긴다.
+  * WHENDESK에는 캘린더가 있으므로 오늘 일정도 함께 말한다. 알림을 누르면 대시보드를 연다. */
+ function maybeBrief(){
+  if(testMode||!domain)return;
+  const prefs=preferences.get(),today=dayKey();
+  const decision=briefDecision({at:prefs.briefAt,lastBriefing:prefs.lastBriefing,enabled:prefs.briefEnabled!==false});
+  if(decision==='wait')return;
+  if(decision==='skip'){preferences.set({lastBriefing:today});return;}
+  try{
+   const events=domain.state().events.filter(event=>event.date===today&&!event.allDay).sort((a,b)=>String(a.startsAt).localeCompare(String(b.startsAt))).map(event=>({start:event.startsAt}));
+   const parts=briefingLines(domain.work.briefing(STALE_WAITING_DAYS),{events});
+   preferences.set({lastBriefing:today});
+   if(!parts.length||!Notification.isSupported())return;
+   const notice=new Notification({title:'오늘 WHENDESK',body:parts.join(' · '),icon:path.join(ROOT,'assets','icon.png')});
+   notice.on('click',()=>showDashboard());notice.show();
+  }catch(error){console.error('브리핑:',error.message);}
+ }
+ if(!testMode){setTimeout(maybeBrief,30_000);setInterval(maybeBrief,60_000);}
  if(argv.includes('--smoke')){
   const result=await win.webContents.executeJavaScript(`({ready:!!window.desk,title:document.title,errors:window.__whendeskErrors||[]})`);
   console.log('WHENDESK_SMOKE '+JSON.stringify({...result,dataDir}));quitting=true;app.quit();

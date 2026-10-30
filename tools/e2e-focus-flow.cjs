@@ -37,11 +37,13 @@ async function closeApp(){
   measurements.cleanup={owned,forced:!!alive,exitCode:child?.exitCode??null};
 }
 // 줄·패널 경계로 원래 있던 테두리는 유지하되 포커스 전후 변화는 허용하지 않는다.
-async function snapshot(locator){return locator.evaluate(element=>{
+// 측정하는 순간 화면이 다시 그려져 떨어진 요소를 잡으면 계산 스타일이 빈 값이다. 그때는 잠깐 뒤 다시 잰다.
+async function snapshot(locator){for(let attempt=0;;attempt++){const records=await measure(locator);if(attempt>=5||records[0]?.borders?.[0]?.[1])return records;await page.waitForTimeout(60);}}
+async function measure(locator){return locator.evaluate(element=>{
   const records=[];
   for(let node=element,depth=0;node&&depth<4;node=node.parentElement,depth++){
     const style=getComputedStyle(node);
-    records.push({tag:node.tagName,classes:node.className,outlineStyle:style.outlineStyle,outlineWidth:style.outlineWidth,outlineColor:style.outlineColor,shadow:style.boxShadow,borders:['Top','Right','Bottom','Left'].map(side=>[style['border'+side+'Width'],style['border'+side+'Style'],style['border'+side+'Color']]),background:style.backgroundColor});
+    records.push({tag:node.tagName,role:node.getAttribute('role'),classes:node.className,outlineStyle:style.outlineStyle,outlineWidth:style.outlineWidth,outlineColor:style.outlineColor,shadow:style.boxShadow,borders:['Top','Right','Bottom','Left'].map(side=>[style['border'+side+'Width'],style['border'+side+'Style'],style['border'+side+'Color']]),background:style.backgroundColor});
   }
   return records;
 });}
@@ -58,7 +60,9 @@ async function probe(selector,label,variant){
     if(index===0){
       // 키보드 포커스는 외곽선·왼쪽 막대·배경 중 하나로 보여야 한다. 글자 입력칸은 캐럿이 위치를 알려 준다.
       const outline=current.outlineStyle!=='none'&&parseFloat(current.outlineWidth)>0,bar=current.shadow.includes('inset'),washed=current.background!==before[0].background,caret=['INPUT','TEXTAREA','SELECT'].includes(current.tag);
-      assert.ok(outline||bar||washed||caret,prefix+' 키보드 포커스 위치가 보이지 않습니다: '+JSON.stringify(current));
+      // 탭은 포커스가 곧 선택이라 외곽선 없이 밑줄로 위치를 보여 준다.
+      const underline=current.role==='tab'&&parseFloat(current.borders[2][0])>0&&!['none','hidden'].includes(current.borders[2][1]);
+      assert.ok(outline||bar||washed||caret||underline,prefix+' 키보드 포커스 위치가 보이지 않습니다: '+JSON.stringify(current));
       assert.ok(current.shadow==='none'||bar,prefix+' 바깥 그림자는 쓰지 않습니다.');
     }else{
       assert.equal(current.outlineStyle+current.outlineWidth,before[index].outlineStyle+before[index].outlineWidth,prefix+' 부모로 포커스 외곽선이 번졌습니다.');
