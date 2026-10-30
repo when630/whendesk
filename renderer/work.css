@@ -1,0 +1,26 @@
+#whendesk-command-first .work-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 19px;min-width:0}
+#whendesk-command-first .work-search{display:flex;align-items:center;gap:8px;flex:1 1 130px;min-width:100px;border-bottom:1px solid var(--td-line);padding:6px 0;color:var(--td-muted)}
+#whendesk-command-first .work-search svg{width:14px;height:14px}
+#whendesk-command-first .work-search input{width:100%;min-width:0;border:0;background:none;outline:0;box-shadow:none;font-size:12px;padding:1px 0}
+#whendesk-command-first .work-search button{display:grid;place-items:center;width:21px;height:21px;flex-shrink:0}
+#whendesk-command-first .work-toolbar select{max-width:150px;min-width:80px;border:0;background:var(--td-surface);padding:6px 1px;font-size:11px;color:var(--td-muted)}
+#whendesk-command-first .work-text-button{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--td-muted);padding:5px 6px;border-radius:var(--td-radius);white-space:nowrap}
+#whendesk-command-first .work-text-button svg{width:13px;height:13px}
+#whendesk-command-first .work-text-button.active{color:var(--td-text);background:var(--td-wash)}
+#whendesk-command-first .work-group{display:flex;align-items:center;gap:8px;margin:22px 0 0;padding:8px 0;color:var(--td-muted);font-size:11px}
+#whendesk-command-first .work-group:first-child{margin-top:9px}
+#whendesk-command-first .work-group small{font-size:10px;opacity:.7}
+#whendesk-command-first .work-overdue{color:light-dark(#ae5550,#db9690)!important}
+#whendesk-command-first .work-muted{font-size:11px;color:var(--td-muted)}
+#whendesk-command-first .work-archived .td-task-open>span{color:var(--td-muted)}
+#whendesk-command-first .work-project-row{display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--td-line);padding:13px 0}
+#whendesk-command-first .work-project-name{display:flex;align-items:center;gap:11px;min-width:0;flex:1;padding:3px 0}
+#whendesk-command-first .work-project-name>svg{width:15px;height:15px;color:var(--td-muted)}
+#whendesk-command-first .work-project-name>span{overflow-wrap:anywhere}
+#whendesk-command-first .work-project-name small{display:block;font-size:10px;margin-top:3px}
+#whendesk-command-first .work-row-actions{display:flex;gap:3px;align-items:center;flex-shrink:0}
+#whendesk-command-first .work-row-actions>button{min-width:25px;height:26px;display:grid;place-items:center;padding:3px;font-size:11px;color:var(--td-muted);border-radius:var(--td-radius)}
+#whendesk-command-first .work-row-actions svg{width:13px;height:13px}
+#whendesk-command-first .work-modal-caption{font-size:12px;color:var(--td-muted);margin-bottom:18px}
+#whendesk-command-first .work-archive-form>p{font-size:12px;line-height:1.9}
+@media(max-width:850px){#whendesk-command-first .work-toolbar{gap:7px}#whendesk-command-first .work-toolbar select{max-width:125px;font-size:10px}}

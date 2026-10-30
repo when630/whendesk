@@ -1,0 +1,16 @@
+const fs=require('node:fs');
+const path=require('node:path');
+const source='C:/Users/forcs/.codex/visualizations/2026/10/29/01a1860c-0520-7d53-936d-87f34eb0196d/whendesk-workspace.html';
+let fragment=fs.readFileSync(source,'utf8');
+fragment=fragment.replace('min-height:86px;padding:7px 5px;','min-height:99px;display:flex;flex-direction:column;align-items:stretch;padding:7px 5px;');
+fragment=fragment.replace('function dateKey(){',`function dayEntries(d,key){const entries=[...s.events.filter(e=>e.date===key).map(e=>({title:e.title,due:false})),...s.tasks.filter(t=>!t.done&&t.due===String(d.getMonth()+1).padStart(2,'0')+'.'+String(d.getDate()).padStart(2,'0')&&d.getFullYear()===2026).map(t=>({title:'마감 · '+t.title,due:true}))];return entries.slice(0,2).map(e=>'<span class="desk-cal-entry '+(e.due?'due-entry':'')+'">'+esc(e.title)+'</span>').join('')+(entries.length>2?'<small class="desk-cal-more">+'+(entries.length-2)+'개</small>':'');}\nfunction dateKey(){`);
+const start=fragment.indexOf('${s.events.filter(e=>e.date===key).map');
+const end=fragment.indexOf('</button>',start);
+if(start!==-1&&end!==-1)fragment=fragment.slice(0,start)+'${dayEntries(d,key)}'+fragment.slice(end);
+fragment=fragment.replace('>디자인 방향 정리</button>','>${esc(s.events.find(e=>e.id===t.event)?.title||\'연결된 일정\')}</button>');
+fragment=fragment.replace("#whendesk-preview .desk-calendar-bottom{",'#whendesk-preview .desk-cal-more{font-size:10px;margin:3px 4px;color:var(--d-sub)}#whendesk-preview .desk-calendar-bottom{');
+fragment=fragment.replace("kind:'打开',",'');
+fs.writeFileSync(source,fragment);
+const lucide=fs.readFileSync('C:/Users/forcs/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/lucide/dist/umd/lucide.js','utf8');
+const standalone='<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>WHENDESK 화면 미리보기</title><style>body{margin:0;background:transparent}button,input,select,textarea{font:inherit}body>div{max-width:1200px;margin:auto}</style></head><body><script>'+lucide+'</script>'+fragment+'</body></html>';
+fs.writeFileSync(path.resolve(__dirname,'../preview.html'),standalone);

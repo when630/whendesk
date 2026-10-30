@@ -1,0 +1,11 @@
+/* 주 메뉴는 화면만 고르고 Work 분류는 작업 화면 안에서 전환한다. */
+#whendesk-command-first .td-nav>.td-nav-calendar{margin-top:0}
+#whendesk-command-first .td-nav>button>span{white-space:nowrap}
+#whendesk-command-first .td-main>.td-work-nav{display:flex;align-items:center;gap:23px;min-width:0;overflow-x:auto;margin:-8px 0 18px;border-bottom:1px solid var(--td-line);scrollbar-width:none}
+#whendesk-command-first .td-main>.td-work-nav[hidden]{display:none}
+#whendesk-command-first .td-work-nav>button{display:flex;align-items:center;justify-content:center;gap:6px;flex:0 0 auto;padding:11px 0 12px;font-size:12px;white-space:nowrap;border-bottom:2px solid transparent;color:var(--td-muted);border-radius:0}
+#whendesk-command-first .td-work-nav>button small{font-size:10px;color:var(--td-muted)}
+#whendesk-command-first .td-work-nav>button.active{border-bottom-color:var(--td-text);color:var(--td-text);background:transparent}
+#whendesk-command-first .td-work-nav>button:hover{background:transparent}
+@media(max-width:850px){#whendesk-command-first .td-main>.td-work-nav{gap:18px}}
+@media(max-width:650px){#whendesk-command-first .td-main>.td-work-nav{gap:14px}#whendesk-command-first .td-work-nav>button{font-size:11px;gap:4px}}

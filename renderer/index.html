@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'">
+  <title>WHENDESK</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="minimal.css">
+  <link rel="stylesheet" href="notes.css">
+  <link rel="stylesheet" href="nav.css">
+  <link rel="stylesheet" href="work.css">
+  <link rel="stylesheet" href="focus.css">
+</head>
+<body>
+<div id="whendesk-command-first" aria-label="WHENDESK" class="is-command">
+  <div class="td-app" data-skin="base">
+    <span class="cf-entry-name" hidden>WHENCOMMAND</span>
+    <section id="cf-command-panel" aria-label="WHENCOMMAND" class="cf-command-panel"><div class="td-command"><span class="command-brand" aria-hidden="true">w.</span><input aria-label="WHENCOMMAND 검색 및 실행" role="combobox" aria-autocomplete="list" aria-controls="command-results" aria-expanded="false" placeholder="검색 또는 실행" autocomplete="off" spellcheck="false"><div class="td-media" role="group" aria-label="미디어 제어" hidden></div></div><div id="command-results" class="td-command-results" role="listbox" aria-label="검색 결과"></div><div id="command-actions" class="command-actions" hidden></div><div class="command-output" hidden></div></section>
+    <section id="cf-dashboard-panel" aria-label="대시보드 작업 공간" hidden><div class="td-layout"><aside class="td-sidebar"></aside><main class="td-main"><div class="td-main-head"></div><form class="td-quick"><i data-lucide="plus"></i><input aria-label="빠르게 할 일 담기" placeholder="InBox에 담기" autocomplete="off"><button type="submit" aria-label="인박스에 추가"><i data-lucide="corner-down-left"></i></button></form><div class="td-body"></div></main><aside class="td-calendar-side" aria-label="캘린더"></aside></div></section>
+    <footer class="td-footer" hidden><span></span></footer>
+    <div class="td-modal-layer" hidden></div><div class="td-feedback" role="status" aria-live="polite" hidden></div>
+    <div class="minimal-help-layer" hidden></div>
+  </div>
+</div>
+<script src="lucide.js"></script>
+<script src="md.js"></script>
+<script src="notes.js"></script>
+<script src="../modules/work/renderer/view.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

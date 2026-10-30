@@ -1,0 +1,62 @@
+/* 메모는 같은 글꼴·색 토큰과 얇은 구분선을 사용한다. */
+#whendesk-command-first .desk-notes{display:grid;grid-template-columns:minmax(180px,28%) minmax(0,1fr);gap:26px;min-height:460px;height:calc(100dvh - 166px);font:13px/1.7 var(--td-font);color:var(--td-text)}
+#whendesk-command-first .desk-notes :where(button,input,select,textarea){font:inherit;color:inherit}
+#whendesk-command-first .desk-notes-browser{display:flex;flex-direction:column;min-width:0;min-height:0;border-right:1px solid var(--td-line);padding-right:20px}
+#whendesk-command-first .desk-notes-search{display:flex;align-items:center;gap:8px;padding:0 0 11px;border-bottom:1px solid var(--td-line)}
+#whendesk-command-first .desk-notes-search>svg{width:15px;height:15px;color:var(--td-muted)}
+#whendesk-command-first .desk-notes-search input{width:100%;min-width:0;border:0;background:none;padding:4px 0;font-size:13px}
+#whendesk-command-first .desk-notes-search>button{display:grid;place-items:center;width:27px;height:27px;flex-shrink:0;border-radius:var(--td-radius)}
+#whendesk-command-first .desk-notes-list-head{display:flex;align-items:center;justify-content:space-between;padding:13px 0 9px;gap:10px;font-size:11px;color:var(--td-muted)}
+#whendesk-command-first .desk-notes-list-head select{background:var(--td-surface);border:0;border-radius:var(--td-radius);padding:4px 0;max-width:125px;font-size:12px}
+#whendesk-command-first .desk-notes-list{overflow:auto;min-height:60px;flex:1;scrollbar-width:thin;outline-offset:2px}
+#whendesk-command-first .desk-notes-list .desk-note-row{display:block;width:100%;padding:13px 10px;text-align:left;border-bottom:1px solid var(--td-line);border-radius:var(--td-radius);margin-bottom:2px;background:none}
+#whendesk-command-first .desk-notes-list .desk-note-row.selected{background:var(--td-wash)}
+#whendesk-command-first .desk-note-row-title{display:flex;align-items:center;gap:7px;overflow:hidden;font-size:13px}
+#whendesk-command-first .desk-note-row-title>span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#whendesk-command-first .desk-note-row-title svg{width:11px;height:11px;color:var(--td-muted);flex-shrink:0}
+#whendesk-command-first .desk-note-row>small{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-top:5px;font-size:11px;line-height:1.6;color:var(--td-muted);white-space:normal;overflow-wrap:anywhere}
+#whendesk-command-first .desk-note-row-tags{display:block;margin-top:5px;font-size:10px;color:var(--td-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#whendesk-command-first .desk-notes-empty{padding:22px 9px;color:var(--td-muted);font-size:12px}
+#whendesk-command-first .desk-notes-tags{display:flex;flex-wrap:wrap;gap:5px 9px;padding-top:17px;margin-top:12px;border-top:1px solid var(--td-line);max-height:95px;overflow:auto;scrollbar-width:thin}
+#whendesk-command-first .desk-notes-tags:empty{display:none}
+#whendesk-command-first .desk-notes-tags button,#whendesk-command-first .desk-note-meta button{font-size:11px;color:var(--td-muted);border-radius:var(--td-radius);padding:2px}
+#whendesk-command-first .desk-note-editor{min-width:0;min-height:0;display:flex;flex-direction:column}
+#whendesk-command-first [data-note-content]{display:flex;flex:1;flex-direction:column;min-height:0}
+#whendesk-command-first .desk-note-placeholder{color:var(--td-muted);font-size:12px;padding:10px 0}
+#whendesk-command-first .desk-note-toolbar{display:flex;align-items:center;gap:15px;padding-bottom:15px;border-bottom:1px solid var(--td-line);min-height:43px}
+#whendesk-command-first .desk-note-title{flex:1;min-width:0;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#whendesk-command-first .desk-note-tools{display:flex;align-items:center;gap:3px;flex-wrap:wrap;justify-content:flex-end}
+#whendesk-command-first .desk-note-tools button{display:grid;place-items:center;width:27px;height:27px;border-radius:var(--td-radius);color:var(--td-muted)}
+#whendesk-command-first .desk-note-tools button[aria-pressed=true]{background:var(--td-wash);color:var(--td-text)}
+#whendesk-command-first .desk-note-body{display:block;width:100%;flex:1;min-height:260px;resize:none;border:0;background:none;padding:20px 2px 15px;line-height:1.9;font-size:14px;outline-offset:2px;scrollbar-width:thin}
+#whendesk-command-first .desk-note-body:read-only{color:var(--td-muted)}
+#whendesk-command-first .desk-note-preview{flex:1;min-height:260px;overflow:auto;padding:20px 3px 15px;line-height:1.9;font-size:14px;overflow-wrap:anywhere;scrollbar-width:thin}
+#whendesk-command-first .desk-note-preview>:first-child{margin-top:0}
+#whendesk-command-first .desk-note-preview :where(p,ul,ol,blockquote,pre){margin:0 0 15px}
+#whendesk-command-first .desk-note-preview :where(h2,h3,h4,h5,h6){font-weight:500;line-height:1.5;margin:22px 0 11px}
+#whendesk-command-first .desk-note-preview h2{font-size:23px}
+#whendesk-command-first .desk-note-preview h3{font-size:19px}
+#whendesk-command-first .desk-note-preview :where(h4,h5,h6){font-size:16px}
+#whendesk-command-first .desk-note-preview :where(ul,ol){padding-left:22px}
+#whendesk-command-first .desk-note-preview li{padding:2px 0}
+#whendesk-command-first .desk-note-preview li.task{list-style:none;margin-left:-18px;display:flex;align-items:flex-start;gap:8px}
+#whendesk-command-first .desk-note-preview li.task input{margin-top:7px;accent-color:var(--td-accent)}
+#whendesk-command-first .desk-note-preview li.task.done>span{text-decoration:line-through;color:var(--td-muted)}
+#whendesk-command-first .desk-note-preview blockquote{border-left:2px solid var(--td-line);padding-left:15px;color:var(--td-muted)}
+#whendesk-command-first .desk-note-preview code{font:12px/1.7 Consolas,monospace;background:var(--td-wash);border-radius:var(--td-radius);padding:2px 4px}
+#whendesk-command-first .desk-note-preview pre{background:var(--td-wash);border-radius:var(--td-radius);padding:14px;overflow:auto}
+#whendesk-command-first .desk-note-preview pre code{padding:0;background:none}
+#whendesk-command-first .desk-note-preview a{color:var(--td-accent);text-decoration:underline;text-underline-offset:3px;cursor:pointer;border-radius:2px}
+#whendesk-command-first .desk-note-preview a.tag{font-size:12px;color:var(--td-muted)}
+#whendesk-command-first .desk-note-preview hr{border:0;border-top:1px solid var(--td-line);margin:20px 0}
+#whendesk-command-first .desk-note-preview .desk-note-image{display:block;border:0;background:none;padding:0;max-width:100%;border-radius:var(--td-radius);margin:7px 0}
+#whendesk-command-first .desk-note-image img{display:block;max-width:100%;height:auto;max-height:480px;object-fit:contain;border-radius:var(--td-radius)}
+#whendesk-command-first .desk-note-meta{display:flex;justify-content:space-between;gap:12px;border-top:1px solid var(--td-line);padding:12px 0 0;color:var(--td-muted);font-size:10px;min-height:34px}
+#whendesk-command-first [data-note-meta]{display:flex;align-items:center;flex-wrap:wrap;gap:5px 10px}
+#whendesk-command-first .desk-note-save{white-space:nowrap}
+#whendesk-command-first .desk-note-save.is-error{color:light-dark(#a35b4b,#dca495)}
+#whendesk-command-first .desk-note-links{display:flex;align-items:center;flex-wrap:wrap;gap:8px;font-size:11px;margin-top:12px;color:var(--td-muted)}
+#whendesk-command-first .desk-note-links:empty{display:none}
+#whendesk-command-first .desk-note-links button{padding:3px 5px;color:var(--td-accent);border-radius:var(--td-radius)}
+@media(max-width:900px){#whendesk-command-first .desk-notes{grid-template-columns:190px minmax(0,1fr);gap:20px}#whendesk-command-first .desk-notes-browser{padding-right:15px}#whendesk-command-first .desk-note-toolbar{align-items:flex-start;flex-direction:column;gap:8px}#whendesk-command-first .desk-note-title{width:100%}#whendesk-command-first .desk-note-tools{justify-content:flex-start}}
+@media(max-width:650px){#whendesk-command-first .desk-notes{height:auto;min-height:650px;grid-template-columns:minmax(0,1fr);gap:24px}#whendesk-command-first .desk-notes-browser{border-right:0;border-bottom:1px solid var(--td-line);padding:0 0 20px;max-height:270px}#whendesk-command-first .desk-note-toolbar{flex-direction:row;align-items:center}#whendesk-command-first .desk-note-body,#whendesk-command-first .desk-note-preview{min-height:360px}#whendesk-command-first .desk-note-title{width:auto}}

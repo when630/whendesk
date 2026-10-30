@@ -1,0 +1,102 @@
+{
+  "layoutChecks": [
+    {
+      "width": 1024,
+      "view": "home"
+    },
+    {
+      "width": 1024,
+      "view": "work"
+    },
+    {
+      "width": 1024,
+      "view": "note"
+    },
+    {
+      "width": 1024,
+      "view": "calendar"
+    },
+    {
+      "width": 1024,
+      "view": "command"
+    },
+    {
+      "width": 1024,
+      "view": "settings"
+    },
+    {
+      "width": 736,
+      "view": "home"
+    },
+    {
+      "width": 736,
+      "view": "work"
+    },
+    {
+      "width": 736,
+      "view": "note"
+    },
+    {
+      "width": 736,
+      "view": "calendar"
+    },
+    {
+      "width": 736,
+      "view": "command"
+    },
+    {
+      "width": 736,
+      "view": "settings"
+    },
+    {
+      "width": 390,
+      "view": "home"
+    },
+    {
+      "width": 390,
+      "view": "work"
+    },
+    {
+      "width": 390,
+      "view": "note"
+    },
+    {
+      "width": 390,
+      "view": "calendar"
+    },
+    {
+      "width": 390,
+      "view": "command"
+    },
+    {
+      "width": 390,
+      "view": "settings"
+    },
+    {
+      "width": 320,
+      "view": "home"
+    },
+    {
+      "width": 320,
+      "view": "work"
+    },
+    {
+      "width": 320,
+      "view": "note"
+    },
+    {
+      "width": 320,
+      "view": "calendar"
+    },
+    {
+      "width": 320,
+      "view": "command"
+    },
+    {
+      "width": 320,
+      "view": "settings"
+    }
+  ],
+  "interactions": "메모 유지, 스킨/모드, 메모→할 일→일정, 일정→회의록, Command 키보드, 계산",
+  "errors": []
+}

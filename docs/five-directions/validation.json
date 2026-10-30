@@ -1,0 +1,332 @@
+{
+  "layouts": [
+    {
+      "id": "overview",
+      "width": 1024,
+      "mode": "light",
+      "height": 903,
+      "overflow": false,
+      "ownOverflow": false
+    },
+    {
+      "id": "overview",
+      "width": 1024,
+      "mode": "dark",
+      "height": 903,
+      "overflow": false,
+      "ownOverflow": false
+    },
+    {
+      "id": "overview",
+      "width": 736,
+      "mode": "light",
+      "height": 903,
+      "overflow": false,
+      "ownOverflow": false
+    },
+    {
+      "id": "overview",
+      "width": 736,
+      "mode": "dark",
+      "height": 903,
+      "overflow": false,
+      "ownOverflow": false
+    },
+    {
+      "id": "overview",
+      "width": 390,
+      "mode": "light",
+      "height": 1692,
+      "overflow": false,
+      "ownOverflow": false
+    },
+    {
+      "id": "overview",
+      "width": 390,
+      "mode": "dark",
+      "height": 1692,
+      "overflow": false,
+      "ownOverflow": false
+    },
+    {
+      "id": "overview",
+      "width": 320,
+      "mode": "light",
+      "height": 1693,
+      "overflow": false,
+      "ownOverflow": false
+    },
+    {
+      "id": "overview",
+      "width": 320,
+      "mode": "dark",
+      "height": 1693,
+      "overflow": false,
+      "ownOverflow": false
+    },
+    {
+      "id": "focus",
+      "width": 1024,
+      "mode": "light",
+      "height": 903,
+      "overflow": false,
+      "ownOverflow": false
+    },
+    {
+      "id": "focus",
+      "width": 1024,
+      "mode": "dark",
+      "height": 903,
+      "overflow": false,
+      "ownOverflow": false
+    },
+    {
+      "id": "focus",
+      "width": 736,
+      "mode": "light",
+      "height": 903,
+      "overflow": false,
+      "ownOverflow": false
+    },
+    {
+      "id": "focus",
+      "width": 736,
+      "mode": "dark",
+      "height": 903,
+      "overflow": false,
+      "ownOverflow": false
+    },
+    {
+      "id": "focus",
+      "width": 390,
+      "mode": "light",
+      "height": 1692,
+      "overflow": false,
+      "ownOverflow": false
+    },
+    {
+      "id": "focus",
+      "width": 390,
+      "mode": "dark",
+      "height": 1692,
+      "overflow": false,
+      "ownOverflow": false
+    },
+    {
+      "id": "focus",
+      "width": 320,
+      "mode": "light",
+      "height": 1693,
+      "overflow": false,
+      "ownOverflow": false
+    },
+    {
+      "id": "focus",
+      "width": 320,
+      "mode": "dark",
+      "height": 1693,
+      "overflow": false,
+      "ownOverflow": false
+    },
+    {
+      "id": "paper",
+      "width": 1024,
+      "mode": "light",
+      "height": 903,
+      "overflow": false,
+      "ownOverflow": false
+    },
+    {
+      "id": "paper",
+      "width": 1024,
+      "mode": "dark",
+      "height": 903,
+      "overflow": false,
+      "ownOverflow": false
+    },
+    {
+      "id": "paper",
+      "width": 736,
+      "mode": "light",
+      "height": 903,
+      "overflow": false,
+      "ownOverflow": false
+    },
+    {
+      "id": "paper",
+      "width": 736,
+      "mode": "dark",
+      "height": 903,
+      "overflow": false,
+      "ownOverflow": false
+    },
+    {
+      "id": "paper",
+      "width": 390,
+      "mode": "light",
+      "height": 1692,
+      "overflow": false,
+      "ownOverflow": false
+    },
+    {
+      "id": "paper",
+      "width": 390,
+      "mode": "dark",
+      "height": 1692,
+      "overflow": false,
+      "ownOverflow": false
+    },
+    {
+      "id": "paper",
+      "width": 320,
+      "mode": "light",
+      "height": 1693,
+      "overflow": false,
+      "ownOverflow": false
+    },
+    {
+      "id": "paper",
+      "width": 320,
+      "mode": "dark",
+      "height": 1693,
+      "overflow": false,
+      "ownOverflow": false
+    },
+    {
+      "id": "timeline",
+      "width": 1024,
+      "mode": "light",
+      "height": 903,
+      "overflow": false,
+      "ownOverflow": false
+    },
+    {
+      "id": "timeline",
+      "width": 1024,
+      "mode": "dark",
+      "height": 903,
+      "overflow": false,
+      "ownOverflow": false
+    },
+    {
+      "id": "timeline",
+      "width": 736,
+      "mode": "light",
+      "height": 903,
+      "overflow": false,
+      "ownOverflow": false
+    },
+    {
+      "id": "timeline",
+      "width": 736,
+      "mode": "dark",
+      "height": 903,
+      "overflow": false,
+      "ownOverflow": false
+    },
+    {
+      "id": "timeline",
+      "width": 390,
+      "mode": "light",
+      "height": 1692,
+      "overflow": false,
+      "ownOverflow": false
+    },
+    {
+      "id": "timeline",
+      "width": 390,
+      "mode": "dark",
+      "height": 1692,
+      "overflow": false,
+      "ownOverflow": false
+    },
+    {
+      "id": "timeline",
+      "width": 320,
+      "mode": "light",
+      "height": 1693,
+      "overflow": false,
+      "ownOverflow": false
+    },
+    {
+      "id": "timeline",
+      "width": 320,
+      "mode": "dark",
+      "height": 1693,
+      "overflow": false,
+      "ownOverflow": false
+    },
+    {
+      "id": "launcher",
+      "width": 1024,
+      "mode": "light",
+      "height": 903,
+      "overflow": false,
+      "ownOverflow": false
+    },
+    {
+      "id": "launcher",
+      "width": 1024,
+      "mode": "dark",
+      "height": 903,
+      "overflow": false,
+      "ownOverflow": false
+    },
+    {
+      "id": "launcher",
+      "width": 736,
+      "mode": "light",
+      "height": 903,
+      "overflow": false,
+      "ownOverflow": false
+    },
+    {
+      "id": "launcher",
+      "width": 736,
+      "mode": "dark",
+      "height": 903,
+      "overflow": false,
+      "ownOverflow": false
+    },
+    {
+      "id": "launcher",
+      "width": 390,
+      "mode": "light",
+      "height": 1692,
+      "overflow": false,
+      "ownOverflow": false
+    },
+    {
+      "id": "launcher",
+      "width": 390,
+      "mode": "dark",
+      "height": 1692,
+      "overflow": false,
+      "ownOverflow": false
+    },
+    {
+      "id": "launcher",
+      "width": 320,
+      "mode": "light",
+      "height": 1693,
+      "overflow": false,
+      "ownOverflow": false
+    },
+    {
+      "id": "launcher",
+      "width": 320,
+      "mode": "dark",
+      "height": 1693,
+      "overflow": false,
+      "ownOverflow": false
+    }
+  ],
+  "interactions": [
+    "overview: 완료 처리·일정→회의록",
+    "focus: 완료 처리·일정→회의록",
+    "페이퍼: 편집·모드 변경·할 일 연결",
+    "timeline: 완료 처리·일정→회의록",
+    "런처: 검색·키보드·새 작업"
+  ],
+  "errors": []
+}

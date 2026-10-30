@@ -1,0 +1,6 @@
+node_modules/
+.local/
+dist/
+test-output/
+test/.tmp/
+*.log

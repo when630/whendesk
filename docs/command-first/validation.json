@@ -1,0 +1,821 @@
+{
+  "source": "C:/Users/forcs/.codex/visualizations/2026/10/29/01a1860c-0520-7d53-936d-87f34eb0196d/whendesk-command-first.html",
+  "tests": [
+    {
+      "name": "기본은 compact Command·자동 입력 포커스·실제 Tab으로 펼치기",
+      "ok": true
+    },
+    {
+      "name": "Command 검색어·선택 결과·caret의 Tab/Esc 왕복 보존",
+      "ok": true
+    },
+    {
+      "name": "할 일 편집 중 Ctrl K→Command→Tab 복귀 시 DOM·내용·caret 유지",
+      "ok": true
+    },
+    {
+      "name": "대시보드 입력 필드의 Tab은 정상 필드 이동",
+      "ok": true
+    },
+    {
+      "name": "일정 모달 Esc 닫기 다음 Esc Command로 복귀",
+      "ok": true
+    },
+    {
+      "name": "대시보드→할 일·인박스·대기·캘린더 기존 메뉴 이동",
+      "ok": true
+    },
+    {
+      "name": "WHENCOMMAND 초성 검색·계산·추가·결과 키보드",
+      "ok": true
+    },
+    {
+      "name": "Command 일정 검색→modal→Esc 두 단계 복귀",
+      "ok": true
+    },
+    {
+      "name": "스킨·모드와 캘린더 날짜 변경 시 편집 DOM 보존",
+      "ok": true
+    },
+    {
+      "name": "반응형 4폭×4화면×3스킨×2모드 가로넘침 없음",
+      "ok": true
+    },
+    {
+      "name": "범위·키보드 안내·화면 탭 없음",
+      "ok": true
+    }
+  ],
+  "layouts": [
+    {
+      "width": 1024,
+      "view": "command",
+      "mode": "light",
+      "skin": "base",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 1024,
+      "view": "command",
+      "mode": "light",
+      "skin": "ink",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 1024,
+      "view": "command",
+      "mode": "light",
+      "skin": "paper",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 1024,
+      "view": "command",
+      "mode": "dark",
+      "skin": "base",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 1024,
+      "view": "command",
+      "mode": "dark",
+      "skin": "ink",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 1024,
+      "view": "command",
+      "mode": "dark",
+      "skin": "paper",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 1024,
+      "view": "dashboard",
+      "mode": "light",
+      "skin": "base",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 1024,
+      "view": "dashboard",
+      "mode": "light",
+      "skin": "ink",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 1024,
+      "view": "dashboard",
+      "mode": "light",
+      "skin": "paper",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 1024,
+      "view": "dashboard",
+      "mode": "dark",
+      "skin": "base",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 1024,
+      "view": "dashboard",
+      "mode": "dark",
+      "skin": "ink",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 1024,
+      "view": "dashboard",
+      "mode": "dark",
+      "skin": "paper",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 1024,
+      "view": "tasks",
+      "mode": "light",
+      "skin": "base",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 1024,
+      "view": "tasks",
+      "mode": "light",
+      "skin": "ink",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 1024,
+      "view": "tasks",
+      "mode": "light",
+      "skin": "paper",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 1024,
+      "view": "tasks",
+      "mode": "dark",
+      "skin": "base",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 1024,
+      "view": "tasks",
+      "mode": "dark",
+      "skin": "ink",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 1024,
+      "view": "tasks",
+      "mode": "dark",
+      "skin": "paper",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 1024,
+      "view": "calendar",
+      "mode": "light",
+      "skin": "base",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 1024,
+      "view": "calendar",
+      "mode": "light",
+      "skin": "ink",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 1024,
+      "view": "calendar",
+      "mode": "light",
+      "skin": "paper",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 1024,
+      "view": "calendar",
+      "mode": "dark",
+      "skin": "base",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 1024,
+      "view": "calendar",
+      "mode": "dark",
+      "skin": "ink",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 1024,
+      "view": "calendar",
+      "mode": "dark",
+      "skin": "paper",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 736,
+      "view": "command",
+      "mode": "light",
+      "skin": "base",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 736,
+      "view": "command",
+      "mode": "light",
+      "skin": "ink",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 736,
+      "view": "command",
+      "mode": "light",
+      "skin": "paper",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 736,
+      "view": "command",
+      "mode": "dark",
+      "skin": "base",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 736,
+      "view": "command",
+      "mode": "dark",
+      "skin": "ink",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 736,
+      "view": "command",
+      "mode": "dark",
+      "skin": "paper",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 736,
+      "view": "dashboard",
+      "mode": "light",
+      "skin": "base",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 736,
+      "view": "dashboard",
+      "mode": "light",
+      "skin": "ink",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 736,
+      "view": "dashboard",
+      "mode": "light",
+      "skin": "paper",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 736,
+      "view": "dashboard",
+      "mode": "dark",
+      "skin": "base",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 736,
+      "view": "dashboard",
+      "mode": "dark",
+      "skin": "ink",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 736,
+      "view": "dashboard",
+      "mode": "dark",
+      "skin": "paper",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 736,
+      "view": "tasks",
+      "mode": "light",
+      "skin": "base",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 736,
+      "view": "tasks",
+      "mode": "light",
+      "skin": "ink",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 736,
+      "view": "tasks",
+      "mode": "light",
+      "skin": "paper",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 736,
+      "view": "tasks",
+      "mode": "dark",
+      "skin": "base",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 736,
+      "view": "tasks",
+      "mode": "dark",
+      "skin": "ink",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 736,
+      "view": "tasks",
+      "mode": "dark",
+      "skin": "paper",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 736,
+      "view": "calendar",
+      "mode": "light",
+      "skin": "base",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 736,
+      "view": "calendar",
+      "mode": "light",
+      "skin": "ink",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 736,
+      "view": "calendar",
+      "mode": "light",
+      "skin": "paper",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 736,
+      "view": "calendar",
+      "mode": "dark",
+      "skin": "base",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 736,
+      "view": "calendar",
+      "mode": "dark",
+      "skin": "ink",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 736,
+      "view": "calendar",
+      "mode": "dark",
+      "skin": "paper",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 390,
+      "view": "command",
+      "mode": "light",
+      "skin": "base",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 390,
+      "view": "command",
+      "mode": "light",
+      "skin": "ink",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 390,
+      "view": "command",
+      "mode": "light",
+      "skin": "paper",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 390,
+      "view": "command",
+      "mode": "dark",
+      "skin": "base",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 390,
+      "view": "command",
+      "mode": "dark",
+      "skin": "ink",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 390,
+      "view": "command",
+      "mode": "dark",
+      "skin": "paper",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 390,
+      "view": "dashboard",
+      "mode": "light",
+      "skin": "base",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 390,
+      "view": "dashboard",
+      "mode": "light",
+      "skin": "ink",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 390,
+      "view": "dashboard",
+      "mode": "light",
+      "skin": "paper",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 390,
+      "view": "dashboard",
+      "mode": "dark",
+      "skin": "base",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 390,
+      "view": "dashboard",
+      "mode": "dark",
+      "skin": "ink",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 390,
+      "view": "dashboard",
+      "mode": "dark",
+      "skin": "paper",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 390,
+      "view": "tasks",
+      "mode": "light",
+      "skin": "base",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 390,
+      "view": "tasks",
+      "mode": "light",
+      "skin": "ink",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 390,
+      "view": "tasks",
+      "mode": "light",
+      "skin": "paper",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 390,
+      "view": "tasks",
+      "mode": "dark",
+      "skin": "base",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 390,
+      "view": "tasks",
+      "mode": "dark",
+      "skin": "ink",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 390,
+      "view": "tasks",
+      "mode": "dark",
+      "skin": "paper",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 390,
+      "view": "calendar",
+      "mode": "light",
+      "skin": "base",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 390,
+      "view": "calendar",
+      "mode": "light",
+      "skin": "ink",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 390,
+      "view": "calendar",
+      "mode": "light",
+      "skin": "paper",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 390,
+      "view": "calendar",
+      "mode": "dark",
+      "skin": "base",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 390,
+      "view": "calendar",
+      "mode": "dark",
+      "skin": "ink",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 390,
+      "view": "calendar",
+      "mode": "dark",
+      "skin": "paper",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 320,
+      "view": "command",
+      "mode": "light",
+      "skin": "base",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 320,
+      "view": "command",
+      "mode": "light",
+      "skin": "ink",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 320,
+      "view": "command",
+      "mode": "light",
+      "skin": "paper",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 320,
+      "view": "command",
+      "mode": "dark",
+      "skin": "base",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 320,
+      "view": "command",
+      "mode": "dark",
+      "skin": "ink",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 320,
+      "view": "command",
+      "mode": "dark",
+      "skin": "paper",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 320,
+      "view": "dashboard",
+      "mode": "light",
+      "skin": "base",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 320,
+      "view": "dashboard",
+      "mode": "light",
+      "skin": "ink",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 320,
+      "view": "dashboard",
+      "mode": "light",
+      "skin": "paper",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 320,
+      "view": "dashboard",
+      "mode": "dark",
+      "skin": "base",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 320,
+      "view": "dashboard",
+      "mode": "dark",
+      "skin": "ink",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 320,
+      "view": "dashboard",
+      "mode": "dark",
+      "skin": "paper",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 320,
+      "view": "tasks",
+      "mode": "light",
+      "skin": "base",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 320,
+      "view": "tasks",
+      "mode": "light",
+      "skin": "ink",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 320,
+      "view": "tasks",
+      "mode": "light",
+      "skin": "paper",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 320,
+      "view": "tasks",
+      "mode": "dark",
+      "skin": "base",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 320,
+      "view": "tasks",
+      "mode": "dark",
+      "skin": "ink",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 320,
+      "view": "tasks",
+      "mode": "dark",
+      "skin": "paper",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 320,
+      "view": "calendar",
+      "mode": "light",
+      "skin": "base",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 320,
+      "view": "calendar",
+      "mode": "light",
+      "skin": "ink",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 320,
+      "view": "calendar",
+      "mode": "light",
+      "skin": "paper",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 320,
+      "view": "calendar",
+      "mode": "dark",
+      "skin": "base",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 320,
+      "view": "calendar",
+      "mode": "dark",
+      "skin": "ink",
+      "documentOverflow": false,
+      "appOverflow": false
+    },
+    {
+      "width": 320,
+      "view": "calendar",
+      "mode": "dark",
+      "skin": "paper",
+      "documentOverflow": false,
+      "appOverflow": false
+    }
+  ],
+  "errors": [],
+  "failed": 0
+}

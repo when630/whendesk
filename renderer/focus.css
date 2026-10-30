@@ -1,0 +1,26 @@
+/* 포커스 위치는 배경과 글자로 표시한다. 어느 스킨·모드에서도 외곽선을 그리지 않는다. */
+#whendesk-command-first .td-app :is(:focus,:focus-visible,:active){
+  outline:none!important;
+  outline-width:0!important;
+  outline-offset:0!important;
+  box-shadow:none!important;
+}
+#whendesk-command-first .td-app :is(input,select,textarea,button,a,[tabindex]){
+  -webkit-tap-highlight-color:transparent;
+}
+#whendesk-command-first .td-app button:not(.td-primary):not([role=tab]):focus-visible,
+#whendesk-command-first .td-app :is([data-task-row],[data-work-project-row],.td-day,.desk-note-row):focus-visible{
+  background-color:var(--td-wash);
+  color:var(--td-text);
+}
+#whendesk-command-first .td-app :is(input:not([type=checkbox]):not([type=radio]),select,textarea):focus-visible{
+  background-color:color-mix(in srgb,var(--td-wash) 45%,var(--td-surface));
+}
+#whendesk-command-first .td-app a:focus-visible{
+  color:var(--td-text);
+  background-color:var(--td-wash);
+}
+#whendesk-command-first .cf-command-panel .td-command input:is(:focus,:focus-visible,:active),
+#whendesk-command-first .desk-note-body:is(:focus,:focus-visible,:active){
+  background:none;
+}
