@@ -74,7 +74,7 @@ Command에서 Esc를 누르거나 시스템에서 창을 닫으면 트레이로 
 
 ## 검증
 
-- `npm test`: 저장·재시작·큐·반복 일정·구독·ICS·백업·복원·검색 엔진 테스트
+- `npm test`: 저장·재시작·큐·반복 일정·구독·ICS·백업·복원·검색 엔진 테스트와 키맵(`renderer/keymap.js`) 충돌·미사용 항목 검사
 - `node tools/e2e-desktop.cjs`: 실제 Electron의 Tab/Esc·데이터 저장·캘린더·외관·클립보드·재시작 테스트
 - `node tools/e2e-minimal.cjs`: Ctrl+/ 도움말·초안·커서·대시보드 크기·스킨/모드 보존 검사
 - `node tools/e2e-command.cjs`: 실제 개발 렌더러·검색 엔진으로 보조 동작·검색 경합·IME·단축키 설정 검사. OS 실행과 미디어·클립보드 효과는 기록만 합니다.

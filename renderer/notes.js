@@ -300,37 +300,40 @@
     }
     function handleKeydown(event) {
       if (!state.active || !element.isConnected || event.isComposing || event.keyCode === 229) return false;
-      const mod = event.ctrlKey || event.metaKey, key = event.code || '', inEditor = event.target === editor, inList = event.target === search || list.contains(event.target) || event.target === list;
+      const K = window.WhendeskKeys, mod = event.ctrlKey || event.metaKey, inEditor = event.target === editor, inList = event.target === search || list.contains(event.target) || event.target === list;
       const consume = action => { event.preventDefault(); if (!event.repeat) safe(action); return true; };
-      if (mod && !event.altKey && !event.shiftKey && (key === 'KeyN' || event.key.toLowerCase() === 'n')) return consume(() => newNote());
-      if (mod && !event.altKey && !event.shiftKey && (key === 'KeyF' || event.key.toLowerCase() === 'f')) return consume(() => { search.focus({preventScroll:true}); search.select(); });
-      if (mod && !event.altKey && !event.shiftKey && (key === 'KeyS' || event.key.toLowerCase() === 's')) return consume(flush);
-      if (mod && !event.altKey && !event.shiftKey && (key === 'KeyE' || event.key.toLowerCase() === 'e') && state.note) return consume(() => setPreview(!state.preview));
-      if (mod && !event.altKey && !event.shiftKey && (key === 'KeyP' || event.key.toLowerCase() === 'p')) return consume(() => toggleFlag('note.pin'));
-      if (mod && !event.altKey && event.shiftKey && (key === 'KeyA' || event.key.toLowerCase() === 'a')) return consume(() => toggleFlag('note.archive'));
-      if (mod && !event.altKey && event.shiftKey && (key === 'KeyI' || event.key.toLowerCase() === 'i')) return consume(attachFile);
-      if (mod && !event.altKey && event.shiftKey && (key === 'KeyE' || event.key.toLowerCase() === 'e')) return consume(exportNote);
-      const scopeKey = {KeyM:'active',KeyB:'archived',KeyT:'trash'}[key];
-      if (mod && !event.altKey && event.shiftKey && scopeKey) return consume(() => setScope(scopeKey));
-      if (mod && !event.altKey && event.shiftKey && (key === 'KeyZ' || event.key.toLowerCase() === 'z') && !textField(event.target) && (state.undo || state.scope === 'trash')) return consume(() => state.undo ? restore(state.undo.id,{scope:state.undo.scope}) : restore(state.selectedId));
-      if (event.key === 'Escape') {
+      if (K.is(event,'app.new')) return consume(() => newNote());
+      if (K.is(event,'note.search')) return consume(() => { search.focus({preventScroll:true}); search.select(); });
+      if (K.is(event,'app.save')) return consume(flush);
+      if (K.is(event,'note.preview') && state.note) return consume(() => setPreview(!state.preview));
+      if (K.is(event,'note.pin')) return consume(() => toggleFlag('note.pin'));
+      if (K.is(event,'note.archive')) return consume(() => toggleFlag('note.archive'));
+      if (K.is(event,'note.attach')) return consume(attachFile);
+      if (K.is(event,'note.export')) return consume(exportNote);
+      const scopeAction = ['note.scope.active','note.scope.archived','note.scope.trash'].find(id => K.is(event,id));
+      if (scopeAction) return consume(() => setScope(K.find(scopeAction).scopeName));
+      if (K.is(event,'note.restore') && !textField(event.target) && (state.undo || state.scope === 'trash')) return consume(() => state.undo ? restore(state.undo.id,{scope:state.undo.scope}) : restore(state.selectedId));
+      if (K.is(event,'back')) {
         if ($('[data-note-content]').contains(event.target) && state.note) return consume(async () => { await flush(); focusList(); });
         if (event.target === search && search.value) return consume(async () => { state.query = ''; search.value = ''; await refresh(); search.focus({preventScroll:true}); });
         return false;
       }
       if (inEditor) return editList(event);
-      if (inList && !mod && !event.altKey && ['ArrowUp','ArrowDown'].includes(event.key)) {
-        if (event.shiftKey && !list.contains(event.target)) return false;
-        event.preventDefault();
-        if (event.shiftKey) { if (!event.repeat && isPinned(state.results.find(note => note.id === state.selectedId))) safe(async () => { await flush(); await mutate('note.reorder',{id:state.selectedId,direction:event.key === 'ArrowUp' ? -1 : 1}); await refresh({focus:list.contains(event.target)}); notify(); }); }
-        else select(event.key === 'ArrowUp' ? -1 : 1);
-        return true;
+      if (inList) {
+        const move = K.is(event,'note.up') ? -1 : K.is(event,'note.down') ? 1 : 0, reorder = K.is(event,'note.moveUp') ? -1 : K.is(event,'note.moveDown') ? 1 : 0;
+        if (reorder && !list.contains(event.target)) return false;
+        if (reorder) {
+          event.preventDefault();
+          if (!event.repeat && isPinned(state.results.find(note => note.id === state.selectedId))) safe(async () => { await flush(); await mutate('note.reorder',{id:state.selectedId,direction:reorder}); await refresh({focus:list.contains(event.target)}); notify(); });
+          return true;
+        }
+        if (move) { event.preventDefault(); select(move); return true; }
       }
-      if (list.contains(event.target) && !mod && !event.altKey && ['Home','End'].includes(event.key)) { event.preventDefault(); select(0,{edge:event.key === 'Home' ? 'first' : 'last'}); return true; }
-      if (inList && event.key === 'Enter' && !event.altKey) return consume(() => activateSelected({edit:!mod,createFromQuery:event.shiftKey}));
-      if (list.contains(event.target) && !textField(event.target) && event.key === 'Delete' && !event.altKey && !event.shiftKey && state.scope !== 'trash') return consume(() => remove(state.selectedId));
-      if (!textField(event.target) && event.key === 'Enter' && event.target.matches('a[role=button]')) { event.preventDefault(); event.target.click(); return true; }
-      if (!textField(event.target) && event.key === ' ' && event.target.matches('a[role=button]')) { event.preventDefault(); event.target.click(); return true; }
+      const edge = K.is(event,'note.first') ? 'first' : K.is(event,'note.last') ? 'last' : null;
+      if (list.contains(event.target) && edge) { event.preventDefault(); select(0,{edge}); return true; }
+      if (inList && K.is(event,'note.open')) return consume(() => activateSelected({edit:!mod,createFromQuery:event.shiftKey}));
+      if (list.contains(event.target) && !textField(event.target) && K.is(event,'note.delete') && state.scope !== 'trash') return consume(() => remove(state.selectedId));
+      if (!textField(event.target) && event.target.matches('a[role=button]') && K.is(event,'link.activate')) { event.preventDefault(); event.target.click(); return true; }
       return false;
     }
     element.addEventListener('input',event => {

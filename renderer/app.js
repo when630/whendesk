@@ -27,7 +27,7 @@
   let projectCursor = null;
   let workComposing = false;
   let workUndoTail = Promise.resolve();
-  const sectionKeys = {KeyH:'dashboard',KeyT:'todo',KeyI:'inbox',KeyW:'waiting',KeyD:'done',KeyN:'notes',KeyC:'calendar',KeyS:'settings'};
+  const K = window.WhendeskKeys;
   let writeQueue = Promise.resolve(), saveTimer, resizeTimer, feedbackTimer, undoAction, dashboardFocus, returnFocus, editingEvent, lastEventKey, refreshTimer, loading = false;
   let helpOpen = false, helpReturn = null;
   let dashboardReturn = null, taskCursor = null, modalReturnKey = null, modalReturnEditor = null;
@@ -119,9 +119,13 @@
     helpReturn = { element, start:element?.selectionStart, end:element?.selectionEnd, scroll:element?.scrollTop, height:window.outerHeight };
     helpOpen = true; clearTimeout(resizeTimer);
     cancelCommandActivation();
-    const row = (label, keys) => `<div><dt>${label}</dt><dd><kbd>${esc(keys)}</kbd></dd></div>`;
+    const row = (label, keys) => `<div><dt>${esc(label)}</dt><dd>${keys.map(key => `<kbd>${esc(key)}</kbd>`).join('')}</dd></div>`;
     const hotkey = key => String(key || '').replace(/CommandOrControl|Control/g, 'Ctrl');
-    helpLayer.innerHTML = `<section class="minimal-help" role="dialog" aria-modal="true" aria-label="단축키 안내"><div class="minimal-help-head"><h2>단축키</h2><button data-action="close-help" aria-label="단축키 안내 닫기">${icon('x')}</button></div><dl>${row('이 안내 열기 · 닫기', 'Ctrl + /')}${row('Command 열기', 'Ctrl + K')}</dl><h3>WHENCOMMAND</h3><dl>${row('대시보드 펼치기', 'Tab')}${row('검색 결과 선택', '↑ / ↓')}${row('선택한 결과 실행', 'Enter')}${row('보조 동작 실행', 'Ctrl + Enter')}${row('동작 목록 열기 · 닫기', 'Alt + Enter')}${row('검색어 전체 선택', 'Ctrl + K')}${state.media.sessions?.length ? row('입력에서 미디어 버튼으로 이동', 'Shift + Tab') : ''}</dl><h3>화면 이동</h3><dl>${row('Dashboard', 'Alt + H')}${row('Work · ToDo / InBox', 'Alt + T / I')}${row('Work · Waiting / Done', 'Alt + W / D')}${row('Note / Calendar', 'Alt + N / C')}${row('Settings', 'Alt + S')}${row('현재 화면에서 새 항목', 'Ctrl + N')}${row('저장 · 대화상자 저장', 'Ctrl + S')}${row('Work 분류 순환 · 입력 필드 이동', 'Tab / Shift + Tab')}${row('편집 → 목록 → Command', 'Esc')}</dl><h3>할 일 목록</h3><dl>${row('항목 선택', '↑ / ↓ · J / K · Home / End')}${row('검색 · 마감 필터 · 완료 기록', '/ · F · H')}${row('편집 · 완료', 'Enter / Space')}${row('제목 · 마감 · 상세 · 프로젝트', 'E / D / N / M')}${row('대기 상대 지정 · 재촉 기록', 'W / P · R')}${row('삭제 · 되돌리기', 'Delete / U')}${row('상세 편집 접기', 'Ctrl + Enter')}${row('프로젝트 추가', 'Ctrl + Shift + N')}</dl><h3>Projects</h3><dl>${row('프로젝트 추가 · 이름 수정', 'N / E')}${row('프로젝트 순서', 'Shift + ↑ / ↓')}${row('프로젝트 보관 · 보관함', 'Delete / U')}${row('보관된 프로젝트 복원', 'Enter')}</dl><h3>메모</h3><dl>${row('새 메모 · 검색 · 저장', 'Ctrl + N / F / S')}${row('편집 · 미리보기', 'Enter / Ctrl + E')}${row('고정 · 보관', 'Ctrl + P / Ctrl + Shift + A')}${row('메모 · 보관함 · 휴지통', 'Ctrl + Shift + M / B / T')}${row('목록에서 삭제 · 복원', 'Delete / Ctrl + Shift + Z')}${row('이미지 첨부 · Markdown 내보내기', 'Ctrl + Shift + I / E')}</dl><h3>캘린더</h3><dl>${row('날짜 이동 · 달 이동', '← ↑ ↓ → / Page Up · Down')}${row('오늘 · 새 일정', 'T / Ctrl + N')}${row('날짜의 일정 목록 · 편집', 'Enter')}${row('선택 일정 삭제 확인', 'Delete')}</dl><h3>어디서나</h3><dl>${state.prefs.hotkey ? row('WHENDESK 열기 · 숨기기', hotkey(state.prefs.hotkey)) : ''}${state.prefs.captureHotkey ? row('할 일 빠르게 담기', hotkey(state.prefs.captureHotkey)) : ''}</dl><p class="minimal-help-note">마감일은 오늘·내일·모레·상대일 또는 날짜로 입력하며, 비우면 해제합니다. Work 검색에는 초성·본문·프로젝트와 마감순·마감지남·이번주 같은 원본 필터를 사용할 수 있습니다. 할 일을 캘린더 날짜로 끌어놓아도 마감을 바꿀 수 있습니다. 동작 목록과 열린 대화상자는 Esc로 먼저 닫습니다. 단축키 설정 필드에서는 조합을 눌러 기록하고, Delete로 해제하거나 Esc로 저장된 값을 불러옵니다.</p></section>`;
+    const groups = K.HELP.map(group => {
+      const rows = group.rows.filter(([, , when]) => !when?.media || state.media.sessions?.length).map(([label, ids]) => row(label || K.find(ids[0]).label, ids.map(K.format))).join('');
+      return `${group.title ? `<h3>${esc(group.title)}</h3>` : ''}<dl>${rows}</dl>`;
+    }).join('');
+    helpLayer.innerHTML = `<section class="minimal-help" role="dialog" aria-modal="true" aria-label="단축키 안내"><div class="minimal-help-head"><h2>단축키</h2><button data-action="close-help" aria-label="단축키 안내 닫기">${icon('x')}</button></div>${groups}<h3>어디서나</h3><dl>${state.prefs.hotkey ? row('WHENDESK 열기 · 숨기기', [hotkey(state.prefs.hotkey)]) : ''}${state.prefs.captureHotkey ? row('할 일 빠르게 담기', [hotkey(state.prefs.captureHotkey)]) : ''}</dl><p class="minimal-help-note">마감일은 오늘·내일·모레·상대일 또는 날짜로 입력하며, 비우면 해제합니다. Work 검색에는 초성·본문·프로젝트와 마감순·마감지남·이번주 같은 원본 필터를 사용할 수 있습니다. 할 일을 캘린더 날짜로 끌어놓아도 마감을 바꿀 수 있습니다. 동작 목록과 열린 대화상자는 Esc로 먼저 닫습니다. 단축키 설정 필드에서는 조합을 눌러 기록하고, Delete로 해제하거나 Esc로 저장된 값을 불러옵니다.</p></section>`;
     helpLayer.hidden = false;
     [...app.children].filter(child => child !== helpLayer).forEach(child => { child.inert = true; });
     icons(); helpLayer.querySelector('button').focus({ preventScroll:true });
@@ -658,48 +662,58 @@
     const after=visibleTasks();if(!after.some(item=>item.id===state.selected))state.selected=null;focusTask(after[Math.min(Math.max(index,0),after.length-1)]?.id||null);
   }
   async function undoLastAction() {if(state.view==='tasks'&&workUndo.length)return undoWorkAction();const action=undoAction;if(!action)return;await action();undoAction=null;root.querySelector('.td-feedback').hidden=true;focusView();}
+  function listStep(event) {
+    if(K.is(event,'list.up'))return -1;if(K.is(event,'list.down'))return 1;if(K.is(event,'list.pageUp'))return -10;if(K.is(event,'list.pageDown'))return 10;
+    if(K.is(event,'list.first'))return 'first';if(K.is(event,'list.last'))return 'last';return 0;
+  }
+  const TASK_ACTIONS=[['task.open','open'],['task.complete','complete'],['task.delete','delete'],['task.title','title'],['task.due','due'],['task.note','note'],['task.project','project_id'],['task.waiting','waiting'],['task.nudge','nudge'],['work.undo','undo']];
+  const TAB_MOVES=['work.tab.prev','work.tab.next','work.tab.first','work.tab.last'];
+  const PROJECT_ACTIONS=['project.add','project.trash','project.open','project.rename','project.archive'];
+  const DAY_MOVES={'date.prev':[-1,0],'date.next':[1,0],'date.prevWeek':[-7,0],'date.nextWeek':[7,0],'date.prevMonth':[0,-1],'date.nextMonth':[0,1],'date.today':[0,0]};
   function workKeys(event) {
     if(state.view!=='tasks')return false;
     const target=event.target,mod=event.ctrlKey||event.metaKey,main=root.querySelector('.td-main');
     if(!main.contains(target))return false;
     const tab=target.closest('.td-work-nav [data-tab]'),row=target.closest('[data-task-row]'),projectRow=target.closest('[data-work-project-row]');
     if(target.matches('[data-work-search]')) {
-      if(!mod&&!event.altKey&&['Enter','ArrowDown','ArrowUp'].includes(event.key)){event.preventDefault();focusView();return true;}
-      if(event.key==='Escape'){event.preventDefault();if(state.workQuery)clearWorkSearch();else focusView();return true;}
+      if(K.is(event,'work.search.leave')){event.preventDefault();focusView();return true;}
+      if(K.is(event,'back')){event.preventDefault();if(state.workQuery)clearWorkSearch();else focusView();return true;}
     }
-    if(target.closest('.td-quick')&&event.key==='Escape'){event.preventDefault();focusView();return true;}
-    if(target.matches('.td-quick input')&&event.key==='ArrowDown'&&!mod&&!event.altKey){event.preventDefault();focusView();return true;}
-    if((mod&&!event.altKey&&!event.shiftKey&&event.code==='KeyF')||(!mod&&!event.altKey&&!editingTarget(target)&&event.key==='/')) {
+    if(target.closest('.td-quick')&&K.is(event,'back')){event.preventDefault();focusView();return true;}
+    if(target.matches('.td-quick input')&&K.is(event,'work.quick.leave')){event.preventDefault();focusView();return true;}
+    if(K.is(event,'work.search')&&(mod||!editingTarget(target))) {
       event.preventDefault();const input=body.querySelector('[data-work-search]');input?.focus();input?.select();return true;
     }
     if(editingTarget(target))return false;
-    if(row&&state.selected===row.dataset.taskRow&&event.key==='Tab')return false;
-    if(!mod&&!event.altKey&&event.key==='Tab'&&(tab||row||projectRow)){event.preventDefault();if(!event.repeat)safe(()=>cycleWorkTab(event.shiftKey?-1:1));return true;}
-    if(tab&&!mod&&!event.altKey&&!event.shiftKey&&event.key==='ArrowDown'){event.preventDefault();focusView();return true;}
-    if(tab&&!mod&&!event.altKey&&!event.shiftKey&&['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) {
-      event.preventDefault();safe(()=>event.key==='Home'||event.key==='End'?switchWorkTab(event.key==='Home'?'inbox':'projects',{focus:'tab'}):cycleWorkTab(event.key==='ArrowLeft'?-1:1,{focus:'tab'}));return true;
+    if(row&&state.selected===row.dataset.taskRow&&K.is(event,'focus.cycle'))return false;
+    if(K.is(event,'work.tab.cycle')&&(tab||row||projectRow)){event.preventDefault();if(!event.repeat)safe(()=>cycleWorkTab(event.shiftKey?-1:1));return true;}
+    if(tab&&K.is(event,'work.tab.enter')){event.preventDefault();focusView();return true;}
+    const tabMove=tab&&TAB_MOVES.find(id=>K.is(event,id));
+    if(tabMove) {
+      event.preventDefault();safe(()=>tabMove==='work.tab.first'||tabMove==='work.tab.last'?switchWorkTab(tabMove==='work.tab.first'?'inbox':'projects',{focus:'tab'}):cycleWorkTab(tabMove==='work.tab.prev'?-1:1,{focus:'tab'}));return true;
     }
-    if(event.key==='Escape'&&state.workQuery){event.preventDefault();clearWorkSearch();return true;}
+    if(K.is(event,'back')&&state.workQuery){event.preventDefault();clearWorkSearch();return true;}
     if(state.tab==='projects'&&!mod&&!event.altKey) {
       const rows=[...body.querySelectorAll('[data-work-project-row]')];if(projectRow)projectCursor=projectRow.dataset.workProjectRow;
-      const id=Number(projectCursor),direction=event.key==='ArrowUp'||event.code==='KeyK'?'up':event.key==='ArrowDown'||event.code==='KeyJ'?'down':null;
-      if(direction&&event.shiftKey&&!state.workTrash){event.preventDefault();if(id)safe(()=>moveWorkProject(id,direction));return true;}
-      if(!event.shiftKey&&(direction||['Home','End','PageUp','PageDown'].includes(event.key))){event.preventDefault();let index=Math.max(0,rows.findIndex(item=>item.dataset.workProjectRow===String(projectCursor)));index=event.key==='Home'?0:event.key==='End'?rows.length-1:Math.max(0,Math.min(rows.length-1,index+(event.key==='PageUp'?-10:event.key==='PageDown'?10:direction==='up'?-1:1)));focusWorkProject(rows[index]?.dataset.workProjectRow);return true;}
-      const action=event.code;
-      if(!event.shiftKey&&['KeyN','KeyE','KeyU','KeyX','Enter','Delete'].includes(action)||!event.shiftKey&&['Enter','Delete'].includes(event.key)) {
+      const id=Number(projectCursor),move=K.is(event,'project.moveUp')?'up':K.is(event,'project.moveDown')?'down':null;
+      if(move&&!state.workTrash){event.preventDefault();if(id)safe(()=>moveWorkProject(id,move));return true;}
+      const step=listStep(event);
+      if(step){event.preventDefault();let index=Math.max(0,rows.findIndex(item=>item.dataset.workProjectRow===String(projectCursor)));index=step==='first'?0:step==='last'?rows.length-1:Math.max(0,Math.min(rows.length-1,index+step));focusWorkProject(rows[index]?.dataset.workProjectRow);return true;}
+      const action=PROJECT_ACTIONS.find(item=>K.is(event,item));
+      if(action) {
         event.preventDefault();if(event.repeat)return true;
-        if(action==='KeyN')projectModal();
-        else if(action==='KeyU'){state.workTrash=!state.workTrash;projectCursor=null;renderMainView();focusWorkProject();}
-        else if(state.workTrash&&event.key==='Enter'&&id)safe(()=>restoreProject(id));
-        else if(!state.workTrash&&action==='KeyE'&&id)projectModal(id);
-        else if(!state.workTrash&&(action==='KeyX'||event.key==='Delete')&&id)archiveProjectModal(id);
-        else if(!state.workTrash&&event.key==='Enter'&&id)safe(async()=>{state.project=id;await switchWorkTab('todo');});
+        if(action==='project.add')projectModal();
+        else if(action==='project.trash'){state.workTrash=!state.workTrash;projectCursor=null;renderMainView();focusWorkProject();}
+        else if(state.workTrash&&action==='project.open'&&id)safe(()=>restoreProject(id));
+        else if(!state.workTrash&&action==='project.rename'&&id)projectModal(id);
+        else if(!state.workTrash&&action==='project.archive'&&id)archiveProjectModal(id);
+        else if(!state.workTrash&&action==='project.open'&&id)safe(async()=>{state.project=id;await switchWorkTab('todo');});
         return true;
       }
     }
-    if(!mod&&!event.altKey&&!event.shiftKey&&(row||tab)&&event.code==='KeyF'&&state.tab==='todo'){event.preventDefault();state.dueOnly=!state.dueOnly;renderMainView();focusView();return true;}
-    if(!mod&&!event.altKey&&!event.shiftKey&&(row||tab)&&event.code==='KeyH'){event.preventDefault();safe(()=>switchWorkTab('done'));return true;}
-    if(!mod&&!event.altKey&&!event.shiftKey&&event.code==='KeyU'){event.preventDefault();safe(undoLastAction);return true;}
+    if((row||tab)&&state.tab==='todo'&&K.is(event,'work.dueFilter')){event.preventDefault();state.dueOnly=!state.dueOnly;renderMainView();focusView();return true;}
+    if((row||tab)&&K.is(event,'work.doneHistory')){event.preventDefault();safe(()=>switchWorkTab('done'));return true;}
+    if(K.is(event,'work.undo')){event.preventDefault();safe(undoLastAction);return true;}
     return false;
   }
   async function moveCalendarDate(days,months=0,side=false,todayOnly=false) {
@@ -710,43 +724,44 @@
     await selectDate(dateKey(next));const area=side?root.querySelector('.td-calendar-side'):body;area.querySelector(`[data-date="${state.date}"]`)?.focus({preventScroll:true});
   }
   function workspaceKeys(event) {
-    const mod=event.ctrlKey||event.metaKey,code=event.code,target=event.target;
+    const target=event.target;
     if(state.shell!=='dashboard'){
-      if(mod&&!event.altKey&&!event.shiftKey&&code==='KeyN'){event.preventDefault();if(!event.repeat)safe(newInContext);return true;}return false;
+      if(K.is(event,'app.new')){event.preventDefault();if(!event.repeat)safe(newInContext);return true;}return false;
     }
     if(state.view==='notes'&&notes?.handleKeydown(event))return true;
-    if(mod&&!event.altKey&&event.shiftKey&&code==='KeyN'&&['tasks','dashboard'].includes(state.view)){event.preventDefault();if(!event.repeat)projectModal();return true;}
-    if(mod&&!event.altKey&&!event.shiftKey&&code==='KeyN'){event.preventDefault();if(!event.repeat)safe(newInContext);return true;}
-    if(mod&&!event.altKey&&!event.shiftKey&&code==='KeyS'){event.preventDefault();if(state.view==='settings')body.querySelector('.preferences-form')?.requestSubmit();else safe(flushPending);return true;}
-    if(mod&&!event.altKey&&!event.shiftKey&&code==='KeyZ'&&!editingTarget(target)){event.preventDefault();safe(undoLastAction);return true;}
+    if(K.is(event,'project.new')&&['tasks','dashboard'].includes(state.view)){event.preventDefault();if(!event.repeat)projectModal();return true;}
+    if(K.is(event,'app.new')){event.preventDefault();if(!event.repeat)safe(newInContext);return true;}
+    if(K.is(event,'app.save')){event.preventDefault();if(state.view==='settings')body.querySelector('.preferences-form')?.requestSubmit();else safe(flushPending);return true;}
+    if(K.is(event,'app.undo')&&!editingTarget(target)){event.preventDefault();safe(undoLastAction);return true;}
     if(workKeys(event))return true;
     const day=target.closest('[data-date]');
-    if(day&&!mod&&!event.altKey&&!event.shiftKey){
-      const delta={ArrowLeft:-1,ArrowRight:1,ArrowUp:-7,ArrowDown:7}[event.key],side=!!day.closest('.td-calendar-side');
-      if(delta||['PageUp','PageDown'].includes(event.key)||code==='KeyT'){event.preventDefault();safe(()=>moveCalendarDate(delta||0,event.key==='PageUp'?-1:event.key==='PageDown'?1:0,side,code==='KeyT'));return true;}
-      if(event.key==='Enter'){event.preventDefault();const area=side?root.querySelector('.td-calendar-side'):body;const first=area.querySelector('[data-event]');if(first)first.focus();else eventModal();return true;}
-      if(code==='KeyN'){event.preventDefault();eventModal();return true;}
+    if(day){
+      const dayMove=Object.keys(DAY_MOVES).find(id=>K.is(event,id)),side=!!day.closest('.td-calendar-side');
+      if(dayMove){event.preventDefault();const [days,months]=DAY_MOVES[dayMove];safe(()=>moveCalendarDate(days,months,side,dayMove==='date.today'));return true;}
+      if(K.is(event,'date.open')){event.preventDefault();const area=side?root.querySelector('.td-calendar-side'):body;const first=area.querySelector('[data-event]');if(first)first.focus();else eventModal();return true;}
+      if(K.is(event,'event.new')){event.preventDefault();eventModal();return true;}
     }
     const eventButton=target.closest('[data-event]');
-    if(eventButton&&!editingTarget(target)&&!mod&&!event.altKey){
-      if(['ArrowUp','ArrowDown','Home','End'].includes(event.key)){event.preventDefault();const area=eventButton.closest('.td-main-calendar-agenda,.td-day-detail')||body;const rows=[...area.querySelectorAll('[data-event]')],index=rows.indexOf(eventButton);const next=event.key==='Home'?0:event.key==='End'?rows.length-1:(index+(event.key==='ArrowDown'?1:rows.length-1))%rows.length;rows[next]?.focus();return true;}
-      if(event.key==='Enter'||code==='KeyE'){event.preventDefault();eventModal(eventButton.dataset.event);return true;}
-      if(event.key==='Delete'||code==='KeyX'){event.preventDefault();const item=findEvent(eventButton.dataset.event);if(item&&!item.readonly){eventModal(eventButton.dataset.event);const scope=modalLayer.querySelector('[name=scope]');if(scope)scope.value='one';modalLayer.querySelector('[data-action=delete-event]')?.focus();}return true;}
+    if(eventButton&&!editingTarget(target)){
+      const step=K.is(event,'agenda.up')?-1:K.is(event,'agenda.down')?1:K.is(event,'agenda.first')?'first':K.is(event,'agenda.last')?'last':0;
+      if(step){event.preventDefault();const area=eventButton.closest('.td-main-calendar-agenda,.td-day-detail')||body;const rows=[...area.querySelectorAll('[data-event]')],index=rows.indexOf(eventButton);const next=step==='first'?0:step==='last'?rows.length-1:(index+(step===1?1:rows.length-1))%rows.length;rows[next]?.focus();return true;}
+      if(K.is(event,'event.edit')){event.preventDefault();eventModal(eventButton.dataset.event);return true;}
+      if(K.is(event,'event.delete')){event.preventDefault();const item=findEvent(eventButton.dataset.event);if(item&&!item.readonly){eventModal(eventButton.dataset.event);const scope=modalLayer.querySelector('[name=scope]');if(scope)scope.value='one';modalLayer.querySelector('[data-action=delete-event]')?.focus();}return true;}
     }
     if(state.view==='tasks'){
       const row=target.closest('[data-task-row]'),rows=[...body.querySelectorAll('[data-task-row]')];
       if(row)taskCursor=row.dataset.taskRow;
-      if(row&&state.selected===row.dataset.taskRow&&mod&&event.key==='Enter'&&!event.altKey){event.preventDefault();safe(collapseTaskEditor);return true;}
+      if(row&&state.selected===row.dataset.taskRow&&K.is(event,'task.collapse')){event.preventDefault();safe(collapseTaskEditor);return true;}
       if(row&&editingTarget(target)){
-        if(mod&&event.key==='Enter'&&!event.altKey){event.preventDefault();safe(collapseTaskEditor);return true;}return false;
+        if(K.is(event,'task.collapse')){event.preventDefault();safe(collapseTaskEditor);return true;}return false;
       }
-      if((row||target.closest('.td-work-nav'))&&!editingTarget(target)&&!event.altKey&&rows.length){
+      if((row||target.closest('.td-work-nav'))&&!editingTarget(target)&&rows.length){
         let index=rows.findIndex(item=>item.dataset.taskRow===taskCursor);if(index<0)index=0;
-        const delta={ArrowUp:-1,ArrowDown:1,PageUp:-10,PageDown:10}[event.key]||(!mod&&!event.shiftKey?{KeyJ:1,KeyK:-1}[code]:0);
-        if(delta||event.key==='Home'||event.key==='End'){event.preventDefault();index=event.key==='Home'?0:event.key==='End'?rows.length-1:Math.max(0,Math.min(rows.length-1,index+delta));focusTask(rows[index].dataset.taskRow);return true;}
+        const step=listStep(event);
+        if(step){event.preventDefault();index=step==='first'?0:step==='last'?rows.length-1:Math.max(0,Math.min(rows.length-1,index+step));focusTask(rows[index].dataset.taskRow);return true;}
         if(row){
-          const action=event.key==='Enter'?(mod?'complete':'open'):event.code==='Space'?'complete':event.key==='Delete'?'delete':({KeyE:'title',KeyD:'due',KeyN:'note',KeyM:'project_id',KeyW:'waiting',KeyP:'nudge',KeyR:'nudge',KeyX:'delete',KeyU:'undo'})[code];
-          if(action&&(!mod||event.key==='Enter')&&!event.shiftKey){event.preventDefault();if(!event.repeat)safe(()=>action==='undo'?undoLastAction():taskKeyboardAction(taskCursor,action));return true;}
+          const action=TASK_ACTIONS.find(([id])=>K.is(event,id))?.[1];
+          if(action){event.preventDefault();if(!event.repeat)safe(()=>action==='undo'?undoLastAction():taskKeyboardAction(taskCursor,action));return true;}
         }
       }
     }
@@ -885,15 +900,14 @@
   root.addEventListener('focusout',event=>{if(event.target.matches('[data-field]')){const element=event.target;dashboardFocus={id:element.closest('[data-editor]')?.dataset.editor,field:element.dataset.field,start:element.selectionStart,end:element.selectionEnd,scroll:element.scrollTop};}});
   document.addEventListener('keydown',event=>{
     if(event.isComposing||event.keyCode===229||command.composing)return;
-    const mod=event.ctrlKey||event.metaKey;
-    const section=sectionKeys[event.code]||sectionKeys['Key'+event.key.toUpperCase()];
-    const reservedFieldKey=mod&&!event.altKey&&!event.shiftKey&&(event.code==='KeyS'||event.code==='Slash'||event.key==='/')||event.altKey&&!mod&&!event.shiftKey&&!!section;
+    const section=K.section(event);
+    const reservedFieldKey=K.is(event,'app.save')||K.is(event,'help.toggle')||!!section;
     if(event.target.matches('[data-shortcut]')&&!helpOpen&&!reservedFieldKey){recordShortcut(event);return;}
-    if(mod&&!event.altKey&&!event.shiftKey&&(event.code==='Slash'||event.key==='/')){event.preventDefault();if(!event.repeat)safe(()=>helpOpen?closeHelp():openHelp());return;}
-    if(helpOpen){if(event.key==='Escape'){event.preventDefault();safe(closeHelp);}else if(event.key==='Tab'){event.preventDefault();helpLayer.querySelector('button')?.focus();}return;}
-    if(event.altKey&&!mod&&!event.shiftKey&&section){event.preventDefault();if(!event.repeat&&modalLayer.hidden&&!command.running)safe(()=>goSection(section));return;}
-    if(mod&&!event.altKey&&!event.shiftKey&&(event.code==='KeyK'||event.key.toLowerCase()==='k')){event.preventDefault();if(!event.repeat&&modalLayer.hidden&&!command.running){cancelCommandActivation();safe(async()=>{const same=state.shell==='command';await flushPending();await shell('command');if(same)commandInput.select();});}return;}
-    if(!modalLayer.hidden&&event.key==='Tab'){
+    if(K.is(event,'help.toggle')){event.preventDefault();if(!event.repeat)safe(()=>helpOpen?closeHelp():openHelp());return;}
+    if(helpOpen){if(K.is(event,'back')){event.preventDefault();safe(closeHelp);}else if(K.is(event,'focus.cycle')){event.preventDefault();helpLayer.querySelector('button')?.focus();}return;}
+    if(section){event.preventDefault();if(!event.repeat&&modalLayer.hidden&&!command.running)safe(()=>goSection(section));return;}
+    if(K.is(event,'command.open')){event.preventDefault();if(!event.repeat&&modalLayer.hidden&&!command.running){cancelCommandActivation();safe(async()=>{const same=state.shell==='command';await flushPending();await shell('command');if(same)commandInput.select();});}return;}
+    if(!modalLayer.hidden&&K.is(event,'focus.cycle')){
       const focusable=[...modalLayer.querySelectorAll('button,input,select,textarea,[tabindex]')].filter(element=>!element.disabled&&element.tabIndex>=0&&element.getClientRects().length);
       const first=focusable[0],last=focusable.at(-1);
       if(!first){event.preventDefault();return;}
@@ -901,19 +915,21 @@
       else if(!event.shiftKey&&(event.target===last||!modalLayer.contains(event.target))){event.preventDefault();first.focus();}
       return;
     }
-    if(!modalLayer.hidden&&mod&&!event.altKey&&!event.shiftKey&&event.code==='KeyS'){event.preventDefault();const form=modalLayer.querySelector('form');if(!event.repeat&&form?.querySelector('[type=submit]')&&!form.querySelector('[type=submit]').disabled)form.requestSubmit();return;}
+    if(!modalLayer.hidden&&K.is(event,'app.save')){event.preventDefault();const form=modalLayer.querySelector('form');if(!event.repeat&&form?.querySelector('[type=submit]')&&!form.querySelector('[type=submit]').disabled)form.requestSubmit();return;}
     if(modalLayer.hidden&&workspaceKeys(event))return;
-    if(event.key==='Tab'&&event.shiftKey&&!mod&&!event.altKey&&state.shell==='command'&&event.target===commandInput&&!root.querySelector('.td-media').hidden){event.preventDefault();root.querySelector('.td-media [data-media-slot=next]')?.focus();return;}
-    if(event.key==='Tab'&&!event.shiftKey&&!mod&&!event.altKey&&state.shell==='command'&&event.target===commandInput){event.preventDefault();if(!command.running&&!command.activating)safe(()=>shell('dashboard'));return;}
-    if(event.key==='Escape'){event.preventDefault();if(command.activating&&!command.running)cancelCommandActivation();else if(command.actions)closeCommandActions();else if(!modalLayer.hidden)closeModal();else if(state.shell==='dashboard'&&state.view==='tasks'&&state.selected)safe(collapseTaskEditor);else if(state.shell==='dashboard')safe(async()=>{await flushPending();await shell('command');});else if(!root.querySelector('.command-output').hidden){clearCommandOutput();resizeCommand();}else safe(()=>call('window.close'));return;}
+    const inCommandInput=state.shell==='command'&&event.target===commandInput;
+    if(inCommandInput&&K.is(event,'command.media')&&!root.querySelector('.td-media').hidden){event.preventDefault();root.querySelector('.td-media [data-media-slot=next]')?.focus();return;}
+    if(inCommandInput&&K.is(event,'command.expand')){event.preventDefault();if(!command.running&&!command.activating)safe(()=>shell('dashboard'));return;}
+    if(K.is(event,'back')){event.preventDefault();if(command.activating&&!command.running)cancelCommandActivation();else if(command.actions)closeCommandActions();else if(!modalLayer.hidden)closeModal();else if(state.shell==='dashboard'&&state.view==='tasks'&&state.selected)safe(collapseTaskEditor);else if(state.shell==='dashboard')safe(async()=>{await flushPending();await shell('command');});else if(!root.querySelector('.command-output').hidden){clearCommandOutput();resizeCommand();}else safe(()=>call('window.close'));return;}
     if(state.shell==='command'&&(event.target===commandInput||commandBox.contains(event.target)||commandActions.contains(event.target))){
-      if(event.key==='Enter'){
+      if(K.is(event,'command.run')||K.is(event,'command.alternate')||K.is(event,'command.actions')){
         event.preventDefault();if(event.repeat||command.running||command.activating)return;
-        if(event.altKey&&!mod&&!event.shiftKey){safe(openCommandActions);return;}
+        if(K.is(event,'command.actions')){safe(openCommandActions);return;}
         const menu=command.actions;
-        safe(()=>menu?executeCommand({item:menu.item,query:menu.query,actionId:menu.item.actions[menu.selected]?.id}):executeCommand({alternate:mod&&!event.altKey&&!event.shiftKey}));return;
+        safe(()=>menu?executeCommand({item:menu.item,query:menu.query,actionId:menu.item.actions[menu.selected]?.id}):executeCommand({alternate:K.is(event,'command.alternate')}));return;
       }
-      if((event.key==='ArrowDown'||event.key==='ArrowUp')&&!event.altKey&&!mod&&!event.shiftKey){event.preventDefault();moveCommandSelection(event.key==='ArrowDown'?1:-1);return;}
+      const step=K.is(event,'command.next')?1:K.is(event,'command.prev')?-1:0;
+      if(step){event.preventDefault();moveCommandSelection(step);return;}
     }
   });
   root.addEventListener('dragstart',event=>{const item=event.target.closest('[data-task][draggable]');if(item){event.dataTransfer.setData('text/plain',item.dataset.task);event.dataTransfer.effectAllowed='move';}});
