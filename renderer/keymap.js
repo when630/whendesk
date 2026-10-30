@@ -219,7 +219,30 @@
   ]);
   for (const group of HELP) for (const [, ids] of group.rows) ids.forEach(entry);
 
-  const api = Object.freeze({ ACTIONS, KNOWN_OVERLAPS, CONCURRENT, HELP, is, section, find, format, parse });
+  /* 하단 상황 힌트(원본 WHENWORK): 지금 포커스 자리에서 쓰는 키 네 칸 남짓. 항목은 [동작 id, 짧은 라벨, 표기 대신 쓸 키].
+   * Esc는 뜻이 달라지는 곳에서만 보인다. 전체 목록은 Ctrl+/ 안내에 있다. */
+  const HINTS = Object.freeze({
+    tasks:[['task.open','편집'],['task.complete','완료'],['task.assign','프로젝트'],['work.tab.cycle','분류','Tab']],
+    taskEditor:[['focus.cycle','필드','Tab'],['task.collapse','접기'],['back','목록']],
+    workSearch:[['work.search.leave','목록','Enter'],['back','검색 해제']],
+    workQuick:[[null,'담기','Enter'],['back','목록']],
+    projects:[['project.add','추가'],['project.rename','이름'],['project.moveUp','순서','Shift + ↑↓'],['project.trash','보관함']],
+    notes:[['note.open','보기'],['note.edit','편집'],['note.new','새 메모'],['note.scope.cycle','분류','Tab']],
+    noteSearch:[['note.open','열기','Enter'],['note.down','목록'],['back','검색 지우기']],
+    noteEditor:[['note.preview','보기'],['app.save','저장'],['back','목록']],
+    notePreview:[['note.edit','편집'],['back','목록']],
+    calendarMonth:[['date.open','일정'],['event.new','새 일정'],['date.today','오늘'],['calendar.view','보기','Tab']],
+    calendarList:[['agenda.new','새 일정'],['agenda.nextDay','이동','← →'],['agenda.today','오늘'],['calendar.view','보기','Tab']],
+    event:[['event.edit','편집'],['event.delete','삭제'],['agenda.undo','되돌리기'],['calendar.view','보기','Tab']],
+    dialog:[['app.save','저장'],['back','닫기']],
+    quickEvent:[[null,'추가','Enter'],['quickEvent.detail','자세히'],['back','닫기']],
+    home:[['command.open','Command'],['help.toggle','단축키 전체']],
+  });
+  for (const items of Object.values(HINTS)) for (const [id, , keys] of items) { if (id) entry(id); else if (!keys) throw new Error('힌트에 키가 없습니다.'); }
+  /* 힌트 한 칸: { keys, label } */
+  function hints(context) { return (HINTS[context] || []).map(([id, label, keys]) => ({ keys:keys || format(id), label })); }
+
+  const api = Object.freeze({ ACTIONS, KNOWN_OVERLAPS, CONCURRENT, HELP, HINTS, hints, is, section, find, format, parse });
   if (typeof window !== 'undefined') window.WhendeskKeys = api;
   else globalThis.WhendeskKeys = api;
 })();

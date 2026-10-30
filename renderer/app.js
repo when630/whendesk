@@ -96,7 +96,7 @@
     root.querySelector('#cf-command-panel').hidden = next !== 'command';
     root.querySelector('#cf-dashboard-panel').hidden = next !== 'dashboard';
     root.querySelector('.cf-entry-name').textContent = next === 'command' ? 'WHENCOMMAND' : '대시보드';
-    status(); icons();
+    status(); icons(); syncHints();
     await call('shell', { mode:next });
     if (next === 'command') {
       commandInput.value = command.query; renderCommand(); resizeCommand();
@@ -126,7 +126,7 @@
       const rows = group.rows.filter(([, , when]) => !when?.media || state.media.sessions?.length).map(([label, ids]) => row(label || K.find(ids[0]).label, ids.map(K.format))).join('');
       return `${group.title ? `<h3>${esc(group.title)}</h3>` : ''}<dl>${rows}</dl>`;
     }).join('');
-    helpLayer.innerHTML = `<section class="minimal-help" role="dialog" aria-modal="true" aria-label="단축키 안내"><div class="minimal-help-head"><h2>단축키</h2><button data-action="close-help" aria-label="단축키 안내 닫기">${icon('x')}</button></div>${groups}<h3>어디서나</h3><dl>${state.prefs.hotkey ? row('WHENDESK 열기 · 숨기기', [hotkey(state.prefs.hotkey)]) : ''}${state.prefs.captureHotkey ? row('할 일 빠르게 담기', [hotkey(state.prefs.captureHotkey)]) : ''}${state.prefs.noteCaptureHotkey ? row('메모 빠르게 담기', [hotkey(state.prefs.noteCaptureHotkey)]) : ''}</dl><p class="minimal-help-note">마감일은 오늘·내일·모레·상대일 또는 날짜로 입력하며, 비우면 해제합니다. Work 검색에는 초성·본문·프로젝트와 마감순·마감지남·이번주 같은 원본 필터를 사용할 수 있습니다. 할 일을 캘린더 날짜로 끌어놓아도 마감을 바꿀 수 있습니다. 동작 목록과 열린 대화상자는 Esc로 먼저 닫습니다. 단축키 설정 필드에서는 조합을 눌러 기록하고, Delete로 해제하거나 Esc로 저장된 값을 불러옵니다.</p></section>`;
+    helpLayer.innerHTML = `<section class="minimal-help" role="dialog" aria-modal="true" aria-label="단축키 안내"><div class="minimal-help-head"><h2>단축키</h2><button data-action="close-help" aria-label="단축키 안내 닫기">${icon('x')}</button></div>${groups}<h3>어디서나</h3><dl>${SHORTCUT_UI.filter(([field]) => state.prefs[field]).map(([field,label]) => row(field === 'hotkey' ? 'WHENDESK 열기 · 숨기기' : label, [hotkey(state.prefs[field])])).join('')}</dl><p class="minimal-help-note">마감일은 오늘·내일·모레·상대일 또는 날짜로 입력하며, 비우면 해제합니다. Work 검색에는 초성·본문·프로젝트와 마감순·마감지남·이번주 같은 원본 필터를 사용할 수 있습니다. 할 일을 캘린더 날짜로 끌어놓아도 마감을 바꿀 수 있습니다. 동작 목록과 열린 대화상자는 Esc로 먼저 닫습니다. 단축키 설정 필드에서는 조합을 눌러 기록하고, Delete로 해제하거나 Esc로 저장된 값을 불러옵니다.</p></section>`;
     helpLayer.hidden = false;
     [...app.children].filter(child => child !== helpLayer).forEach(child => { child.inert = true; });
     icons(); helpLayer.querySelector('button').focus({ preventScroll:true });
@@ -473,8 +473,38 @@
     const list = Array.isArray(calendars) ? calendars : calendars.calendars || [];
     openModal(`<section class="td-modal" role="dialog" aria-modal="true" aria-label="캘린더 구독"><div class="td-modal-header"><h2>캘린더 구독</h2><button data-action="close-modal" aria-label="닫기">${icon('x')}</button></div><form class="subscription-form"><label class="td-field">ICS 주소<input type="url" name="url" aria-label="캘린더 구독 주소" placeholder="https://…/calendar.ics" required></label><button class="td-primary" type="submit">구독 추가</button></form><div class="subscription-list">${list.filter(c => c.kind === 'subscription').map(c => `<div class="subscription-item"><strong>${esc(c.name)}</strong><small>${esc(c.last_error || c.lastError || c.url)}</small><div><button class="td-secondary" data-sub-toggle="${c.id}">${c.enabled ? '숨기기' : '표시'}</button><button class="td-secondary" data-sub-sync="${c.id}">새로고침</button><button class="td-secondary" data-sub-delete="${c.id}">삭제</button></div></div>`).join('') || '<p class="td-empty">등록된 구독이 없어요.</p>'}</div></section>`);
   }
+  /* 전역 단축키: [설정 필드, 라벨, 접근성 이름, 기본값]. 설정 화면과 단축키 안내의 '어디서나'가 함께 쓴다. */
+  const SHORTCUT_UI = [['hotkey','WHENCOMMAND 열기','Command 단축키','Alt+Space'],['captureHotkey','할 일 빠르게 담기','빠른 수집 단축키','Control+Alt+Space'],['noteCaptureHotkey','메모 빠르게 담기','메모 수집 단축키','Control+Alt+M'],['mediaPlayHotkey','음악 재생 · 일시정지','음악 재생 단축키','Control+Alt+P'],['mediaRewindHotkey','음악 10초 되감기','음악 되감기 단축키','Control+Alt+Left'],['mediaForwardHotkey','음악 10초 앞으로','음악 앞으로 단축키','Control+Alt+Right']];
+  /* 하단 상황 힌트: 포커스 자리에 맞는 키 몇 칸. 화면 낭독기는 Ctrl+/ 안내를 쓴다. */
+  function hintContext() {
+    if (state.shell !== 'dashboard' || helpOpen) return null;
+    const active = document.activeElement;
+    if (!modalLayer.hidden) return active?.closest('.quick-event-form') ? 'quickEvent' : 'dialog';
+    if (state.view === 'tasks') {
+      if (active?.closest('[data-editor]')) return 'taskEditor';
+      if (active?.matches('[data-work-search]')) return 'workSearch';
+      if (active?.closest('.td-quick')) return 'workQuick';
+      return state.tab === 'projects' ? 'projects' : 'tasks';
+    }
+    if (state.view === 'notes') {
+      if (active?.matches('[data-note-editor]')) return 'noteEditor';
+      if (active?.closest('[data-note-preview]')) return 'notePreview';
+      if (active?.matches('[data-note-search]')) return 'noteSearch';
+      return 'notes';
+    }
+    if (state.view === 'calendar') return active?.closest('[data-event]') ? 'event' : state.calView === 'month' ? 'calendarMonth' : 'calendarList';
+    return 'home';
+  }
+  let hintsFrame = 0, hintsShown = '';
+  function syncHints() {
+    cancelAnimationFrame(hintsFrame);
+    hintsFrame = requestAnimationFrame(() => {
+      const context = hintContext(); if (context === hintsShown) return; hintsShown = context;
+      root.querySelector('.td-hints').innerHTML = context ? K.hints(context).map(({ keys, label }) => `<span><kbd>${esc(keys)}</kbd>${esc(label)}</span>`).join('') : '';
+    });
+  }
   function settingsView() {
-    const shortcutFields = [['hotkey','WHENCOMMAND 열기','Command 단축키','Alt+Space'],['captureHotkey','할 일 빠르게 담기','빠른 수집 단축키','Control+Alt+Space'],['noteCaptureHotkey','메모 빠르게 담기','메모 수집 단축키','Control+Alt+M']];
+    const shortcutFields = SHORTCUT_UI;
     return `<section class="settings-section"><h2>모양</h2><div class="minimal-appearance"><label class="td-field">스킨<select data-look="skin" aria-label="스킨">${[['base','기본'],['ink','잉크'],['paper','페이퍼']].map(([value,label]) => `<option value="${value}" ${state.skin === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label><label class="td-field">모드<select data-look="mode" aria-label="화면 모드">${[['system','시스템'],['light','라이트'],['dark','다크']].map(([value,label]) => `<option value="${value}" ${state.mode === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label></div></section>
     <form class="preferences-form"><section class="settings-section"><h2>단축키</h2>${shortcutFields.map(([field,label,aria,fallback]) => `<label class="td-field">${label}<input name="${field}" data-shortcut="${field}" aria-label="${aria}" aria-describedby="shortcut-error-${field}" aria-invalid="${!!state.info.shortcutErrors?.[field]}" value="${esc(state.prefs[field] ?? fallback)}" placeholder="사용 안 함" autocomplete="off" spellcheck="false"><span id="shortcut-error-${field}" class="settings-warning" data-shortcut-error="${field}" ${state.info.shortcutErrors?.[field] ? '' : 'hidden'}>${esc(state.info.shortcutErrors?.[field])}</span></label>`).join('')}<div class="settings-actions"><button class="td-primary" type="submit">단축키 저장</button><button class="td-secondary" type="button" data-action="help">단축키 안내</button></div></section></form>
     <section class="settings-section"><h2>데이터</h2><div class="settings-actions"><button class="td-secondary" data-data="importLegacy">기존 데이터 복사해 가져오기</button><button class="td-secondary" data-data="export">백업 내보내기</button><button class="td-secondary" data-data="restore">백업 복원</button><button class="td-secondary" data-data="openFolder">저장 폴더 열기</button></div><small class="settings-path">${esc(state.info.dataDir)}</small></section><section class="settings-section"><h2>WHENCOMMAND</h2><button class="td-secondary" data-action="refresh-command">검색 목록 새로고침</button></section><section class="settings-section"><h2>WHENDESK ${esc(state.info.version || '')}</h2><button class="td-secondary" data-action="quit">앱 종료</button></section>`;
@@ -718,6 +748,7 @@
   }
   function workCursorKey(){return `${state.tab}|${state.project??''}`;}
   function focusView() {
+    syncHints();
     if(state.view==='notes'){notes?.focus();return;}
     if(state.view==='tasks'){if(state.tab==='projects'){focusWorkProject();return;}syncTaskCursor();if(taskCursor)focusTask();else root.querySelector('.td-work-nav [aria-selected=true]')?.focus({preventScroll:true});return;}
     if(state.view==='calendar'){if(state.calView==='month'){body.querySelector(`[data-date="${state.date}"]`)?.focus({preventScroll:true});return;}(body.querySelector(`[data-cal-day="${state.date}"] [data-event]`)||body.querySelector('[data-cal-home]'))?.focus({preventScroll:true});return;}
@@ -1051,6 +1082,7 @@
   commandInput.addEventListener('compositionend',()=>{command.composing=false;if(!command.capture)queueCommandQuery(commandInput.value,0,true);});
   commandBox.addEventListener('pointermove',event=>{const row=event.target.closest('[data-result]');if(row&&!command.running&&!command.actions&&command.selected!==Number(row.dataset.result)){command.selected=Number(row.dataset.result);syncCommandSelection();}});
   commandActions.addEventListener('pointermove',event=>{const row=event.target.closest('[data-command-action]');if(row&&command.actions&&!command.running){const index=command.actions.item.actions.findIndex(action=>action.id===row.dataset.commandAction);if(index>=0&&index!==command.actions.selected){command.actions.selected=index;syncCommandSelection();}}});
+  root.addEventListener('focusin',syncHints);
   root.addEventListener('focusout',event=>{if(event.target.matches('[data-field]')){const element=event.target;dashboardFocus={id:element.closest('[data-editor]')?.dataset.editor,field:element.dataset.field,start:element.selectionStart,end:element.selectionEnd,scroll:element.scrollTop};}});
   document.addEventListener('keydown',event=>{
     if(event.isComposing||event.keyCode===229||command.composing)return;

@@ -4,6 +4,7 @@ import path from 'node:path';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 import {createPreferences} from './preferences.mjs';
 import {createShortcutManager,SHORTCUT_FIELDS} from './shortcuts.mjs';
+import {createPositionTracker} from './media-position.mjs';
 import {exportWorkspace,prepareRestore,prepareLegacy,installPrepared} from './data.mjs';
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const argv=process.argv.slice(1);
@@ -25,7 +26,7 @@ async function bootstrap(){
  let domain,command,win,tray,mediaControl,mediaTimer;
  let quitting=false,shellMode='command',dataBusy=false;
  let commandReady=false,commandFailure=null,mutationTail=Promise.resolve();
- let media={available:false,sessions:[],failure:null};
+ let media={available:false,sessions:[],failure:null};const positions=createPositionTracker();
  let dashboardBounds=null,commandHeight=54;
  const rendererURL=pathToFileURL(path.join(ROOT,'renderer','index.html')).href;
  const send=(event,payload)=>{if(win&&!win.isDestroyed())win.webContents.send(event,payload);};
@@ -74,14 +75,26 @@ async function bootstrap(){
    catch(error){console.error('단축키 기록:',error.message);}
   }
   if(field==='hotkey'){if(win?.isVisible()&&win.isFocused()&&shellMode==='command')win.hide();else showCommand();}
+  else if(field==='mediaPlayHotkey')await toggleMedia();
+  else if(field==='mediaRewindHotkey')await seekMedia(-SEEK_SEC);
+  else if(field==='mediaForwardHotkey')await seekMedia(SEEK_SEC);
   else showCapture(field==='noteCaptureHotkey'?'note':'task');
  }
+ /* 음악은 창을 열지 않고 전역 단축키로 조작한다(원본 WHENMUSIC D-28: Command를 여는 순간 이미 한 박자 늦다).
+  * 미디어 키에 없는 되감기·앞으로가 핵심이다. 재생 중인 세션, 없으면 첫 세션을 다룬다. */
+ const SEEK_SEC=10;
+ function currentMedia(){return media.sessions.find(session=>session.playing)||media.sessions[0]||null;}
+ async function toggleMedia(){const session=currentMedia();if(!mediaControl||!session)return;await mediaControl[session.playing?'pause':'play'](session.appId).catch(error=>console.error('미디어:',error.message));}
+ async function seekMedia(delta){const session=currentMedia();if(!mediaControl||!session)return;const target=positions.target(session.appId,delta);positions.assumeSeek(session.appId,target);await mediaControl.seek(session.appId,target).catch(error=>console.error('미디어:',error.message));}
  /* 빠른 담기: Command 창을 한 줄 수집 모드로 연다. Enter로 담아도 창이 남아 연달아 담는다(원본 WHENWORK·WHENNOTE). */
  function showCapture(kind){if(!win||win.isDestroyed())return;if(win.isMinimized())win.restore();win.show();win.focus();send('navigate',{shell:'command',capture:kind});}
  const shortcutManager=createShortcutManager({globalShortcut,enabled:!testMode&&!argv.includes('--no-shortcuts'),handlers:{
   hotkey:()=>handleGlobalShortcut('hotkey'),
   captureHotkey:()=>handleGlobalShortcut('captureHotkey'),
   noteCaptureHotkey:()=>handleGlobalShortcut('noteCaptureHotkey'),
+  mediaPlayHotkey:()=>handleGlobalShortcut('mediaPlayHotkey'),
+  mediaRewindHotkey:()=>handleGlobalShortcut('mediaRewindHotkey'),
+  mediaForwardHotkey:()=>handleGlobalShortcut('mediaForwardHotkey'),
  }});
  function registerShortcuts(values=preferences.get()){return shortcutManager.update(values);}
  const area=workArea();
@@ -104,8 +117,8 @@ async function bootstrap(){
  async function startMedia(){
   if(process.platform!=='win32'||argv.includes('--no-media')||testMode)return;
   const {createControl}=await import('./control.mjs');
-  const update=list=>{media={available:true,sessions:(list||[]).map(info=>({appId:info.sourceAppId,title:info.media?.title||'',artist:info.media?.artist||'',playing:info.playback?.playbackStatus===4,sourceAppId:info.sourceAppId,media:info.media,playback:info.playback})),failure:null};send('media.changed',media);};
-  mediaControl=createControl({onReady:update,onEvent:event=>{if(event.name==='sessions')update(event.payload.sessions);else mediaControl?.poll();},onFail:failure=>{media={available:false,sessions:[],failure:failure.message};send('media.changed',media);}});
+  const update=list=>{positions.observe(list||[]);media={available:true,sessions:(list||[]).map(info=>({appId:info.sourceAppId,title:info.media?.title||'',artist:info.media?.artist||'',playing:info.playback?.playbackStatus===4,sourceAppId:info.sourceAppId,media:info.media,playback:info.playback})),failure:null};send('media.changed',media);};
+  mediaControl=createControl({onReady:update,onEvent:event=>{if(event.name==='sessions')update(event.payload.sessions);else{positions.event(event);mediaControl?.poll();}},onFail:failure=>{media={available:false,sessions:[],failure:failure.message};send('media.changed',media);}});
   mediaControl.start();mediaTimer=setInterval(()=>mediaControl?.poll(),3000);
  }
  startMedia().catch(error=>{media.failure=error.message;console.error('미디어:',error.message);});

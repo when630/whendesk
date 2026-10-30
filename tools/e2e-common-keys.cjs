@@ -107,6 +107,21 @@ async function closeApp(){
       await screenshot('02-projects');
       assert.equal(errors.length,0,errors.join('\n'));
     });
+
+    await test('하단 힌트는 포커스 자리에 맞는 키를 보여 준다',async()=>{
+      const hints=()=>page.locator('.td-hints').innerText();
+      await waitUntil(async()=>/보관함/.test(await hints()),'Projects 힌트가 아닙니다.');
+      await press('Alt+i');await waitWithin(`[data-task-row="${inboxTask.id}"]`);
+      await waitUntil(async()=>/Space\s*완료/.test(await hints())&&/1 ~ 9\s*프로젝트/.test(await hints()),'할 일 목록 힌트가 아닙니다.');
+      await press('Enter');await waitFocus('[data-editor] [data-field=title]');
+      await waitUntil(async()=>/접기/.test(await hints())&&/Esc\s*목록/.test(await hints()),'편집기 힌트가 아닙니다.');
+      await screenshot('03-hints-editor');
+      await press('Escape');await press('Alt+n');await waitFocus('[data-note-search]');
+      await waitUntil(async()=>/검색 지우기/.test(await hints()),'메모 검색 힌트가 아닙니다.');
+      await press('ArrowDown');await waitWithin('[data-note-list]');
+      await waitUntil(async()=>/새 메모/.test(await hints())&&/Tab\s*분류/.test(await hints()),'메모 목록 힌트가 아닙니다.');
+      measurements.noteHints=await hints();
+    });
   }catch(error){failure=error.stack||String(error);if(page&&!page.isClosed())await screenshot('failure').catch(()=>{});}
   finally{
     try{await closeApp();}catch(error){failure=[failure,error.stack||String(error)].filter(Boolean).join('\n');}

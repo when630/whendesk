@@ -45,7 +45,7 @@ async function executionDone() {
 }
 async function screenshot(name) { await page.screenshot({path:path.join(shots,name+'.png')}); }
 async function noPersistentKeycaps() {
-  assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll('kbd')].filter(element=>!element.closest('.minimal-help-layer')&&element.getClientRects().length).map(element=>element.textContent)),[]);
+  assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll('kbd')].filter(element=>!element.closest('.minimal-help-layer,.td-hints'/* 하단 상황 힌트는 상시 표시 */)&&element.getClientRects().length).map(element=>element.textContent)),[]);
 }
 async function noNumericBuiltInKeycaps() {
   const numeric=await page.evaluate(()=>[...document.querySelectorAll('.minimal-help-layer kbd')]
@@ -240,7 +240,7 @@ async function closeHarness() {
       await page.locator('[data-shortcut-error=hotkey]').filter({hasText:'앱 내부'}).waitFor();assert.deepEqual(await call('preferences.get'),saved);
       await hotkey.fill('Control+Alt+F2');await capture.fill('Control+Alt+F4');await page.locator('.preferences-form [type=submit]').click();
       await page.locator('[data-shortcut-error=captureHotkey]').filter({hasText:'다른 앱'}).waitFor();assert.deepEqual(await call('preferences.get'),saved);
-      const registered=await app.evaluate(()=>[...globalThis.__commandTest.registrations.keys()]);assert.deepEqual(registered.sort(),['Control+Alt+F2','Control+Alt+F3','Control+Alt+M'].sort());
+      const registered=await app.evaluate(()=>[...globalThis.__commandTest.registrations.keys()]);assert.deepEqual(registered.sort(),['Control+Alt+F2','Control+Alt+F3','Control+Alt+M','Control+Alt+P','Control+Alt+Left','Control+Alt+Right'].sort());
       measurements.shortcutBindings=registered;await screenshot('03-shortcut-validation');
     });
 

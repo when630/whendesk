@@ -68,7 +68,7 @@ async function test(name, action) {
 
 async function noPersistentKeycaps(screen) {
   const visible = await page.evaluate(() => [...document.querySelectorAll('kbd')]
-    .filter(element => !element.closest('.minimal-help-layer') && element.getClientRects().length && getComputedStyle(element).visibility !== 'hidden')
+    .filter(element => !element.closest('.minimal-help-layer,.td-hints'/* 하단 상황 힌트는 상시 표시 */) && element.getClientRects().length && getComputedStyle(element).visibility !== 'hidden')
     .map(element => element.textContent.trim()));
   assert.deepEqual(visible, [], screen + '에 단축키 키캡이 상시 노출됩니다.');
 }

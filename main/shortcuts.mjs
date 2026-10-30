@@ -1,6 +1,6 @@
-export const SHORTCUT_FIELDS = Object.freeze(['hotkey', 'captureHotkey', 'noteCaptureHotkey']);
+export const SHORTCUT_FIELDS = Object.freeze(['hotkey', 'captureHotkey', 'noteCaptureHotkey', 'mediaPlayHotkey', 'mediaRewindHotkey', 'mediaForwardHotkey']);
 const FIELDS = SHORTCUT_FIELDS;
-const LABELS = { hotkey:'WHENCOMMAND 열기', captureHotkey:'할 일 빠르게 담기', noteCaptureHotkey:'메모 빠르게 담기' };
+const LABELS = { hotkey:'WHENCOMMAND 열기', captureHotkey:'할 일 빠르게 담기', noteCaptureHotkey:'메모 빠르게 담기', mediaPlayHotkey:'음악 재생·일시정지', mediaRewindHotkey:'음악 10초 되감기', mediaForwardHotkey:'음악 10초 앞으로' };
 const MODIFIERS = new Map(Object.entries({ control:'Control', ctrl:'Control', command:'Command', cmd:'Command', commandorcontrol:'CommandOrControl', cmdorctrl:'CommandOrControl', alt:'Alt', option:'Alt', altgr:'AltGr', shift:'Shift', super:'Super', meta:'Super' }));
 const ORDER = ['CommandOrControl', 'Control', 'Command', 'Alt', 'AltGr', 'Shift', 'Super'];
 const NAMED_KEYS = new Map(['Plus','Space','Tab','Capslock','Numlock','Scrolllock','Backspace','Delete','Insert','Return','Up','Down','Left','Right','Home','End','PageUp','PageDown','Escape','VolumeUp','VolumeDown','VolumeMute','MediaNextTrack','MediaPreviousTrack','MediaStop','MediaPlayPause','PrintScreen','numdec','numadd','numsub','nummult','numdiv'].map(key => [key.toLowerCase(), key]));
@@ -52,9 +52,7 @@ export function createShortcutManager({ globalShortcut, handlers, enabled = true
   const callback = accelerator => () => handlers[bindings.get(accelerator)]?.();
   const status = () => ({
     shortcutsEnabled:enabled,
-    hotkeyOk:[...bindings.values()].includes('hotkey'),
-    captureHotkeyOk:[...bindings.values()].includes('captureHotkey'),
-    noteCaptureHotkeyOk:[...bindings.values()].includes('noteCaptureHotkey'),
+    ...Object.fromEntries(FIELDS.map(field => [field + 'Ok', [...bindings.values()].includes(field)])),
     shortcutErrors:{ ...errors },
   });
   function normalize(values) {

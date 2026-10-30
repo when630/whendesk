@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {normalizeShortcutValues,SHORTCUT_FIELDS} from './shortcuts.mjs';
-export const DEFAULTS=Object.freeze({skin:'base',mode:'system',hotkey:'Alt+Space',captureHotkey:'Control+Alt+Space',noteCaptureHotkey:'Control+Alt+M',media:true,launchAtLogin:false});
+export const DEFAULTS=Object.freeze({skin:'base',mode:'system',hotkey:'Alt+Space',captureHotkey:'Control+Alt+Space',noteCaptureHotkey:'Control+Alt+M',mediaPlayHotkey:'Control+Alt+P',mediaRewindHotkey:'Control+Alt+Left',mediaForwardHotkey:'Control+Alt+Right',media:true,launchAtLogin:false});
 export function createPreferences(file){
  let values={...DEFAULTS};
  if(fs.existsSync(file)){

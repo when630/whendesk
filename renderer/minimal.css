@@ -134,3 +134,11 @@
 #whendesk-command-first .quick-event-preview.is-error{color:light-dark(#a0473a,#e08b7d)}
 #whendesk-command-first .cal-list-day.is-empty{padding:0 0 2px}
 #whendesk-command-first .cal-list-day h2 small{margin-left:10px;font-size:11px;font-weight:400;color:var(--td-muted)}
+
+/* 하단 상황 힌트: 본문 아래에 붙고, 길면 화면 아래에 머문다 */
+#whendesk-command-first .td-main{display:flex;flex-direction:column}
+#whendesk-command-first .td-main>.td-body{flex:1 0 auto}
+#whendesk-command-first .td-hints{position:sticky;bottom:0;display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:20px;padding:10px 0 0;border-top:1px solid var(--td-line);background:var(--td-surface);font-size:11px;color:var(--td-muted);pointer-events:none}
+#whendesk-command-first .td-hints:empty{display:none}
+#whendesk-command-first .td-hints span{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+#whendesk-command-first .td-hints kbd{font:11px Pretendard,"Segoe UI",sans-serif;background:var(--td-wash);border:0;border-radius:3px;padding:2px 6px;color:var(--td-text)}
