@@ -1,5 +1,6 @@
-const FIELDS = ['hotkey', 'captureHotkey'];
-const LABELS = { hotkey:'WHENCOMMAND 열기', captureHotkey:'할 일 빠르게 담기' };
+export const SHORTCUT_FIELDS = Object.freeze(['hotkey', 'captureHotkey', 'noteCaptureHotkey']);
+const FIELDS = SHORTCUT_FIELDS;
+const LABELS = { hotkey:'WHENCOMMAND 열기', captureHotkey:'할 일 빠르게 담기', noteCaptureHotkey:'메모 빠르게 담기' };
 const MODIFIERS = new Map(Object.entries({ control:'Control', ctrl:'Control', command:'Command', cmd:'Command', commandorcontrol:'CommandOrControl', cmdorctrl:'CommandOrControl', alt:'Alt', option:'Alt', altgr:'AltGr', shift:'Shift', super:'Super', meta:'Super' }));
 const ORDER = ['CommandOrControl', 'Control', 'Command', 'Alt', 'AltGr', 'Shift', 'Super'];
 const NAMED_KEYS = new Map(['Plus','Space','Tab','Capslock','Numlock','Scrolllock','Backspace','Delete','Insert','Return','Up','Down','Left','Right','Home','End','PageUp','PageDown','Escape','VolumeUp','VolumeDown','VolumeMute','MediaNextTrack','MediaPreviousTrack','MediaStop','MediaPlayPause','PrintScreen','numdec','numadd','numsub','nummult','numdiv'].map(key => [key.toLowerCase(), key]));
@@ -34,12 +35,12 @@ export function normalizeAccelerator(value, { platform = process.platform } = {}
 export function normalizeShortcutValues(values, options) {
   const normalized = {}, fields = {};
   for (const field of FIELDS) {
-    try { normalized[field] = normalizeAccelerator(values[field], options); }
+    try { normalized[field] = normalizeAccelerator(values[field] ?? '', options); }
     catch (error) { fields[field] = error.message; }
     if (/^(?:(?:Control|Command)\+(?:[KNSFEPZ]|\/|Return|Shift\+[NAZIEMBT])|Alt\+(?:Return|[HTIWDNCS]))$/.test(normalized[field] || '')) fields[field] = '앱 내부 단축키와 겹칩니다. 다른 조합을 지정해 주세요.';
   }
-  if (!Object.keys(fields).length && normalized.hotkey && normalized.hotkey === normalized.captureHotkey) {
-    fields.hotkey = fields.captureHotkey = '서로 다른 단축키를 지정해 주세요.';
+  if (!Object.keys(fields).length) {
+    for (const field of FIELDS) for (const other of FIELDS) if (field !== other && normalized[field] && normalized[field] === normalized[other]) fields[field] = '서로 다른 단축키를 지정해 주세요.';
   }
   if (Object.keys(fields).length) throw shortcutError(fields);
   return normalized;
@@ -53,6 +54,7 @@ export function createShortcutManager({ globalShortcut, handlers, enabled = true
     shortcutsEnabled:enabled,
     hotkeyOk:[...bindings.values()].includes('hotkey'),
     captureHotkeyOk:[...bindings.values()].includes('captureHotkey'),
+    noteCaptureHotkeyOk:[...bindings.values()].includes('noteCaptureHotkey'),
     shortcutErrors:{ ...errors },
   });
   function normalize(values) {

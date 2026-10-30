@@ -178,7 +178,8 @@ async function closeApp(){
    await section('calendar');await waitFocus('.td-body [data-date]');const before=await page.evaluate(()=>document.activeElement.dataset.date);
    await press('ArrowRight');await waitUntil(async()=>await page.evaluate(()=>document.activeElement.dataset.date)!==before,'방향키 날짜 이동이 되지 않았습니다.');
    const moved=await page.evaluate(()=>document.activeElement.dataset.date);await press('PageDown');await waitUntil(async()=>(await page.evaluate(()=>document.activeElement.dataset.date))?.slice(0,7)!==moved.slice(0,7),'PageDown 월 이동이 되지 않았습니다.');
-   await press('t');await waitFocus('.td-body [data-date]');await press('Control+n');await page.locator('.event-form').waitFor();await waitFocus('.event-form [name=title]');await text(eventTitle);await press('Control+s');await page.locator('.event-form').waitFor({state:'hidden'});
+   await press('t');await waitFocus('.td-body [data-date]');// Ctrl+N은 한 줄 입력을 열고, Ctrl+Enter로 자세히 편집한다.
+   await press('Control+n');await page.locator('.quick-event-form').waitFor();await press('Control+Enter');await page.locator('.event-form').waitFor();await waitFocus('.event-form [name=title]');await text(eventTitle);await press('Control+s');await page.locator('.event-form').waitFor({state:'hidden'});
    await waitUntil(async()=>{const event=(await state()).events.find(event=>event.title===eventTitle);eventId=event?.id;return !!eventId;},'일정이 저장되지 않았습니다.');
    await section('calendar');await waitFocus('.td-body [data-date]');await press('Enter');await waitFocus('.td-main-calendar-agenda [data-event]');await press('Enter');await waitFocus('.event-form [name=title]');await replaceText(editedEventTitle);await press('Control+s');await page.locator('.event-form').waitFor({state:'hidden'});
    await waitUntil(async()=>(await state()).events.find(event=>event.id===eventId)?.title===editedEventTitle,'일정 수정이 저장되지 않았습니다.');
@@ -186,7 +187,8 @@ async function closeApp(){
    // 반복 없는 일정은 확인 없이 바로 지우고 되돌리기를 남긴다(원본 WHENCALENDAR X·U).
    await waitUntil(async()=>!(await state()).events.some(event=>event.id===eventId),'일정이 삭제되지 않았습니다.');assert.equal(await page.locator('.event-form').count(),0,'반복 없는 일정 삭제가 대화상자를 열었습니다.');
    await waitUntil(()=>page.evaluate(()=>!!document.activeElement?.closest('.td-main')),'일정을 지운 뒤 캘린더 포커스를 잃었습니다.');await press('u');await waitUntil(async()=>(await state()).events.some(event=>event.id===eventId),'U로 일정 삭제를 되돌리지 못했습니다.');
-   await waitFocus('.td-body [data-date]');await press('Enter');await waitFocus('.td-main-calendar-agenda [data-event]');await press('Delete');await waitUntil(async()=>!(await state()).events.some(event=>event.id===eventId),'일정을 다시 삭제하지 못했습니다.');await tabTo('.td-nav [data-action=calendar]');await press('Control+z');await waitUntil(async()=>(await state()).events.some(event=>event.id===eventId),'일정 삭제를 키보드로 복원하지 못했습니다.');await screenshot('05-calendar-keyboard');
+   await waitFocus('.td-body [data-date]');await press('Enter');await waitFocus('.td-main-calendar-agenda [data-event]');await press('Delete');await waitUntil(async()=>!(await state()).events.some(event=>event.id===eventId),'일정을 다시 삭제하지 못했습니다.');// 캘린더의 Tab은 보기 전환이라 사이드바로 나가지 않는다. Ctrl+Z는 어디서나 공용 되돌리기다.
+   await press('Control+z');await waitUntil(async()=>(await state()).events.some(event=>event.id===eventId),'일정 삭제를 키보드로 복원하지 못했습니다.');await screenshot('05-calendar-keyboard');
   });
 
   await test('최종 데이터·도움말과 Command 복귀 확인',async()=>{

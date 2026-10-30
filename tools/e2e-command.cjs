@@ -240,7 +240,7 @@ async function closeHarness() {
       await page.locator('[data-shortcut-error=hotkey]').filter({hasText:'앱 내부'}).waitFor();assert.deepEqual(await call('preferences.get'),saved);
       await hotkey.fill('Control+Alt+F2');await capture.fill('Control+Alt+F4');await page.locator('.preferences-form [type=submit]').click();
       await page.locator('[data-shortcut-error=captureHotkey]').filter({hasText:'다른 앱'}).waitFor();assert.deepEqual(await call('preferences.get'),saved);
-      const registered=await app.evaluate(()=>[...globalThis.__commandTest.registrations.keys()]);assert.deepEqual(registered.sort(),['Control+Alt+F2','Control+Alt+F3'].sort());
+      const registered=await app.evaluate(()=>[...globalThis.__commandTest.registrations.keys()]);assert.deepEqual(registered.sort(),['Control+Alt+F2','Control+Alt+F3','Control+Alt+M'].sort());
       measurements.shortcutBindings=registered;await screenshot('03-shortcut-validation');
     });
 

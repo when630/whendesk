@@ -10,13 +10,14 @@ Command는 아이콘 바로 옆에 입력하는 한 줄 화면입니다. 연결�
 
 - 검색 입력 중 **Tab**: 대시보드 펼치기
 - **Esc**: 맨 위 하나만 닫고 한 단계 물러납니다. 동작 목록 → 대화상자 → 편집 → 검색·필터·하위 분류 → 화면의 기본 자리 → Command → 입력 지우기 → 창 숨기기 순서입니다. 입력한 대화상자는 Esc를 3초 안에 한 번 더 눌러야 버립니다.
-- Command에서 담은 할 일은 Command에 머물고 입력을 비워 바로 다음 항목을 담을 수 있습니다. **Ctrl+Enter**는 담고 InBox 편집으로 엽니다.
+- Command에서 담은 할 일·일정은 Command에 머물고 입력을 비워 바로 다음 항목을 담을 수 있습니다. **Ctrl+Enter**는 담고 InBox 편집 또는 캘린더의 그 일정으로 엽니다. 일정 추가는 입력하는 동안 결과 행에 해석(예: 10월 31일 (토) 오후 3:00)을 미리 보여 줍니다.
+- Command에서 찾은 할 일은 화면을 열지 않고 다룹니다. **Ctrl+Enter** 완료, **Alt+Enter** 동작 목록에서 완료·오늘 마감·내일 마감·삭제. 메모 결과의 Ctrl+Enter는 편집으로 열고, 반복 없는 일정은 동작 목록에서 삭제합니다. Command에서 한 변경도 화면의 U·Ctrl+Z로 되돌립니다. 캘린더 구독 관리·ICS 가져오기/내보내기도 Command에서 엽니다.
 - **Ctrl+K**: Command 열기. 입력 필드의 일반 Tab 이동은 유지합니다.
 - **Ctrl+/**: 단축키 안내 열기·닫기. Esc로도 닫을 수 있고, 입력 내용과 커서를 유지합니다.
 - Command에서 **Alt+Enter**: 선택한 결과의 동작 목록. ↑·↓와 Enter로 실행하고 Esc로 검색 결과로 돌아갑니다.
 - **Ctrl+Enter**: 보조 동작. 앱·파일은 위치 열기, 스크립트는 파일 열기입니다.
 - Command에서 **↑·↓**로 결과를 선택하고 **Enter**로 실행합니다. **Ctrl+K**를 다시 누르면 검색어 전체를 선택합니다.
-- 기본 전역 단축키: **Alt+Space**. 빠른 할 일 수집: **Ctrl+Alt+Space**.
+- 기본 전역 단축키: **Alt+Space**. 빠른 담기: 할 일 **Ctrl+Alt+Space**, 메모 **Ctrl+Alt+M**. 담기 모드는 Command 입력줄을 한 줄 수집에 쓰며 Enter로 담아도 창이 남아 연달아 담습니다. Ctrl+Enter 담고 열기, Tab 앱에서 열기, Esc 입력 지우기 → 닫기. WHENNOTE를 함께 실행 중이면 Ctrl+Alt+M이 겹칠 수 있으니 설정에서 바꾸세요.
 
 기존 Work·Note·Calendar·WHENCOMMAND를 연결합니다. 메모는 WHENNOTE의 첫 줄 제목·본문 자동 저장·초성/태그 검색·고정·보관함·휴지통·링크와 백링크·Markdown 미리보기·이미지 첨부·내보내기를 재사용합니다. 할 일·인박스·대기·완료, 프로젝트, 마감, 반복 일정, ICS와 구독, 앱·파일 검색, 계산·단위 변환, 기존 스크립트와 시스템 명령도 사용할 수 있습니다. Music은 연결된 Windows 미디어 컨트롤을 사용합니다. Mail·Terminal은 포함하지 않습니다.
 
@@ -35,7 +36,7 @@ Command는 아이콘 바로 옆에 입력하는 한 줄 화면입니다. 연결�
 | 메모 | Ctrl+N 새 메모, Ctrl+F 검색, Ctrl+S 저장, Ctrl+E 미리보기, Ctrl+P 고정, Ctrl+Shift+A 보관·해제 |
 | 메모 목록 | 검색에서 ↓로 목록 진입. ↑↓·J/K 선택하면 오른쪽에 바로 보기, Enter 보기, E 편집(보기에서도 E), N 새 메모, / 검색, Tab·Shift+Tab 또는 Ctrl+Shift+M/B/T로 메모·보관함·휴지통, X·Delete 삭제, U 되돌리기, Ctrl+Shift+Z 휴지통에서 복원 |
 | 메모 파일 | Ctrl+Shift+I 이미지 선택, Ctrl+Shift+E Markdown 내보내기. 이미지 붙여넣기도 지원 |
-| 캘린더 | 날짜 ←→ 하루·↑↓ 일주일, PageUp/Down 월 이동, T 오늘, N·Ctrl+N 새 일정, Enter 날짜의 일정 목록·일정 편집, E 편집, X·Delete 삭제(반복 일정은 범위 선택), U 되돌리기 |
+| 캘린더 | Tab·Shift+Tab 오늘·주·월 보기 순환. 월: 날짜 ←→ 하루·↑↓ 일주일, PageUp/Down 월 이동, Enter 날짜의 일정 목록. 오늘·주: ↑↓·J/K 일정 이동, ←→ 하루·한 주 이동. T 오늘, N·Ctrl+N 한 줄 입력(쓰는 동안 해석 미리보기, Enter 추가, Ctrl+Enter 자세히 편집), E 편집, X·Delete 삭제(반복 일정은 범위 선택), U 되돌리기 |
 | 대화상자 | Tab·Shift+Tab은 내부 순환, Ctrl+S 저장, Esc 닫기 |
 | 돌아가기 | Esc는 한 단계씩: 편집 → 검색·필터·보관함/휴지통 → 화면 기본 자리 → Command. Ctrl+K는 Command로 이동하며 일정 대화상자 초안은 닫지 않음 |
 
@@ -83,6 +84,7 @@ npm run build
 - `node tools/e2e-keyboard-notes.cjs`: 마우스 입력 없이 메모·할 일·캘린더·설정과 파일 기능을 개발본에서 검증
 - `node tools/e2e-work.cjs`: Work 내부 탭·프로젝트 지정/관리·자연어 마감·대기·재촉/연속 되돌림·원본 검색 규칙을 키보드로 검사
 - `node tools/e2e-focus-flow.cjs`: 6개 스킨/모드 조합의 전 화면 포커스 228개 검사와 캡처·탭 왕복·검색/필터·캘린더 진입·저장 지연 중 포커스 흐름 검사
+- `node tools/e2e-command-verbs.cjs`: Command 결과 동작·일정 추가 미리보기·할 일/메모 담기 모드·캘린더 보기와 한 줄 입력·Command의 캘린더 도구 검사
 - `node tools/e2e-common-keys.cjs`: 메모 공통 키·즉시 미리보기·화면을 넘나드는 되돌리기·Projects A/U·접힌 행 Ctrl+Enter 검사
 - `node tools/e2e-escape-flow.cjs`: 단계형 Esc·Command에서 연달아 담기·메모 분류 Tab·초안 보호·키보드 포커스 표시 검사
 - `node tools/e2e-command-bar.cjs`: 한 줄 Command·조건부 미디어·입력 및 버튼 포커스·작은 창 배치를 모의 미디어로 검사

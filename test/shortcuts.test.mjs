@@ -50,7 +50,7 @@ test('다른 앱과 충돌하면 신규 키만 되돌리고 기존 키와 설정
  const f=fixture({occupied:['Alt+F3']});f.manager.initialize(DEFAULTS);
  let saved=false;
  assert.throws(()=>f.manager.update({hotkey:'Alt+F2',captureHotkey:'Alt+F3'},()=>{saved=true;}),error=>!!error.fields.captureHotkey);
- assert.equal(saved,false);assert.deepEqual([...f.registered.keys()],['Alt+Space','Control+Alt+Space']);
+ assert.equal(saved,false);assert.deepEqual([...f.registered.keys()],['Alt+Space','Control+Alt+Space','Control+Alt+M']);
  f.press('Alt+Space');f.press('Control+Alt+Space');assert.deepEqual(f.invoked,['command','capture']);
  assert.equal(f.operations.some(([op,key])=>op==='unregister'&&key==='Alt+Space'),false);
  assert.ok(f.manager.status().shortcutErrors.captureHotkey);f.manager.dispose();
@@ -59,14 +59,14 @@ test('다른 앱과 충돌하면 신규 키만 되돌리고 기존 키와 설정
 test('단축키 설정 저장 실패도 기존 등록을 유지하고 신규 등록을 취소한다',()=>{
  const f=fixture();f.manager.initialize(DEFAULTS);
  assert.throws(()=>f.manager.update({hotkey:'Alt+F2',captureHotkey:'Alt+F3'},()=>{throw new Error('디스크 저장 실패');}),/디스크 저장 실패/);
- assert.deepEqual([...f.registered.keys()],['Alt+Space','Control+Alt+Space']);
+ assert.deepEqual([...f.registered.keys()],['Alt+Space','Control+Alt+Space','Control+Alt+M']);
  f.press('Alt+Space');assert.deepEqual(f.invoked,['command']);f.manager.dispose();
 });
 
 test('두 키를 맞바꿔도 해제·재등록 없이 각 동작을 바꾸고 빈 값으로 해제한다',()=>{
  const f=fixture();f.manager.initialize(DEFAULTS);f.operations.length=0;
  let committed;
- f.manager.update({hotkey:'Ctrl+Alt+Space',captureHotkey:'Alt+Space'},value=>{committed=value;return value;});
+ f.manager.update({hotkey:'Ctrl+Alt+Space',captureHotkey:'Alt+Space',noteCaptureHotkey:'Control+Alt+M'},value=>{committed=value;return value;});
  assert.deepEqual(f.operations,[]);assert.equal(committed.hotkey,'Control+Alt+Space');
  f.press('Alt+Space');f.press('Control+Alt+Space');assert.deepEqual(f.invoked,['capture','command']);
  f.manager.update({hotkey:'',captureHotkey:'Alt+Space'});

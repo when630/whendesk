@@ -119,3 +119,18 @@
 #whendesk-command-first .command-result-text{display:flex;align-items:baseline;gap:8px;flex:1;min-width:0;overflow:hidden}
 #whendesk-command-first .command-result-title{min-width:0;flex:0 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #whendesk-command-first .td-command-result .command-subtitle{display:inline;flex:0 1 auto;max-width:48%;min-width:0;margin-top:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* 캘린더 보기 탭과 오늘·주 목록, 일정 한 줄 입력 */
+#whendesk-command-first .cal-views{display:flex;gap:18px;margin:0 0 14px;border-bottom:1px solid var(--td-line)}
+#whendesk-command-first .cal-views [role=tab]{padding:8px 0;font-size:12px;color:var(--td-muted);border-bottom:2px solid transparent;margin-bottom:-1px;background:none}
+#whendesk-command-first .cal-views [role=tab][aria-selected=true]{color:var(--td-text);border-bottom-color:var(--td-text)}
+#whendesk-command-first .cal-list{outline:none}
+#whendesk-command-first .cal-list-day{padding:4px 0 10px;border-bottom:1px solid var(--td-line)}
+#whendesk-command-first .cal-list-day h2{font-size:12px;font-weight:500;color:var(--td-muted);margin:10px 0 6px}
+#whendesk-command-first .cal-list-day.is-selected h2{color:var(--td-text)}
+#whendesk-command-first .quick-event-form{max-width:520px}
+#whendesk-command-first .quick-event-form input{width:100%;font-size:15px;padding:10px 2px;border:0;border-bottom:1px solid var(--td-line);background:none;color:var(--td-text)}
+#whendesk-command-first .quick-event-preview{min-height:18px;margin:10px 2px 0;font-size:12px;color:var(--td-muted)}
+#whendesk-command-first .quick-event-preview.is-error{color:light-dark(#a0473a,#e08b7d)}
+#whendesk-command-first .cal-list-day.is-empty{padding:0 0 2px}
+#whendesk-command-first .cal-list-day h2 small{margin-left:10px;font-size:11px;font-weight:400;color:var(--td-muted)}

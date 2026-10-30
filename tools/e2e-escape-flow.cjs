@@ -126,13 +126,13 @@ async function closeApp(){
     await test('입력한 대화상자는 Esc 한 번에 버리지 않고, 입력이 없으면 한 번에 닫는다',async()=>{
       await press('Tab');await page.locator('#cf-dashboard-panel').waitFor();
       await press('Alt+c');await waitUntil(()=>focused('.td-main [data-date]'),'캘린더 날짜에 포커스가 없습니다.');
-      await press('n');await page.locator('.event-form').waitFor();
-      await press('Escape');await page.locator('.event-form').waitFor({state:'hidden'});
+      await press('n');await page.locator('.quick-event-form').waitFor();
+      await press('Escape');await page.locator('.quick-event-form').waitFor({state:'hidden'});
       await waitUntil(()=>focused('.td-main [data-date]'),'빈 대화상자를 닫은 뒤 날짜로 돌아가지 않았습니다.');
-      await press('n');await page.locator('.event-form').waitFor();await text('버릴 초안');
-      await press('Escape');assert.equal(await visible('.event-form'),true,'입력한 초안을 Esc 한 번에 버렸습니다.');
+      await press('n');await page.locator('.quick-event-form').waitFor();await text('버릴 초안');
+      await press('Escape');assert.equal(await visible('.quick-event-form'),true,'입력한 초안을 Esc 한 번에 버렸습니다.');
       assert.match(await page.locator('.td-feedback').innerText(),/한 번 더/);
-      await press('Escape');await page.locator('.event-form').waitFor({state:'hidden'});
+      await press('Escape');await page.locator('.quick-event-form').waitFor({state:'hidden'});
       assert.equal((await state()).events.length,0);
       await screenshot('03-calendar-home');
       assert.equal(errors.length,0,errors.join('\n'));

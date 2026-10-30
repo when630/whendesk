@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import {normalizeShortcutValues} from './shortcuts.mjs';
-export const DEFAULTS=Object.freeze({skin:'base',mode:'system',hotkey:'Alt+Space',captureHotkey:'Control+Alt+Space',media:true,launchAtLogin:false});
+import {normalizeShortcutValues,SHORTCUT_FIELDS} from './shortcuts.mjs';
+export const DEFAULTS=Object.freeze({skin:'base',mode:'system',hotkey:'Alt+Space',captureHotkey:'Control+Alt+Space',noteCaptureHotkey:'Control+Alt+M',media:true,launchAtLogin:false});
 export function createPreferences(file){
  let values={...DEFAULTS};
  if(fs.existsSync(file)){
@@ -14,10 +14,10 @@ export function createPreferences(file){
    for(const [key,value] of Object.entries(patch||{})){
     if(key==='skin'&&['base','ink','paper'].includes(value))next.skin=value;
     else if(key==='mode'&&['system','light','dark'].includes(value))next.mode=value;
-    else if(['hotkey','captureHotkey'].includes(key))next[key]=value;
+    else if(SHORTCUT_FIELDS.includes(key))next[key]=value;
     else if(['media','launchAtLogin'].includes(key)&&typeof value==='boolean')next[key]=value;
    }
-   if(Object.hasOwn(patch||{},'hotkey')||Object.hasOwn(patch||{},'captureHotkey'))Object.assign(next,normalizeShortcutValues(next));
+   if(SHORTCUT_FIELDS.some(field=>Object.hasOwn(patch||{},field)))Object.assign(next,normalizeShortcutValues(next));
    return next;
  }
  return {

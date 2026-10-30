@@ -16,7 +16,7 @@
   const dateKey = (date = new Date()) => `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
   const today = dateKey();
   const tomorrow = dateKey(new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()+1));
-  const state = { shell:'command', view:'dashboard', tab:'todo', selected:null, project:null, dueOnly:false, year:new Date().getFullYear(), month:new Date().getMonth(), date:today, skin:'base', mode:'system', tasks:[], projects:[], events:[], calendars:[], info:{}, prefs:{}, media:{ sessions:[] } };
+  const state = { shell:'command', view:'dashboard', tab:'todo', calView:'month', selected:null, project:null, dueOnly:false, year:new Date().getFullYear(), month:new Date().getMonth(), date:today, skin:'base', mode:'system', tasks:[], projects:[], events:[], calendars:[], info:{}, prefs:{}, media:{ sessions:[] } };
   const command = { seq:0, items:[], selected:0, pending:false, query:'', renderedQuery:null, request:null, running:false, activating:false, activation:0, composing:false, actions:null, more:null, waiters:new Set(), notice:'', start:0, end:0, timer:null };
   const pending = new Map();
   const workRules = window.VIEW;
@@ -126,7 +126,7 @@
       const rows = group.rows.filter(([, , when]) => !when?.media || state.media.sessions?.length).map(([label, ids]) => row(label || K.find(ids[0]).label, ids.map(K.format))).join('');
       return `${group.title ? `<h3>${esc(group.title)}</h3>` : ''}<dl>${rows}</dl>`;
     }).join('');
-    helpLayer.innerHTML = `<section class="minimal-help" role="dialog" aria-modal="true" aria-label="단축키 안내"><div class="minimal-help-head"><h2>단축키</h2><button data-action="close-help" aria-label="단축키 안내 닫기">${icon('x')}</button></div>${groups}<h3>어디서나</h3><dl>${state.prefs.hotkey ? row('WHENDESK 열기 · 숨기기', [hotkey(state.prefs.hotkey)]) : ''}${state.prefs.captureHotkey ? row('할 일 빠르게 담기', [hotkey(state.prefs.captureHotkey)]) : ''}</dl><p class="minimal-help-note">마감일은 오늘·내일·모레·상대일 또는 날짜로 입력하며, 비우면 해제합니다. Work 검색에는 초성·본문·프로젝트와 마감순·마감지남·이번주 같은 원본 필터를 사용할 수 있습니다. 할 일을 캘린더 날짜로 끌어놓아도 마감을 바꿀 수 있습니다. 동작 목록과 열린 대화상자는 Esc로 먼저 닫습니다. 단축키 설정 필드에서는 조합을 눌러 기록하고, Delete로 해제하거나 Esc로 저장된 값을 불러옵니다.</p></section>`;
+    helpLayer.innerHTML = `<section class="minimal-help" role="dialog" aria-modal="true" aria-label="단축키 안내"><div class="minimal-help-head"><h2>단축키</h2><button data-action="close-help" aria-label="단축키 안내 닫기">${icon('x')}</button></div>${groups}<h3>어디서나</h3><dl>${state.prefs.hotkey ? row('WHENDESK 열기 · 숨기기', [hotkey(state.prefs.hotkey)]) : ''}${state.prefs.captureHotkey ? row('할 일 빠르게 담기', [hotkey(state.prefs.captureHotkey)]) : ''}${state.prefs.noteCaptureHotkey ? row('메모 빠르게 담기', [hotkey(state.prefs.noteCaptureHotkey)]) : ''}</dl><p class="minimal-help-note">마감일은 오늘·내일·모레·상대일 또는 날짜로 입력하며, 비우면 해제합니다. Work 검색에는 초성·본문·프로젝트와 마감순·마감지남·이번주 같은 원본 필터를 사용할 수 있습니다. 할 일을 캘린더 날짜로 끌어놓아도 마감을 바꿀 수 있습니다. 동작 목록과 열린 대화상자는 Esc로 먼저 닫습니다. 단축키 설정 필드에서는 조합을 눌러 기록하고, Delete로 해제하거나 Esc로 저장된 값을 불러옵니다.</p></section>`;
     helpLayer.hidden = false;
     [...app.children].filter(child => child !== helpLayer).forEach(child => { child.inert = true; });
     icons(); helpLayer.querySelector('button').focus({ preventScroll:true });
@@ -294,7 +294,7 @@
     if (state.view === 'dashboard') body.innerHTML = home();
     else if (state.view === 'settings') body.innerHTML = settingsView();
     else if (state.view === 'notes') notes?.mount(body);
-    else if (state.view === 'calendar') body.innerHTML = `<section class="td-full-calendar">${calendarMonth()}<div class="calendar-tools"><button class="td-secondary" data-action="subscriptions">${icon('rss')}구독 관리</button><button class="td-secondary" data-action="import-ics">ICS 가져오기</button><button class="td-secondary" data-action="export-ics">ICS 내보내기</button></div><form class="calendar-natural"><input name="line" aria-label="일정 한 줄 입력" placeholder="예: 내일 오후 3시 치과 30분" required><button class="td-secondary" type="submit">일정 확인</button></form><div class="td-main-calendar-agenda"><h2>${Number(state.date.slice(5,7))}월 ${Number(state.date.slice(8))}일</h2>${eventRows(state.date)}</div></section>`;
+    else if (state.view === 'calendar') body.innerHTML = `<section class="td-full-calendar">${calendarViews()}${state.calView === 'month' ? calendarMonth() : calendarList()}<div class="calendar-tools"><button class="td-secondary" data-action="subscriptions">${icon('rss')}구독 관리</button><button class="td-secondary" data-action="import-ics">ICS 가져오기</button><button class="td-secondary" data-action="export-ics">ICS 내보내기</button></div>${state.calView === 'month' ? `<div class="td-main-calendar-agenda"><h2>${Number(state.date.slice(5,7))}월 ${Number(state.date.slice(8))}일</h2>${eventRows(state.date)}</div>` : ''}</section>`;
     else body.innerHTML = workView();
     restoreFocus(focus); icons();
     if(state.view==='tasks'){syncTaskCursor();syncProjectCursor();}
@@ -304,6 +304,53 @@
   function calendarMonth() {
     const first = new Date(state.year, state.month, 1), offset = (first.getDay()+6)%7, count = Math.ceil((offset + new Date(state.year,state.month+1,0).getDate())/7)*7;
     return `<div class="td-cal-head"><h2>${state.year}년 ${state.month+1}월</h2><div><button data-month="-1" aria-label="이전 달">${icon('chevron-left')}</button><button data-action="today">오늘</button><button data-month="1" aria-label="다음 달">${icon('chevron-right')}</button></div></div><div class="td-month">${['월','화','수','목','금','토','일'].map(day => `<span class="td-weekday">${day}</span>`).join('')}${Array.from({ length:count }, (_,index) => { const date = new Date(state.year,state.month,1-offset+index), key = dateKey(date); const events = state.events.filter(e => e.date === key); const tasks = state.tasks.filter(t => !t.done && t.due === key); return `<button class="td-day ${key === today ? 'today' : ''} ${key === state.date ? 'selected' : ''} ${date.getMonth() !== state.month ? 'other' : ''}" data-date="${key}" tabindex="${key === state.date ? 0 : -1}" aria-pressed="${key === state.date}" aria-label="${key} 일정 ${events.length}개, 마감 ${tasks.length}개"><span>${date.getDate()}</span><span class="td-day-marks">${events.length ? '<i class="td-event-mark"></i>' : ''}${tasks.length ? '<i class="td-task-mark"></i>' : ''}</span></button>`; }).join('')}</div>`;
+  }
+  /* 캘린더 보기: 오늘·주는 키보드로 훑기 빠른 목록, 월은 격자(원본 WHENCALENDAR). Tab·Shift+Tab으로 순환한다. */
+  const CAL_VIEWS = [['today','오늘'],['week','주'],['month','월']];
+  function calendarViews() { return `<div class="cal-views" role="tablist" aria-label="캘린더 보기">${CAL_VIEWS.map(([value,label]) => `<button role="tab" data-cal-view="${value}" aria-selected="${state.calView === value}" tabindex="-1">${label}</button>`).join('')}</div>`; }
+  function weekDates(date) { const start = new Date(date + 'T12:00:00'); start.setDate(start.getDate() - (start.getDay() + 6) % 7); return Array.from({ length:7 }, (_, index) => { const day = new Date(start); day.setDate(start.getDate() + index); return dateKey(day); }); }
+  function dayLabel(date) { return new Date(date + 'T12:00:00').toLocaleDateString('ko-KR', { month:'long', day:'numeric', weekday:'short' }); }
+  function calendarList() {
+    const dates = state.calView === 'week' ? weekDates(state.date) : [state.date];
+    return `<div class="td-main-calendar-agenda cal-list" tabindex="-1" data-cal-home aria-label="${state.calView === 'week' ? '이번 주 일정' : '이날 일정'}">${dates.map(date => { const empty = !state.events.some(event => event.date === date); return `<section class="cal-list-day${date === today ? ' is-today' : ''}${date === state.date ? ' is-selected' : ''}${empty ? ' is-empty' : ''}" data-cal-day="${date}"><h2>${esc(dayLabel(date))}${empty ? '<small>일정 없음</small>' : ''}</h2>${empty ? '' : eventRows(date)}</section>`; }).join('')}</div>`;
+  }
+  function setCalView(value) { if (!CAL_VIEWS.some(([view]) => view === value)) return; state.calView = value; renderMainView(); focusView(); }
+  function focusEvent(id, date) {
+    const item = state.events.find(event => String(event.id) === String(id) && (!date || event.date === date)) || state.events.find(event => String(event.id) === String(id));
+    const button = item && body.querySelector(`.td-main-calendar-agenda [data-event="${eventKey(item)}"]`);
+    if (button) button.focus({ preventScroll:true });
+    return !!button;
+  }
+  /* N: 한 줄 입력. 쓰는 동안 해석을 미리 보여 주고 Enter로 추가, Ctrl+Enter는 자세히 편집(원본 WHENCALENDAR). */
+  let quickEventTimer = null, quickEventSeq = 0;
+  function eventWhen(parsed) {
+    const start = new Date(parsed?.startsAt); if (!Number.isFinite(start.getTime())) return '';
+    const day = start.toLocaleDateString('ko-KR', { month:'long', day:'numeric', weekday:'short' });
+    return parsed.allDay ? day : `${day} ${start.toLocaleTimeString('ko-KR', { hour:'numeric', minute:'2-digit' })}`;
+  }
+  function quickEventModal() {
+    openModal(`<form class="td-modal quick-event-form" role="dialog" aria-modal="true" aria-label="일정 한 줄 입력"><input name="line" aria-label="일정 한 줄 입력" placeholder="예: 내일 오후 3시 치과 30분" autocomplete="off" spellcheck="false"><p class="quick-event-preview" aria-live="polite"></p></form>`);
+  }
+  async function parseQuickEvent() {
+    const form = modalLayer.querySelector('.quick-event-form'); if (!form) return null;
+    const line = form.elements.line.value.trim(), seq = ++quickEventSeq, out = form.querySelector('.quick-event-preview');
+    if (!line) { out.textContent = ''; out.classList.remove('is-error'); return null; }
+    const result = await call('mutate', { type:'calendar.parse', payload:{ text:line } }), parsed = result?.parsed || result;
+    if (seq !== quickEventSeq || !out.isConnected) return null;
+    const ok = parsed?.ok !== false && !!parsed?.startsAt;
+    out.textContent = ok ? [eventWhen(parsed), parsed.title, ...(parsed.notes || [])].filter(Boolean).join(' · ') : '날짜와 시간을 더 적어 주세요';
+    out.classList.toggle('is-error', !ok);
+    return ok ? parsed : null;
+  }
+  async function submitQuickEvent({ detail = false } = {}) {
+    clearTimeout(quickEventTimer);
+    const parsed = await parseQuickEvent();
+    if (detail) { const line = modalLayer.querySelector('.quick-event-form [name=line]')?.value || ''; closeModal(); eventModal(null, parsed || null); if (!parsed && line) { const title = modalLayer.querySelector('.event-form [name=title]'); if (title) title.value = line; } return; }
+    if (!parsed) return;
+    const created = await mutate('event.create', parsed);
+    closeModal(); await selectDate(dateKey(new Date(parsed.startsAt)));
+    feedback('일정을 추가했어요.', () => mutate('event.delete', { id:created.id, scope:'all' }));
+    if (!focusEvent(created.id)) focusView();
   }
   function eventRows(date) {
     const events = state.events.filter(e => e.date === date).sort((a,b) => String(a.time).localeCompare(String(b.time)));
@@ -320,12 +367,15 @@
     renderNav(); renderMainView(); await shell('dashboard', false); body.querySelector('[data-field=title]')?.focus({ preventScroll:true });
   }
   async function navigate(route = {}) {
-    if (route.shell === 'command') { await flushPending(); return shell('command'); }
+    if (route.shell === 'command') { await flushPending(); await shell('command'); if (route.capture) enterCapture(route.capture); else exitCapture(); return; }
     if (route.view === 'work' || route.view === 'tasks' && route.tab && !route.id) state.project=null;
     if (route.view === 'notes') { await flushPending(); state.view='notes'; state.project=null; renderNav(); renderMainView(); await shell('dashboard',false); await notes?.refresh(); if(route.id) await notes?.open(route.id,{edit:!!route.edit}); else notes?.focus(); return; }
     if (route.id && route.view !== 'calendar') await reveal(route.id);
     else { await flushPending(); state.view = route.settings ? 'settings' : route.view === 'work' ? 'tasks' : route.view || 'dashboard'; if(route.settings){state.prefs=await call('preferences.get');state.info=await call('app.info');} if (route.tab) state.tab = route.tab; if (route.date) { state.date = route.date; state.year = Number(route.date.slice(0,4)); state.month = Number(route.date.slice(5,7))-1; } await loadState(); await shell('dashboard'); }
     if (route.focusCapture) root.querySelector('.td-quick input')?.focus();
+    // 일정 결과는 날짜만이 아니라 그 일정에 포커스를 둔다.
+    if (route.view === 'calendar' && route.id != null) focusEvent(route.id, route.date);
+    if (route.view === 'calendar' && route.action) body.querySelector(`[data-action="${CSS.escape(route.action)}"]`)?.click();
   }
   async function addTask(title) {
     const origin={view:state.view,tab:state.tab,project:state.project,query:state.workQuery};
@@ -424,7 +474,7 @@
     openModal(`<section class="td-modal" role="dialog" aria-modal="true" aria-label="캘린더 구독"><div class="td-modal-header"><h2>캘린더 구독</h2><button data-action="close-modal" aria-label="닫기">${icon('x')}</button></div><form class="subscription-form"><label class="td-field">ICS 주소<input type="url" name="url" aria-label="캘린더 구독 주소" placeholder="https://…/calendar.ics" required></label><button class="td-primary" type="submit">구독 추가</button></form><div class="subscription-list">${list.filter(c => c.kind === 'subscription').map(c => `<div class="subscription-item"><strong>${esc(c.name)}</strong><small>${esc(c.last_error || c.lastError || c.url)}</small><div><button class="td-secondary" data-sub-toggle="${c.id}">${c.enabled ? '숨기기' : '표시'}</button><button class="td-secondary" data-sub-sync="${c.id}">새로고침</button><button class="td-secondary" data-sub-delete="${c.id}">삭제</button></div></div>`).join('') || '<p class="td-empty">등록된 구독이 없어요.</p>'}</div></section>`);
   }
   function settingsView() {
-    const shortcutFields = [['hotkey','WHENCOMMAND 열기','Command 단축키','Alt+Space'],['captureHotkey','할 일 빠르게 담기','빠른 수집 단축키','Control+Alt+Space']];
+    const shortcutFields = [['hotkey','WHENCOMMAND 열기','Command 단축키','Alt+Space'],['captureHotkey','할 일 빠르게 담기','빠른 수집 단축키','Control+Alt+Space'],['noteCaptureHotkey','메모 빠르게 담기','메모 수집 단축키','Control+Alt+M']];
     return `<section class="settings-section"><h2>모양</h2><div class="minimal-appearance"><label class="td-field">스킨<select data-look="skin" aria-label="스킨">${[['base','기본'],['ink','잉크'],['paper','페이퍼']].map(([value,label]) => `<option value="${value}" ${state.skin === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label><label class="td-field">모드<select data-look="mode" aria-label="화면 모드">${[['system','시스템'],['light','라이트'],['dark','다크']].map(([value,label]) => `<option value="${value}" ${state.mode === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label></div></section>
     <form class="preferences-form"><section class="settings-section"><h2>단축키</h2>${shortcutFields.map(([field,label,aria,fallback]) => `<label class="td-field">${label}<input name="${field}" data-shortcut="${field}" aria-label="${aria}" aria-describedby="shortcut-error-${field}" aria-invalid="${!!state.info.shortcutErrors?.[field]}" value="${esc(state.prefs[field] ?? fallback)}" placeholder="사용 안 함" autocomplete="off" spellcheck="false"><span id="shortcut-error-${field}" class="settings-warning" data-shortcut-error="${field}" ${state.info.shortcutErrors?.[field] ? '' : 'hidden'}>${esc(state.info.shortcutErrors?.[field])}</span></label>`).join('')}<div class="settings-actions"><button class="td-primary" type="submit">단축키 저장</button><button class="td-secondary" type="button" data-action="help">단축키 안내</button></div></section></form>
     <section class="settings-section"><h2>데이터</h2><div class="settings-actions"><button class="td-secondary" data-data="importLegacy">기존 데이터 복사해 가져오기</button><button class="td-secondary" data-data="export">백업 내보내기</button><button class="td-secondary" data-data="restore">백업 복원</button><button class="td-secondary" data-data="openFolder">저장 폴더 열기</button></div><small class="settings-path">${esc(state.info.dataDir)}</small></section><section class="settings-section"><h2>WHENCOMMAND</h2><button class="td-secondary" data-action="refresh-command">검색 목록 새로고침</button></section><section class="settings-section"><h2>WHENDESK ${esc(state.info.version || '')}</h2><button class="td-secondary" data-action="quit">앱 종료</button></section>`;
@@ -531,7 +581,30 @@
     clearTimeout(commandNoticeTimer); commandInput.placeholder = message; commandInput.classList.add('has-notice');
     commandNoticeTimer = setTimeout(clearCommandNotice, 4000);
   }
-  function clearCommandNotice() { clearTimeout(commandNoticeTimer); commandNoticeTimer = null; commandInput.placeholder = '검색 또는 실행'; commandInput.classList.remove('has-notice'); }
+  function clearCommandNotice() { clearTimeout(commandNoticeTimer); commandNoticeTimer = null; commandInput.placeholder = command.capture ? CAPTURE[command.capture].placeholder : '검색 또는 실행'; commandInput.classList.remove('has-notice'); }
+  /* 빠른 담기 모드: Command 입력줄을 한 줄 수집에 쓴다(원본 WHENWORK·WHENNOTE의 수집 창).
+   * 검색하지 않고 Enter로 담은 뒤 입력을 비워 연달아 담는다. Ctrl+Enter는 담고 열기, Tab은 앱에서 열기, Esc는 닫기. */
+  const CAPTURE = {
+    task:{ placeholder:'InBox에 담기', type:'task.create', payload:text => ({ title:text }), label:'인박스에 담았습니다', undo:item => ({ type:'task.delete', payload:{ id:item.id } }), open:item => ({ view:'tasks', tab:'inbox', id:item.id }), section:'inbox' },
+    note:{ placeholder:'메모 담기', type:'note.create', payload:text => ({ body:text }), label:'메모에 담았습니다', undo:item => ({ type:'note.delete', payload:{ id:item.id } }), open:item => ({ view:'notes', id:item.id, edit:true }), section:'notes' },
+  };
+  function enterCapture(kind) {
+    if (!CAPTURE[kind]) return; command.capture = kind; root.classList.add('is-capture');
+    commandInput.value = ''; queueCommandQuery('', 0, true); clearCommandNotice(); commandInput.focus({ preventScroll:true });
+  }
+  function exitCapture() { if (!command.capture) return; command.capture = null; root.classList.remove('is-capture'); clearCommandNotice(); }
+  async function saveCapture({ open = false } = {}) {
+    const kind = CAPTURE[command.capture], text = commandInput.value.trim();
+    if (!kind || !text || command.running) return;
+    command.running = true;
+    try {
+      const item = await mutate(kind.type, kind.payload(text));
+      commandInput.value = '';
+      const undo = kind.undo(item); undoTimeline.push(() => mutate(undo.type, undo.payload)); if (undoTimeline.length > 50) undoTimeline.shift();
+      if (open) { exitCapture(); await navigate(kind.open(item)); return; }
+      commandNotice(`${kind.label} · ${text.split('\n')[0]}`);
+    } finally { command.running = false; }
+  }
   function queueCommandQuery(query, delay = 85, force = false) {
     if (command.running || !force && query === command.query) return;
     clearTimeout(command.timer); command.timer = null;
@@ -586,6 +659,8 @@
       if (result?.route) { await loadState({ renderMain:false }); await navigate(result.route); }
       // 머무르는 동작은 입력을 비워 같은 항목을 다시 실행하지 않게 하고, 알림은 입력줄에 띄운다.
       if (result?.clear) { commandInput.value = ''; cleared = true; }
+      // Command에서 바꾼 것도 화면 쪽 U·Ctrl+Z로 되돌릴 수 있게 같은 기록에 쌓는다.
+      if (result?.undo) { const { type, payload } = result.undo; undoTimeline.push(() => mutate(type, payload)); if (undoTimeline.length > 50) undoTimeline.shift(); }
       if (result?.message) { if (cleared && state.shell === 'command') commandNotice(result.message); else feedback(result.message); }
       if (result?.output) { const output = root.querySelector('.command-output'); output.hidden = false; output.textContent = typeof result.output === 'string' ? result.output : [result.title,result.output.stdout,result.output.stderr,result.output.code ? `종료 코드: ${result.output.code}` : ''].filter(Boolean).join('\n'); }
       if (result?.hide) await call('window.close');
@@ -645,7 +720,7 @@
   function focusView() {
     if(state.view==='notes'){notes?.focus();return;}
     if(state.view==='tasks'){if(state.tab==='projects'){focusWorkProject();return;}syncTaskCursor();if(taskCursor)focusTask();else root.querySelector('.td-work-nav [aria-selected=true]')?.focus({preventScroll:true});return;}
-    if(state.view==='calendar'){body.querySelector(`[data-date="${state.date}"]`)?.focus({preventScroll:true});return;}
+    if(state.view==='calendar'){if(state.calView==='month'){body.querySelector(`[data-date="${state.date}"]`)?.focus({preventScroll:true});return;}(body.querySelector(`[data-cal-day="${state.date}"] [data-event]`)||body.querySelector('[data-cal-home]'))?.focus({preventScroll:true});return;}
     if(state.view==='settings'){body.querySelector('[data-look]')?.focus({preventScroll:true});return;}
     body.querySelector('[data-reveal],.cf-entry,button')?.focus({preventScroll:true});
   }
@@ -671,8 +746,8 @@
       await flushPending();return shell('command');
     }
     if(!root.querySelector('.command-output').hidden){clearCommandOutput();resizeCommand();return;}
-    if(commandInput.value){commandInput.value='';clearCommandNotice();queueCommandQuery('',0,true);return;}
-    return call('window.close');
+    if(commandInput.value){commandInput.value='';clearCommandNotice();if(!command.capture)queueCommandQuery('',0,true);return;}
+    exitCapture();return call('window.close');
   }
   async function goSection(section) {
     const route={settings:{settings:true,view:'settings'},dashboard:{view:'dashboard'},todo:{view:'tasks',tab:'todo'},inbox:{view:'tasks',tab:'inbox'},waiting:{view:'tasks',tab:'waiting'},done:{view:'tasks',tab:'done'},notes:{view:'notes'},calendar:{view:'calendar'}}[section];
@@ -681,7 +756,7 @@
   async function newInContext() {
     if(state.shell==='command'||state.view==='dashboard'||state.view==='settings')await goSection('inbox');
     if(state.view==='notes'){await notes?.create();return;}
-    if(state.view==='calendar'){eventModal();return;}
+    if(state.view==='calendar'){quickEventModal();return;}
     if(state.view==='tasks'&&state.tab==='projects'){projectModal();return;}
     root.querySelector('.td-quick input')?.focus();
   }
@@ -799,12 +874,19 @@
     if(K.is(event,'app.save')){event.preventDefault();if(state.view==='settings')body.querySelector('.preferences-form')?.requestSubmit();else safe(flushPending);return true;}
     if(K.is(event,'app.undo')&&!editingTarget(target)){event.preventDefault();safe(undoLastAction);return true;}
     if(workKeys(event))return true;
+    if(state.view==='calendar'&&!editingTarget(target)&&target.closest('.td-full-calendar')&&K.is(event,'calendar.view')){event.preventDefault();if(!event.repeat){const order=CAL_VIEWS.map(([view])=>view);safe(()=>setCalView(order[(order.indexOf(state.calView)+(event.shiftKey?order.length-1:1))%order.length]));}return true;}
+    if(state.view==='calendar'&&state.calView!=='month'&&!editingTarget(target)&&target.closest('.cal-list')){
+      const span=state.calView==='week'?7:1;
+      if(K.is(event,'agenda.prevDay')||K.is(event,'agenda.nextDay')){event.preventDefault();safe(async()=>{await moveCalendarDate(K.is(event,'agenda.prevDay')?-span:span);focusView();});return true;}
+      if(K.is(event,'agenda.today')){event.preventDefault();safe(async()=>{await moveCalendarDate(0,0,false,true);focusView();});return true;}
+      if(K.is(event,'agenda.new')){event.preventDefault();quickEventModal();return true;}
+    }
     const day=target.closest('[data-date]');
     if(day){
       const dayMove=Object.keys(DAY_MOVES).find(id=>K.is(event,id)),side=!!day.closest('.td-calendar-side');
       if(dayMove){event.preventDefault();const [days,months]=DAY_MOVES[dayMove];safe(()=>moveCalendarDate(days,months,side,dayMove==='date.today'));return true;}
       if(K.is(event,'date.open')){event.preventDefault();const area=side?root.querySelector('.td-calendar-side'):body;const first=area.querySelector('[data-event]');if(first)first.focus();else eventModal();return true;}
-      if(K.is(event,'event.new')){event.preventDefault();eventModal();return true;}
+      if(K.is(event,'event.new')){event.preventDefault();quickEventModal();return true;}
       if(K.is(event,'calendar.undo')){event.preventDefault();if(!event.repeat)safe(undoLastAction);return true;}
     }
     const eventButton=target.closest('[data-event]');
@@ -840,6 +922,7 @@
     const button = event.target.closest('button'); if (!button) { if (event.target === modalLayer) closeModal(); return; }
     const data = button.dataset;
     if (data.action === 'close-help') return closeHelp();
+    if (data.calView) return setCalView(data.calView);
     if (data.tab) return switchWorkTab(data.tab,{focus:button.closest('.td-work-nav')?'tab':'list',clearProject:state.view!=='tasks'});
     if (button.classList.contains('td-drag-handle')) return;
     if (data.task) { taskCursor=data.task; if(state.selected===data.task)await collapseTaskEditor();else await openTaskField(data.task);return; }
@@ -893,7 +976,8 @@
   }));
   root.addEventListener('input', event => {
     const element=event.target;
-    if (element===commandInput) { queueCommandQuery(element.value); return; }
+    if (element===commandInput) { if (!command.capture) queueCommandQuery(element.value); return; }
+    if (element.matches('.quick-event-form [name=line]')) { clearTimeout(quickEventTimer); quickEventTimer = setTimeout(() => safe(parseQuickEvent), 120); return; }
     if (element.matches('[data-shortcut]')) { shortcutErrors(); return; }
     if (element.matches('[data-work-search]')) {state.workQuery=element.value;state.selected=null;taskCursor=null;projectCursor=null;if(!event.isComposing&&!workComposing)renderMainView();return;}
     if (element.matches('[data-field]') && ['title','note','waitingFor'].includes(element.dataset.field)) {
@@ -922,7 +1006,7 @@
     }
   }));
   root.addEventListener('submit',event=>{
-    if(!event.target.matches('.td-quick,.event-form,.project-form,.subscription-form,.preferences-form,.calendar-natural,.work-due-form,.work-waiting-form,.work-archive-form'))return;
+    if(!event.target.matches('.td-quick,.event-form,.project-form,.subscription-form,.preferences-form,.quick-event-form,.work-due-form,.work-waiting-form,.work-archive-form'))return;
     event.preventDefault();
     const submittingForm=event.target;if(submittingForm.dataset.submitting==='true')return;
     submittingForm.dataset.submitting='true';const submitButton=submittingForm.querySelector('[type=submit]');if(submitButton)submitButton.disabled=true;
@@ -955,7 +1039,7 @@
       if(form.matches('.project-form')){const id=Number(form.dataset.projectId)||null,result=await mutate(id?'project.update':'project.create',{...(id?{id}:{}),name:values.name.trim()});if(state.tab==='projects')projectCursor=String(result.id);closeModal();if(state.view==='tasks'&&state.tab==='projects')focusWorkProject();return;}
       if(form.matches('.subscription-form')){const result=await mutate('subscription.add',{url:values.url});await subscriptions();if(result?.error)feedback(result.error,null,true);return;}
       if(form.matches('.preferences-form')){const submit=form.querySelector('[type=submit]'),field=document.activeElement?.name;submit.disabled=true;try{state.prefs=await call('preferences.set',values);state.info=await call('app.info');renderMainView();(field?body.querySelector(`.preferences-form [name="${CSS.escape(field)}"]`):body.querySelector('.preferences-form [type=submit]'))?.focus();feedback('단축키를 저장했어요.');}catch(error){shortcutErrors(error.fields||{});form.querySelector('[aria-invalid=true]')?.focus();feedback(error.message,null,true);}finally{if(submit.isConnected)submit.disabled=false;}return;}
-      if(form.matches('.calendar-natural')){const result=await call('mutate',{type:'calendar.parse',payload:{text:values.line,line:values.line}});const parsed=result.parsed||result;if(parsed.ok===false||!parsed.startsAt)throw new Error(parsed.error||'일정을 해석하지 못했습니다. 날짜와 시간을 확인해 주세요.');eventModal(null,parsed);}
+      if(form.matches('.quick-event-form')){await submitQuickEvent();return;}
     }).finally(()=>{delete submittingForm.dataset.submitting;if(submitButton?.isConnected)submitButton.disabled=false;});
   });
   commandInput.addEventListener('focus',()=>{if(command.renderedQuery!==commandInput.value&&!command.request&&!command.timer&&!command.composing)safe(()=>queryCommand(commandInput.value,true));});
@@ -964,7 +1048,7 @@
   commandInput.addEventListener('input',()=>{if(commandInput.classList.contains('has-notice'))clearCommandNotice();});
   root.addEventListener('compositionend',event=>{if(event.target.matches('[data-work-search]')){workComposing=false;state.workQuery=event.target.value;renderMainView();}});
   commandInput.addEventListener('compositionstart',()=>{command.composing=true;cancelCommandActivation();clearTimeout(command.timer);command.timer=null;++command.seq;command.request=null;});
-  commandInput.addEventListener('compositionend',()=>{command.composing=false;queueCommandQuery(commandInput.value,0,true);});
+  commandInput.addEventListener('compositionend',()=>{command.composing=false;if(!command.capture)queueCommandQuery(commandInput.value,0,true);});
   commandBox.addEventListener('pointermove',event=>{const row=event.target.closest('[data-result]');if(row&&!command.running&&!command.actions&&command.selected!==Number(row.dataset.result)){command.selected=Number(row.dataset.result);syncCommandSelection();}});
   commandActions.addEventListener('pointermove',event=>{const row=event.target.closest('[data-command-action]');if(row&&command.actions&&!command.running){const index=command.actions.item.actions.findIndex(action=>action.id===row.dataset.commandAction);if(index>=0&&index!==command.actions.selected){command.actions.selected=index;syncCommandSelection();}}});
   root.addEventListener('focusout',event=>{if(event.target.matches('[data-field]')){const element=event.target;dashboardFocus={id:element.closest('[data-editor]')?.dataset.editor,field:element.dataset.field,start:element.selectionStart,end:element.selectionEnd,scroll:element.scrollTop};}});
@@ -976,7 +1060,7 @@
     if(K.is(event,'help.toggle')){event.preventDefault();if(!event.repeat)safe(()=>helpOpen?closeHelp():openHelp());return;}
     if(helpOpen){if(K.is(event,'back')){event.preventDefault();safe(closeHelp);}else if(K.is(event,'focus.cycle')){event.preventDefault();helpLayer.querySelector('button')?.focus();}return;}
     if(section){event.preventDefault();if(!event.repeat&&modalLayer.hidden&&!command.running)safe(()=>goSection(section));return;}
-    if(K.is(event,'command.open')){event.preventDefault();if(!event.repeat&&modalLayer.hidden&&!command.running){cancelCommandActivation();safe(async()=>{const same=state.shell==='command';await flushPending();await shell('command');if(same)commandInput.select();});}return;}
+    if(K.is(event,'command.open')){event.preventDefault();if(!event.repeat&&modalLayer.hidden&&!command.running){cancelCommandActivation();safe(async()=>{const same=state.shell==='command'&&!command.capture;exitCapture();await flushPending();await shell('command');if(same)commandInput.select();});}return;}
     if(!modalLayer.hidden&&K.is(event,'focus.cycle')){
       const focusable=[...modalLayer.querySelectorAll('button,input,select,textarea,[tabindex]')].filter(element=>!element.disabled&&element.tabIndex>=0&&element.getClientRects().length);
       const first=focusable[0],last=focusable.at(-1);
@@ -985,9 +1069,14 @@
       else if(!event.shiftKey&&(event.target===last||!modalLayer.contains(event.target))){event.preventDefault();first.focus();}
       return;
     }
+    if(!modalLayer.hidden&&event.target.closest('.quick-event-form')&&K.is(event,'quickEvent.detail')){event.preventDefault();if(!event.repeat)safe(()=>submitQuickEvent({detail:true}));return;}
     if(!modalLayer.hidden&&K.is(event,'app.save')){event.preventDefault();const form=modalLayer.querySelector('form');if(!event.repeat&&form?.querySelector('[type=submit]')&&!form.querySelector('[type=submit]').disabled)form.requestSubmit();return;}
     if(modalLayer.hidden&&workspaceKeys(event))return;
     const inCommandInput=state.shell==='command'&&event.target===commandInput;
+    if(command.capture&&inCommandInput){
+      if(K.is(event,'capture.save')||K.is(event,'capture.saveOpen')){event.preventDefault();if(!event.repeat)safe(()=>saveCapture({open:K.is(event,'capture.saveOpen')}));return;}
+      if(K.is(event,'capture.open')){event.preventDefault();const section=CAPTURE[command.capture].section;exitCapture();safe(()=>goSection(section));return;}
+    }
     if(inCommandInput&&K.is(event,'command.media')&&!root.querySelector('.td-media').hidden){event.preventDefault();root.querySelector('.td-media [data-media-slot=next]')?.focus();return;}
     if(inCommandInput&&K.is(event,'command.expand')){event.preventDefault();if(!command.running&&!command.activating)safe(()=>shell('dashboard'));return;}
     if(K.is(event,'back')){event.preventDefault();if(!event.repeat)safe(escapeStep);return;}

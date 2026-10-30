@@ -26,12 +26,24 @@ const compactDir = file => path.dirname(file).startsWith(os.homedir()) ? '~' + p
 
 function publicItem(item) {
   const actions = actionsFor(item).map(({ id, title }) => ({ id, title }));
-  const preferredAlt = item.action?.type === 'capture-task' ? 'add-open' : { files: 'reveal', apps: 'reveal', scripts: 'edit' }[item.source];
+  const preferredAlt = ['capture-task', 'capture-event'].includes(item.action?.type) ? 'add-open' : { files: 'reveal', apps: 'reveal', scripts: 'edit', tasks: 'complete', notes: 'edit' }[item.source];
   return { key: item.key, title: item.title, subtitle: item.subtitle || '', source: item.source,
     icon: item.icon || 'command', kind: item.kind, positions: item.positions || [], via: item.via || null,
     ...(item.path ? { path: item.path } : {}), actions,
     altId: actions.some(x => x.id === preferredAlt) ? preferredAlt : null,
     final: item.final };
+}
+
+function dayKey(days = 0, now = new Date()) {
+  const date = new Date(now); date.setDate(date.getDate() + days);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+/* 일정 미리보기 표기: 10월 31일 (금) 오후 3:00. 종일 일정은 날짜만. */
+function eventWhen(parsed) {
+  const start = new Date(parsed?.startsAt);
+  if (!Number.isFinite(start.getTime())) return '';
+  const day = new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' }).format(start);
+  return parsed.allDay ? day : `${day} ${new Intl.DateTimeFormat('ko-KR', { hour: 'numeric', minute: '2-digit' }).format(start)}`;
 }
 
 function localDate(value) {
@@ -172,6 +184,9 @@ export function createCommand({ dataDir, domain, onMore, platform: providedPlatf
       ['done', '완료 기록', { view: 'tasks', tab: 'done' }, 'archive', 'Done'],
       ['notes', '메모', { view: 'notes' }, 'notebook-pen', '노트 WHENNOTE Note notes'],
       ['calendar', '캘린더', { view: 'calendar' }, 'calendar-days', 'Calendar'],
+      ['calendar-subscriptions', '캘린더 구독 관리', { view: 'calendar', action: 'subscriptions' }, 'rss', '구독 ICS subscribe'],
+      ['ics-import', 'ICS 가져오기', { view: 'calendar', action: 'import-ics' }, 'calendar-plus', '캘린더 가져오기 import'],
+      ['ics-export', 'ICS 내보내기', { view: 'calendar', action: 'export-ics' }, 'calendar-check', '캘린더 내보내기 export'],
       ['settings', '설정', { view: 'dashboard', settings: true }, 'settings-2', 'Settings'],
     ];
     for (const [id, title, route, icon, aliases] of entries) addMatched(out, q, { key: `builtin:${id}`, source: 'builtin', title,
@@ -190,7 +205,7 @@ export function createCommand({ dataDir, domain, onMore, platform: providedPlatf
       if (task.deleted) continue;
       addMatched(out, q, { key: `tasks:${task.id}`, source: 'tasks', title: task.title,
         subtitle: [task.done ? '완료' : task.kind === 'waiting' ? '대기' : task.kind === 'inbox' ? '인박스' : '할 일', task.project, task.due].filter(Boolean).join(' · '),
-        searchText: [task.note, task.waitingFor, task.project].filter(Boolean).join(' '), icon: 'circle-check',
+        searchText: [task.note, task.waitingFor, task.project].filter(Boolean).join(' '), icon: 'circle-check', done: !!task.done,
         action: { type: 'route', route: { view: 'tasks', tab: task.done ? 'done' : task.kind, id: task.id } } }, .9);
     }
     // 저장소의 검색은 선택된 달 밖의 일정도 찾는다.
@@ -198,7 +213,7 @@ export function createCommand({ dataDir, domain, onMore, platform: providedPlatf
     for (const event of events) {
       addMatched(out, q, { key: `events:${event.id}`, source: 'events', title: event.title,
         subtitle: [event.startsAt || event.starts_at || event.date, event.location].filter(Boolean).join(' · '),
-        icon: 'calendar-days', action: { type: 'route', route: { view: 'calendar', id: event.id,
+        icon: 'calendar-days', recurring: !!(event.rrule || event.recurrence || event.recurrenceId), action: { type: 'route', route: { view: 'calendar', id: event.id,
           date: event.date || localDate(event.startsAt || event.starts_at) } } }, .85);
     }
     if (typeof domain.note?.searchNotes === 'function') {
@@ -222,6 +237,16 @@ export function createCommand({ dataDir, domain, onMore, platform: providedPlatf
     return out;
   }
 
+  async function previewEvents(items) {
+    for (const item of items) {
+      if (item.action?.type !== 'capture-event') continue;
+      try {
+        const parsed = await domain.mutate('calendar.parse', { text: item.action.text });
+        item.subtitle = parsed?.ok ? [eventWhen(parsed), parsed.title, ...(parsed.notes || [])].filter(Boolean).join(' · ') : '날짜와 시간을 더 적어 주세요';
+      } catch { item.subtitle = '날짜와 시간을 더 적어 주세요'; }
+    }
+    return items;
+  }
   function captureItems(q) {
     const out = [];
     const todo = q.match(/^(?:할\s*일\s*추가|투두\s*추가|todo\s+add)\s+(.+)$/i);
@@ -309,7 +334,7 @@ export function createCommand({ dataDir, domain, onMore, platform: providedPlatf
         subtitle: m.via === 'alias' ? `별칭 ${m.alias}` : '', icon: 'app-window', path: app.path,
         base: m.score, positions: m.positions, via: m.via, action: { type: 'open-app', path: app.path } });
     }
-    found.push(...navigationItems(q), ...domainItems(q), ...captureItems(q));
+    found.push(...navigationItems(q), ...domainItems(q), ...await previewEvents(captureItems(q)));
     for (const script of scripts) addMatched(found, q, { key: `scripts:${script.path}`, source: 'scripts', title: script.name,
       subtitle: script.description, icon: 'file-code', action: { type: 'run-script', path: script.path, args: [] } });
     for (const command of system) addMatched(found, q, { key: `system:${command.id}`, source: 'system', title: command.title,
@@ -382,7 +407,21 @@ export function createCommand({ dataDir, domain, onMore, platform: providedPlatf
       const parsed = await domain.mutate('calendar.parse', { text: action.text });
       if (!parsed?.ok) throw new Error('일정의 제목과 날짜를 해석하지 못했습니다.');
       const event = await domain.mutate('event.create', parsed);
-      result = { ok: true, route: { view: 'calendar', id: event.id, date: event.date }, message: '일정을 추가했습니다.' };
+      result = action.open ? { ok: true, route: { view: 'calendar', id: event.id, date: event.date }, message: '일정을 추가했습니다.' }
+        : { ok: true, clear: true, message: `일정을 추가했습니다 · ${[eventWhen(parsed), parsed.title].filter(Boolean).join(' ')}`, undo: { type: 'event.delete', payload: { id: event.id, scope: 'all' } } };
+    } else if (action.type === 'task-complete') {
+      await domain.mutate('task.complete', { id: action.id, done: action.done });
+      result = { ok: true, clear: true, message: `${action.done ? '완료했습니다' : '완료를 해제했습니다'} · ${item.title}`, undo: { type: 'task.complete', payload: { id: action.id, done: !action.done } } };
+    } else if (action.type === 'task-due') {
+      const previous = (domain.state().tasks || []).find(task => task.id === action.id)?.due ?? null;
+      await domain.mutate('task.update', { id: action.id, due: dayKey(action.days) });
+      result = { ok: true, clear: true, message: `${action.days ? '내일' : '오늘'} 마감으로 정했습니다 · ${item.title}`, undo: { type: 'task.update', payload: { id: action.id, due: previous } } };
+    } else if (action.type === 'task-delete') {
+      await domain.mutate('task.delete', { id: action.id });
+      result = { ok: true, clear: true, message: `삭제했습니다 · ${item.title}`, undo: { type: 'task.restore', payload: { id: action.id } } };
+    } else if (action.type === 'event-delete') {
+      await domain.mutate('event.delete', { id: action.id, scope: 'all' });
+      result = { ok: true, clear: true, message: `일정을 삭제했습니다 · ${item.title}`, undo: { type: 'event.restore', payload: { id: action.id } } };
     } else if (action.type === 'copy') { effects.clipboard.writeText(String(action.text)); result.message = `${action.text} 복사됨`; }
     else if (action.type === 'open-app') {
       if (!await platform.openApp(action.path)) throw new Error('앱을 열지 못했습니다.');

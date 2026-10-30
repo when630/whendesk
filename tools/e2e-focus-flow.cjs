@@ -236,7 +236,7 @@ async function withDelayedTaskSelection(run){
 
         await section('c','.td-body [data-date]');
         await probe('.td-body [data-date][tabindex="0"]','캘린더 날짜',variant);
-        await press('Control+n');await page.locator('.event-form').waitFor();
+        await press('Control+n');await page.locator('.quick-event-form').waitFor();await press('Control+Enter');await page.locator('.event-form').waitFor();
         for(const field of ['title','date','time','rrule','note'])await probe(`.event-form [name=${field}]`,'일정 대화상자 '+field,variant);
         await probe('.event-form [type=submit]','일정 저장 버튼',variant);await press('Escape');
 

@@ -30,6 +30,10 @@
     A('command.prev','command','이전 결과',['ArrowUp']),
     A('command.next','command','다음 결과',['ArrowDown']),
 
+    A('capture.save','capture','담기',['Enter']),
+    A('capture.saveOpen','capture','담고 열기',['Mod+Enter']),
+    A('capture.open','capture','앱에서 열기',['Tab']),
+
     A('list.up','list','위 항목',['ArrowUp','KeyK']),
     A('list.down','list','아래 항목',['ArrowDown','KeyJ']),
     A('list.first','list','첫 항목',['Home']),
@@ -80,8 +84,14 @@
     A('date.today','calendar','오늘',['KeyT']),
     A('date.open','calendar','날짜의 일정 목록',['Enter']),
     A('event.new','calendar','새 일정',['KeyN']),
-    A('agenda.up','agenda','이전 일정',['ArrowUp']),
-    A('agenda.down','agenda','다음 일정',['ArrowDown']),
+    A('agenda.up','agenda','이전 일정',['ArrowUp','KeyK']),
+    A('agenda.down','agenda','다음 일정',['ArrowDown','KeyJ']),
+    A('agenda.prevDay','agenda','이전 날 · 이전 주',['ArrowLeft']),
+    A('agenda.nextDay','agenda','다음 날 · 다음 주',['ArrowRight']),
+    A('agenda.today','agenda','오늘',['KeyT']),
+    A('agenda.new','agenda','새 일정',['KeyN']),
+    A('calendar.view','calview','오늘 · 주 · 월 보기 순환',['Tab','Shift+Tab']),
+    A('quickEvent.detail','dialog','한 줄 입력에서 자세히 편집',['Mod+Enter']),
     A('agenda.first','agenda','첫 일정',['Home']),
     A('agenda.last','agenda','마지막 일정',['End']),
     A('event.edit','agenda','일정 편집',['Enter','KeyE']),
@@ -120,7 +130,7 @@
   /* 같은 묶음에서 같은 키를 쓰는 짝. 새로 생기면 여기 적고 이유를 남긴다. */
   const KNOWN_OVERLAPS = Object.freeze([]);
   /* 한 화면에서 동시에 키를 받는 범위 묶음. 묶음 안에서는 같은 키를 두 동작이 쓰면 안 된다. global은 모든 묶음과 함께 검사한다. */
-  const CONCURRENT = Object.freeze([['command'],['dialog'],['work','worksearch'],['work','workquick'],['work','worktab'],['work','list','task'],['work','list','projects'],['calendar'],['agenda'],['notes'],['link']]);
+  const CONCURRENT = Object.freeze([['command'],['capture'],['dialog'],['work','worksearch'],['work','workquick'],['work','worktab'],['work','list','task'],['work','list','projects'],['calendar','calview'],['agenda','calview'],['notes'],['link']]);
 
   const MODS = ['Mod','Alt','Shift'];
   function parse(spec) {
@@ -180,7 +190,7 @@
     { title:null, rows:[[null,['help.toggle']],[null,['command.open']]] },
     { title:'WHENCOMMAND', rows:[
       [null,['command.expand']],['검색 결과 선택',['command.prev','command.next']],[null,['command.run']],[null,['command.alternate']],
-      [null,['command.actions']],['검색어 전체 선택',['command.open']],['입력 지우기 → 창 숨기기',['back']],[null,['command.media'],{media:true}],
+      [null,['command.actions']],['검색어 전체 선택',['command.open']],['입력 지우기 → 창 숨기기',['back']],['빠른 담기: 담기 · 담고 열기 · 앱에서 열기',['capture.save','capture.saveOpen','capture.open']],[null,['command.media'],{media:true}],
     ] },
     { title:'화면 이동', rows:[
       [null,['nav.dashboard']],['Work · ToDo / InBox',['nav.todo','nav.inbox']],['Work · Waiting / Done',['nav.waiting','nav.done']],
@@ -204,7 +214,7 @@
     ] },
     { title:'캘린더', rows:[
       ['날짜 이동 · 달 이동',['date.prev','date.prevWeek','date.nextWeek','date.next','date.prevMonth','date.nextMonth']],
-      ['오늘 · 새 일정',['date.today','event.new','app.new']],['날짜의 일정 목록 · 편집',['date.open','event.edit']],['선택 일정 삭제 · 되돌리기',['event.delete','agenda.undo']],
+      [null,['calendar.view']],['오늘 · 새 일정 (한 줄 입력)',['date.today','event.new','app.new']],[null,['quickEvent.detail']],['날짜의 일정 목록 · 편집',['date.open','event.edit']],['선택 일정 삭제 · 되돌리기',['event.delete','agenda.undo']],
     ] },
   ]);
   for (const group of HELP) for (const [, ids] of group.rows) ids.forEach(entry);

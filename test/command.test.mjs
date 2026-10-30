@@ -81,6 +81,26 @@ test('원본 계산기·단위 변환을 재사용하고 실제 실행에서는 
   } finally { f.cleanup(); }
 });
 
+test('검색한 할 일은 Command에서 바로 완료·마감·삭제하고 되돌리기 정보를 돌려준다', async () => {
+  const f = fixture();
+  try {
+    await f.command.ready();
+    const task = (await f.command.query('테스트 결과')).items.find(item => item.key === 'tasks:t1');
+    assert.deepEqual(task.actions.map(action => action.id), ['open', 'complete', 'due-today', 'due-tomorrow', 'delete']);
+    assert.equal(task.altId, 'complete', 'Ctrl+Enter는 완료');
+    const done = await f.command.run(task.key, 'complete');
+    assert.equal(done.route, undefined);assert.equal(done.clear, true);
+    assert.deepEqual(f.mutations.at(-1), { type: 'task.complete', payload: { id: 't1', done: true } });
+    assert.deepEqual(done.undo, { type: 'task.complete', payload: { id: 't1', done: false } });
+    const due = await f.command.run(task.key, 'due-tomorrow');
+    assert.equal(f.mutations.at(-1).type, 'task.update');assert.match(f.mutations.at(-1).payload.due, /^\d{4}-\d{2}-\d{2}$/);
+    assert.deepEqual(due.undo, { type: 'task.update', payload: { id: 't1', due: '2026-10-29' } });
+    const removed = await f.command.run(task.key, 'delete');
+    assert.deepEqual(f.mutations.at(-1), { type: 'task.delete', payload: { id: 't1' } });
+    assert.deepEqual(removed.undo, { type: 'task.restore', payload: { id: 't1' } });
+  } finally { f.cleanup(); }
+});
+
 test('할 일 검색·명시적 추가·캘린더 자연어 추가가 통합 저장소로 연결된다', async () => {
   const f = fixture();
   try {
@@ -98,9 +118,14 @@ test('할 일 검색·명시적 추가·캘린더 자연어 추가가 통합 저
     assert.equal(capture.altId, 'add-open');
     assert.deepEqual((await f.command.run(capture.key, 'add-open')).route, { view: 'tasks', tab: 'inbox', id: 'new-task' });
     const event = (await f.command.query('일정 추가 내일 3시 치과 예약')).items[0];
-    assert.deepEqual((await f.command.run(event.key)).route, { view: 'calendar', id: 12, date: '2026-10-30' });
+    assert.match(event.subtitle, /치과 예약/, '추가 전에 해석 결과를 미리 보여 준다');
+    assert.equal(event.altId, 'add-open');
+    const stayed = await f.command.run(event.key);
+    assert.equal(stayed.route, undefined);assert.equal(stayed.clear, true);assert.match(stayed.message, /일정을 추가했습니다/);
+    assert.deepEqual(stayed.undo, { type: 'event.delete', payload: { id: 12, scope: 'all' } });
     assert.equal(f.mutations.at(-2).type, 'calendar.parse');
     assert.equal(f.mutations.at(-1).type, 'event.create');
+    assert.deepEqual((await f.command.run(event.key, 'add-open')).route, { view: 'calendar', id: 12, date: '2026-10-30' });
   } finally { f.cleanup(); }
 });
 
@@ -387,7 +412,8 @@ test('영문 메뉴와 기존 한국어 이름으로 같은 화면을 열고 Wor
       assert.ok(item,query);
       assert.deepEqual((await f.command.run(item.key,null,{query})).route,route,query);
     }
-    assert.deepEqual(f.mutations,[],'화면 이동은 작업 분류나 본문을 변경하지 않습니다.');
+    // 일정 추가 미리보기의 해석(calendar.parse)은 읽기 전용이다.
+    assert.deepEqual(f.mutations.filter(item=>item.type!=='calendar.parse'),[],'화면 이동은 작업 분류나 본문을 변경하지 않습니다.');
     assert.deepEqual(f.opened,[],'화면 이름 검색으로 외부 앱을 실행하지 않습니다.');
   } finally { f.cleanup(); }
 });

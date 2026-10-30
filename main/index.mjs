@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 import {createPreferences} from './preferences.mjs';
-import {createShortcutManager} from './shortcuts.mjs';
+import {createShortcutManager,SHORTCUT_FIELDS} from './shortcuts.mjs';
 import {exportWorkspace,prepareRestore,prepareLegacy,installPrepared} from './data.mjs';
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const argv=process.argv.slice(1);
@@ -74,11 +74,14 @@ async function bootstrap(){
    catch(error){console.error('단축키 기록:',error.message);}
   }
   if(field==='hotkey'){if(win?.isVisible()&&win.isFocused()&&shellMode==='command')win.hide();else showCommand();}
-  else showDashboard({view:'tasks',tab:'inbox',focusCapture:true});
+  else showCapture(field==='noteCaptureHotkey'?'note':'task');
  }
+ /* 빠른 담기: Command 창을 한 줄 수집 모드로 연다. Enter로 담아도 창이 남아 연달아 담는다(원본 WHENWORK·WHENNOTE). */
+ function showCapture(kind){if(!win||win.isDestroyed())return;if(win.isMinimized())win.restore();win.show();win.focus();send('navigate',{shell:'command',capture:kind});}
  const shortcutManager=createShortcutManager({globalShortcut,enabled:!testMode&&!argv.includes('--no-shortcuts'),handlers:{
   hotkey:()=>handleGlobalShortcut('hotkey'),
   captureHotkey:()=>handleGlobalShortcut('captureHotkey'),
+  noteCaptureHotkey:()=>handleGlobalShortcut('noteCaptureHotkey'),
  }});
  function registerShortcuts(values=preferences.get()){return shortcutManager.update(values);}
  const area=workArea();
@@ -149,8 +152,8 @@ async function bootstrap(){
   'preferences.get':()=>preferences.get(),
   'preferences.set':async payload=>{
    const patch=payload&&typeof payload==='object'&&!Array.isArray(payload)?payload:{};
-   const before=preferences.get(),changesShortcut=Object.hasOwn(patch,'hotkey')||Object.hasOwn(patch,'captureHotkey');
-   const value=changesShortcut?shortcutManager.update({...before,...patch},next=>preferences.set({...patch,hotkey:next.hotkey,captureHotkey:next.captureHotkey})):preferences.set(patch);
+   const before=preferences.get(),changesShortcut=SHORTCUT_FIELDS.some(field=>Object.hasOwn(patch,field));
+   const value=changesShortcut?shortcutManager.update({...before,...patch},next=>preferences.set({...patch,...Object.fromEntries(SHORTCUT_FIELDS.map(field=>[field,next[field]]))})):preferences.set(patch);
    nativeTheme.themeSource=value.mode;if('launchAtLogin'in patch&&!testMode)app.setLoginItemSettings({openAtLogin:value.launchAtLogin});return value;
   },
   'app.info':()=>({name:'WHENDESK',version:app.getVersion(),dataDir,...shortcutManager.status(),commandReady,commandFailure,platform:process.platform,isPackaged:app.isPackaged}),

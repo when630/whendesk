@@ -11,9 +11,24 @@ export function actionsFor(item) {
   const a = item?.action ?? {};
   const list = [];
   const push = (id, title, action) => list.push({ id, title, action });
-  if (a.type === 'capture-task') {
-    push('add', '인박스에 담기', a);
-    push('add-open', '담고 열기', { ...a, open: true });
+  if (a.type === 'capture-task' || a.type === 'capture-event') {
+    push('add', a.type === 'capture-task' ? '인박스에 담기' : '일정 추가', a);
+    push('add-open', a.type === 'capture-task' ? '담고 열기' : '추가하고 캘린더에서 보기', { ...a, open: true });
+    return list;
+  }
+  // WHENDESK 안의 할 일·메모·일정 결과는 화면을 열지 않고 바로 다룰 수 있다.
+  if (a.type === 'route' && a.route?.id != null && ['tasks', 'notes', 'calendar'].includes(a.route.view)) {
+    const id = a.route.id;
+    push('open', '열기', a);
+    if (a.route.view === 'tasks') {
+      push('complete', item.done ? '완료 해제' : '완료', { type: 'task-complete', id, done: !item.done });
+      if (!item.done) {
+        push('due-today', '오늘 마감', { type: 'task-due', id, days: 0 });
+        push('due-tomorrow', '내일 마감', { type: 'task-due', id, days: 1 });
+      }
+      push('delete', '삭제', { type: 'task-delete', id });
+    } else if (a.route.view === 'notes') push('edit', '편집으로 열기', { type: 'route', route: { ...a.route, edit: true } });
+    else if (!item.recurring) push('delete', '삭제', { type: 'event-delete', id });
     return list;
   }
   switch (item?.source) {
