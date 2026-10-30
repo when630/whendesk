@@ -26,7 +26,7 @@ const compactDir = file => path.dirname(file).startsWith(os.homedir()) ? '~' + p
 
 function publicItem(item) {
   const actions = actionsFor(item).map(({ id, title }) => ({ id, title }));
-  const preferredAlt = { files: 'reveal', apps: 'reveal', scripts: 'edit' }[item.source];
+  const preferredAlt = item.action?.type === 'capture-task' ? 'add-open' : { files: 'reveal', apps: 'reveal', scripts: 'edit' }[item.source];
   return { key: item.key, title: item.title, subtitle: item.subtitle || '', source: item.source,
     icon: item.icon || 'command', kind: item.kind, positions: item.positions || [], via: item.via || null,
     ...(item.path ? { path: item.path } : {}), actions,
@@ -371,7 +371,9 @@ export function createCommand({ dataDir, domain, onMore, platform: providedPlatf
     if (action.type === 'route') result.route = action.route;
     else if (action.type === 'capture-task') {
       const task = await domain.mutate('task.create', { title: action.text });
-      result = { ok: true, route: { view: 'tasks', tab: 'inbox', id: task.id }, message: '인박스에 담았습니다.' };
+      // 기본은 Command에 머물러 연달아 담는다. '담고 열기'(Ctrl+Enter)만 InBox 편집으로 간다.
+      result = action.open ? { ok: true, route: { view: 'tasks', tab: 'inbox', id: task.id }, message: '인박스에 담았습니다.' }
+        : { ok: true, clear: true, message: `인박스에 담았습니다 · ${task.title || action.text}` };
     } else if (action.type === 'capture-note') {
       const note = await domain.mutate('note.create', { body:action.text });
       result = { ok:true, route:{ view:'notes', id:note.id }, message:'메모에 저장했습니다.' };

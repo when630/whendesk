@@ -31,6 +31,7 @@
   let writeQueue = Promise.resolve(), saveTimer, resizeTimer, feedbackTimer, undoAction, dashboardFocus, returnFocus, editingEvent, lastEventKey, refreshTimer, loading = false;
   let helpOpen = false, helpReturn = null;
   let dashboardReturn = null, taskCursor = null, modalReturnKey = null, modalReturnEditor = null;
+  let modalDirty = false, discardArmedAt = 0, commandNoticeTimer = null;
   let notes;
 
   if (!api?.call) {
@@ -339,8 +340,13 @@
     state.year = Number(date.slice(0,4)); state.month = Number(date.slice(5,7))-1; renderCalendar();
     rememberWorkUndo('마감일',()=>mutate('task.update',{id,due:previous}),'마감을 변경했어요.');
   }
-  function openModal(html) { returnFocus = document.activeElement; modalReturnKey=controlSelector(returnFocus); modalReturnEditor=captureFocus(); modalLayer.hidden = false; modalLayer.innerHTML = html; (modalLayer.querySelector('input:not([type=checkbox]):not([readonly]),textarea:not([readonly]),select:not([disabled])')||modalLayer.querySelector('button'))?.focus(); icons(); }
-  function closeModal() { modalLayer.hidden = true; modalLayer.innerHTML = ''; editingEvent = null; if (returnFocus?.isConnected && root.contains(returnFocus)) returnFocus.focus({ preventScroll:true }); else if(modalReturnEditor&&body.querySelector(`[data-editor="${CSS.escape(modalReturnEditor.id)}"] [data-field="${modalReturnEditor.field}"]`))restoreFocus(modalReturnEditor);else if(modalReturnKey&&root.querySelector(modalReturnKey)?.getClientRects().length)root.querySelector(modalReturnKey).focus({preventScroll:true});else focusView(); }
+  function openModal(html) { modalDirty = false; discardArmedAt = 0; returnFocus = document.activeElement; modalReturnKey=controlSelector(returnFocus); modalReturnEditor=captureFocus(); modalLayer.hidden = false; modalLayer.innerHTML = html; (modalLayer.querySelector('input:not([type=checkbox]):not([readonly]),textarea:not([readonly]),select:not([disabled])')||modalLayer.querySelector('button'))?.focus(); icons(); }
+  /* 입력한 내용이 있는 대화상자는 Esc 한 번에 버리지 않는다. 3초 안에 한 번 더 누르면 닫는다. */
+  function closeModalSafely() {
+    if (modalDirty && modalLayer.querySelector('form') && Date.now() - discardArmedAt > 3000) { discardArmedAt = Date.now(); feedback('저장하지 않은 내용이 있어요. Esc를 한 번 더 누르면 버립니다.'); return; }
+    closeModal();
+  }
+  function closeModal() { modalDirty = false; discardArmedAt = 0; modalLayer.hidden = true; modalLayer.innerHTML = ''; editingEvent = null; if (returnFocus?.isConnected && root.contains(returnFocus)) returnFocus.focus({ preventScroll:true }); else if(modalReturnEditor&&body.querySelector(`[data-editor="${CSS.escape(modalReturnEditor.id)}"] [data-field="${modalReturnEditor.field}"]`))restoreFocus(modalReturnEditor);else if(modalReturnKey&&root.querySelector(modalReturnKey)?.getClientRects().length)root.querySelector(modalReturnKey).focus({preventScroll:true});else focusView(); }
   function eventModal(key = null, parsed = null) {
     if (state.shell !== 'dashboard') safe(() => shell('dashboard', false));
     const event = key ? findEvent(key) : null; editingEvent = event; lastEventKey = key;
@@ -521,6 +527,11 @@
     clearCommandOutput(); command.actions = { item, query:command.renderedQuery, selected:0 };
     renderCommand(); commandInput.focus({ preventScroll:true }); syncCommandSelection(true);
   }
+  function commandNotice(message) {
+    clearTimeout(commandNoticeTimer); commandInput.placeholder = message; commandInput.classList.add('has-notice');
+    commandNoticeTimer = setTimeout(clearCommandNotice, 4000);
+  }
+  function clearCommandNotice() { clearTimeout(commandNoticeTimer); commandNoticeTimer = null; commandInput.placeholder = '검색 또는 실행'; commandInput.classList.remove('has-notice'); }
   function queueCommandQuery(query, delay = 85, force = false) {
     if (command.running || !force && query === command.query) return;
     clearTimeout(command.timer); command.timer = null;
@@ -560,7 +571,7 @@
   }
   async function executeCommand({ index, key, alternate = false, actionId, item:pinned, query:pinnedQuery } = {}) {
     if (command.running || command.activating || command.composing) return;
-    command.activating = true; const activation = ++command.activation;
+    command.activating = true; const activation = ++command.activation; let cleared = false;
     try {
       if (!pinned && !await settleCommandQuery(true,activation)) return;
       const item = pinned || (key ? command.items.find(item => item.key === key) : command.items[index ?? command.selected]);
@@ -573,12 +584,15 @@
       if (result?.cancelled) return;
       if (result?.ok === false) throw new Error(result.error || '실행하지 못했습니다.');
       if (result?.route) { await loadState({ renderMain:false }); await navigate(result.route); }
-      if (result?.message) feedback(result.message);
+      // 머무르는 동작은 입력을 비워 같은 항목을 다시 실행하지 않게 하고, 알림은 입력줄에 띄운다.
+      if (result?.clear) { commandInput.value = ''; cleared = true; }
+      if (result?.message) { if (cleared && state.shell === 'command') commandNotice(result.message); else feedback(result.message); }
       if (result?.output) { const output = root.querySelector('.command-output'); output.hidden = false; output.textContent = typeof result.output === 'string' ? result.output : [result.title,result.output.stdout,result.output.stderr,result.output.code ? `종료 코드: ${result.output.code}` : ''].filter(Boolean).join('\n'); }
       if (result?.hide) await call('window.close');
     } finally {
       command.running = false; command.activating = false; commandInput.readOnly = false; root.querySelector('#cf-command-panel').removeAttribute('aria-busy');
       if (command.more) { const more = command.more; command.more = null; applyCommandMore(more); }
+      if (cleared) queueCommandQuery('', 0, true);
       renderCommand(); if (state.shell === 'command' && !helpOpen) commandInput.focus({ preventScroll:true });
     }
   }
@@ -634,6 +648,31 @@
     if(state.view==='calendar'){body.querySelector(`[data-date="${state.date}"]`)?.focus({preventScroll:true});return;}
     if(state.view==='settings'){body.querySelector('[data-look]')?.focus({preventScroll:true});return;}
     body.querySelector('[data-reveal],.cf-entry,button')?.focus({preventScroll:true});
+  }
+  /* 화면 안의 필터·하위 화면을 하나 푼다. 푼 것이 있으면 true. */
+  function clearViewFilter() {
+    if(state.view!=='tasks')return false;
+    if(state.workQuery){clearWorkSearch();return true;}
+    if(state.workTrash){state.workTrash=false;projectCursor=null;renderMainView();focusView();return true;}
+    if(state.project&&state.tab!=='projects'){state.project=null;renderMainView();focusView();return true;}
+    if(state.dueOnly){state.dueOnly=false;renderMainView();focusView();return true;}
+    return false;
+  }
+  /* Esc는 맨 위 하나만 끝낸다: 실행 대기 → 동작 목록 → 대화상자 → 편집 → 필터·하위 화면 → 화면 기본 자리 → Command → 입력 지우기 → 숨기기. */
+  async function escapeStep() {
+    if(command.activating&&!command.running)return cancelCommandActivation();
+    if(command.actions)return closeCommandActions();
+    if(!modalLayer.hidden)return closeModalSafely();
+    if(state.shell==='dashboard'){
+      if(state.view==='tasks'&&state.selected)return collapseTaskEditor();
+      if(clearViewFilter())return;
+      const before=document.activeElement;focusView();
+      if(document.activeElement!==before&&document.activeElement!==document.body)return;
+      await flushPending();return shell('command');
+    }
+    if(!root.querySelector('.command-output').hidden){clearCommandOutput();resizeCommand();return;}
+    if(commandInput.value){commandInput.value='';clearCommandNotice();queueCommandQuery('',0,true);return;}
+    return call('window.close');
   }
   async function goSection(section) {
     const route={settings:{settings:true,view:'settings'},dashboard:{view:'dashboard'},todo:{view:'tasks',tab:'todo'},inbox:{view:'tasks',tab:'inbox'},waiting:{view:'tasks',tab:'waiting'},done:{view:'tasks',tab:'done'},notes:{view:'notes'},calendar:{view:'calendar'}}[section];
@@ -892,6 +931,8 @@
   });
   commandInput.addEventListener('focus',()=>{if(command.renderedQuery!==commandInput.value&&!command.request&&!command.timer&&!command.composing)safe(()=>queryCommand(commandInput.value,true));});
   root.addEventListener('compositionstart',event=>{if(event.target.matches('[data-work-search]'))workComposing=true;});
+  modalLayer.addEventListener('input',()=>{modalDirty=true;});modalLayer.addEventListener('change',()=>{modalDirty=true;});
+  commandInput.addEventListener('input',()=>{if(commandInput.classList.contains('has-notice'))clearCommandNotice();});
   root.addEventListener('compositionend',event=>{if(event.target.matches('[data-work-search]')){workComposing=false;state.workQuery=event.target.value;renderMainView();}});
   commandInput.addEventListener('compositionstart',()=>{command.composing=true;cancelCommandActivation();clearTimeout(command.timer);command.timer=null;++command.seq;command.request=null;});
   commandInput.addEventListener('compositionend',()=>{command.composing=false;queueCommandQuery(commandInput.value,0,true);});
@@ -920,7 +961,7 @@
     const inCommandInput=state.shell==='command'&&event.target===commandInput;
     if(inCommandInput&&K.is(event,'command.media')&&!root.querySelector('.td-media').hidden){event.preventDefault();root.querySelector('.td-media [data-media-slot=next]')?.focus();return;}
     if(inCommandInput&&K.is(event,'command.expand')){event.preventDefault();if(!command.running&&!command.activating)safe(()=>shell('dashboard'));return;}
-    if(K.is(event,'back')){event.preventDefault();if(command.activating&&!command.running)cancelCommandActivation();else if(command.actions)closeCommandActions();else if(!modalLayer.hidden)closeModal();else if(state.shell==='dashboard'&&state.view==='tasks'&&state.selected)safe(collapseTaskEditor);else if(state.shell==='dashboard')safe(async()=>{await flushPending();await shell('command');});else if(!root.querySelector('.command-output').hidden){clearCommandOutput();resizeCommand();}else safe(()=>call('window.close'));return;}
+    if(K.is(event,'back')){event.preventDefault();if(!event.repeat)safe(escapeStep);return;}
     if(state.shell==='command'&&(event.target===commandInput||commandBox.contains(event.target)||commandActions.contains(event.target))){
       if(K.is(event,'command.run')||K.is(event,'command.alternate')||K.is(event,'command.actions')){
         event.preventDefault();if(event.repeat||command.running||command.activating)return;

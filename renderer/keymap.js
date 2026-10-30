@@ -95,6 +95,7 @@
     A('note.scope.active','notes','메모',['Mod+Shift+KeyM'],{scopeName:'active'}),
     A('note.scope.archived','notes','보관함',['Mod+Shift+KeyB'],{scopeName:'archived'}),
     A('note.scope.trash','notes','휴지통',['Mod+Shift+KeyT'],{scopeName:'trash'}),
+    A('note.scope.cycle','notes','메모 · 보관함 · 휴지통 순환',['Tab','Shift+Tab']),
     A('note.restore','notes','복원',['Mod+Shift+KeyZ']),
     A('note.up','notes','이전 메모',['ArrowUp']),
     A('note.down','notes','다음 메모',['ArrowDown']),
@@ -170,12 +171,12 @@
     { title:null, rows:[[null,['help.toggle']],[null,['command.open']]] },
     { title:'WHENCOMMAND', rows:[
       [null,['command.expand']],['검색 결과 선택',['command.prev','command.next']],[null,['command.run']],[null,['command.alternate']],
-      [null,['command.actions']],['검색어 전체 선택',['command.open']],[null,['command.media'],{media:true}],
+      [null,['command.actions']],['검색어 전체 선택',['command.open']],['입력 지우기 → 창 숨기기',['back']],[null,['command.media'],{media:true}],
     ] },
     { title:'화면 이동', rows:[
       [null,['nav.dashboard']],['Work · ToDo / InBox',['nav.todo','nav.inbox']],['Work · Waiting / Done',['nav.waiting','nav.done']],
       ['Note / Calendar',['nav.notes','nav.calendar']],[null,['nav.settings']],[null,['app.new']],[null,['app.save']],
-      ['Work 분류 순환 · 입력 필드 이동',['work.tab.cycle']],['편집 → 목록 → Command',['back']],
+      ['화면 안 분류 순환 (Work · 메모)',['work.tab.cycle']],['한 단계 뒤로 (편집 → 필터 → 화면 → Command)',['back']],
     ] },
     { title:'할 일 목록', rows:[
       ['항목 선택',['list.up','list.down','list.first','list.last']],['검색 · 마감 필터 · 완료 기록',['work.search','work.dueFilter','work.doneHistory']],
@@ -189,7 +190,7 @@
     ] },
     { title:'메모', rows:[
       ['새 메모 · 검색 · 저장',['app.new','note.search','app.save']],['편집 · 미리보기',['note.open','note.preview']],['고정 · 보관',['note.pin','note.archive']],
-      ['메모 · 보관함 · 휴지통',['note.scope.active','note.scope.archived','note.scope.trash']],['목록에서 삭제 · 복원',['note.delete','note.restore']],
+      ['메모 · 보관함 · 휴지통',['note.scope.cycle','note.scope.active','note.scope.archived','note.scope.trash']],['목록에서 삭제 · 복원',['note.delete','note.restore']],
       ['이미지 첨부 · Markdown 내보내기',['note.attach','note.export']],
     ] },
     { title:'캘린더', rows:[

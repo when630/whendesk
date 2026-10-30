@@ -316,8 +316,11 @@
       if (K.is(event,'back')) {
         if ($('[data-note-content]').contains(event.target) && state.note) return consume(async () => { await flush(); focusList(); });
         if (event.target === search && search.value) return consume(async () => { state.query = ''; search.value = ''; await refresh(); search.focus({preventScroll:true}); });
+        if (inList && state.query) return consume(async () => { state.query = ''; search.value = ''; await refresh(); focusList(); });
+        if (inList && state.scope !== 'active') return consume(() => setScope('active'));
         return false;
       }
+      if (inList && K.is(event,'note.scope.cycle')) { const order = ['active','archived','trash']; return consume(() => setScope(order[(order.indexOf(state.scope) + (event.shiftKey ? order.length - 1 : 1)) % order.length])); }
       if (inEditor) return editList(event);
       if (inList) {
         const move = K.is(event,'note.up') ? -1 : K.is(event,'note.down') ? 1 : 0, reorder = K.is(event,'note.moveUp') ? -1 : K.is(event,'note.moveDown') ? 1 : 0;

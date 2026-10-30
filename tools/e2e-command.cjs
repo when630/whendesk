@@ -254,7 +254,10 @@ async function closeHarness() {
       assert.ok(await page.locator('.minimal-help-layer kbd').count()>0);await noPersistentKeycaps();await noNumericBuiltInKeycaps();
       await page.keyboard.press('Escape');await page.locator('.minimal-help-layer').waitFor({state:'hidden'});assert.equal(await page.locator('.event-form').isVisible(),true);assert.deepEqual(await title.evaluate(element=>[element.selectionStart,element.selectionEnd]),[2,8]);
       assert.equal((await call('state',{})).events.length,0);await screenshot('04-modal-draft');
-      await page.keyboard.press('Escape');await page.locator('.event-form').waitFor({state:'hidden'});await page.keyboard.press('Escape');await page.locator('#cf-command-panel').waitFor();
+      await page.keyboard.press('Escape');assert.equal(await page.locator('.event-form').isVisible(),true,'입력한 초안을 Esc 한 번에 버렸습니다.');await page.keyboard.press('Escape');await page.locator('.event-form').waitFor({state:'hidden'});
+      // 대화상자를 연 버튼에서 Esc는 먼저 화면의 기본 자리(선택 날짜)로, 한 번 더 누르면 Command로 간다.
+      await page.keyboard.press('Escape');await waitUntil(()=>page.evaluate(()=>!!document.activeElement?.matches('.td-main [data-date]')),'Esc가 캘린더 기본 자리로 돌아가지 않았습니다.');assert.equal(await page.locator('#cf-dashboard-panel').isVisible(),true);
+      await page.keyboard.press('Escape');await page.locator('#cf-command-panel').waitFor();
     });
 
     assert.deepEqual(errors,[]);

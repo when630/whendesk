@@ -11,6 +11,11 @@ export function actionsFor(item) {
   const a = item?.action ?? {};
   const list = [];
   const push = (id, title, action) => list.push({ id, title, action });
+  if (a.type === 'capture-task') {
+    push('add', '인박스에 담기', a);
+    push('add-open', '담고 열기', { ...a, open: true });
+    return list;
+  }
   switch (item?.source) {
     case 'apps':
       push('open', '열기', a);

@@ -90,8 +90,13 @@ test('할 일 검색·명시적 추가·캘린더 자연어 추가가 통합 저
     assert.deepEqual((await f.command.run(task.key)).route, { view: 'tasks', tab: 'todo', id: 't1' });
     const capture = (await f.command.query('할 일 추가 테스트 실행')).items[0];
     assert.equal(capture.key, 'capture:todo');
-    assert.deepEqual((await f.command.run(capture.key)).route, { view: 'tasks', tab: 'inbox', id: 'new-task' });
+    const added = await f.command.run(capture.key);
+    assert.equal(added.route, undefined, '기본 추가는 Command에 머문다');
+    assert.equal(added.clear, true, '같은 항목을 다시 추가하지 않도록 입력을 비운다');
+    assert.match(added.message, /인박스에 담았습니다/);
     assert.equal(f.mutations[0].payload.title, '테스트 실행');
+    assert.equal(capture.altId, 'add-open');
+    assert.deepEqual((await f.command.run(capture.key, 'add-open')).route, { view: 'tasks', tab: 'inbox', id: 'new-task' });
     const event = (await f.command.query('일정 추가 내일 3시 치과 예약')).items[0];
     assert.deepEqual((await f.command.run(event.key)).route, { view: 'calendar', id: 12, date: '2026-10-30' });
     assert.equal(f.mutations.at(-2).type, 'calendar.parse');

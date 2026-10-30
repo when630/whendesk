@@ -1,26 +1,46 @@
-/* 포커스 위치는 배경과 글자로 표시한다. 어느 스킨·모드에서도 외곽선을 그리지 않는다. */
-#whendesk-command-first .td-app :is(:focus,:focus-visible,:active){
+/* 포커스는 키보드로 옮겼을 때만 보인다(:focus-visible). 시리즈 공통 규칙:
+ * 목록 행은 옅은 배경 + 왼쪽 2px 강조 막대, 버튼·탭·체크박스·링크는 2px 강조 외곽선.
+ * 포커스가 목록 밖에 있어도 목록 커서(.keyboard-current·선택된 메모)는 흐린 막대로 남는다.
+ * 테두리는 바꾸지 않아 포커스 이동으로 배치가 흔들리지 않는다. */
+#whendesk-command-first .td-app :is(:focus,:active):not(:focus-visible){
   outline:none!important;
   outline-width:0!important;
-  outline-offset:0!important;
   box-shadow:none!important;
 }
 #whendesk-command-first .td-app :is(input,select,textarea,button,a,[tabindex]){
   -webkit-tap-highlight-color:transparent;
 }
-#whendesk-command-first .td-app button:not(.td-primary):not([role=tab]):focus-visible,
-#whendesk-command-first .td-app :is([data-task-row],[data-work-project-row],.td-day,.desk-note-row):focus-visible{
+#whendesk-command-first .td-app :focus-visible{
+  outline:2px solid var(--td-accent)!important;
+  outline-offset:1px;
+  box-shadow:none;
+}
+#whendesk-command-first .td-app :is([data-task-row],[data-work-project-row],.desk-note-row,[data-event]):focus-visible{
+  outline:none!important;
+  outline-width:0!important;
   background-color:var(--td-wash);
   color:var(--td-text);
+  box-shadow:inset 2px 0 0 var(--td-accent)!important;
 }
+#whendesk-command-first .td-app .td-day:focus-visible{
+  outline-offset:-2px;
+  background-color:var(--td-wash);
+}
+#whendesk-command-first .td-app :is([data-task-row].keyboard-current,.desk-notes-list .desk-note-row.selected):not(:focus-visible){
+  box-shadow:inset 2px 0 0 color-mix(in srgb,var(--td-accent) 40%,transparent);
+}
+/* 글자 입력칸은 캐럿이 위치를 알려 주므로 외곽선 대신 옅은 배경만 둔다. */
 #whendesk-command-first .td-app :is(input:not([type=checkbox]):not([type=radio]),select,textarea):focus-visible{
+  outline:none!important;
+  outline-width:0!important;
   background-color:color-mix(in srgb,var(--td-wash) 45%,var(--td-surface));
-}
-#whendesk-command-first .td-app a:focus-visible{
-  color:var(--td-text);
-  background-color:var(--td-wash);
 }
 #whendesk-command-first .cf-command-panel .td-command input:is(:focus,:focus-visible,:active),
 #whendesk-command-first .desk-note-body:is(:focus,:focus-visible,:active){
   background:none;
+}
+/* Command 저장 알림은 입력줄 자리 표시 문구로 잠깐 보여 준다. */
+#whendesk-command-first .cf-command-panel .td-command input.has-notice::placeholder{
+  color:var(--td-accent);
+  opacity:1;
 }

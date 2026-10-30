@@ -55,8 +55,15 @@ async function probe(selector,label,variant){
   const after=await snapshot(locator);
   for(let index=0;index<after.length;index++){
     const current=after[index],prefix=variant+' / '+label+' / depth '+index;
-    assert.ok(current.outlineStyle==='none'||parseFloat(current.outlineWidth)===0,prefix+' 포커스 외곽선: '+JSON.stringify(current));
-    assert.equal(current.shadow,'none',prefix+' 포커스 그림자가 남아 있습니다.');
+    if(index===0){
+      // 키보드 포커스는 외곽선·왼쪽 막대·배경 중 하나로 보여야 한다. 글자 입력칸은 캐럿이 위치를 알려 준다.
+      const outline=current.outlineStyle!=='none'&&parseFloat(current.outlineWidth)>0,bar=current.shadow.includes('inset'),washed=current.background!==before[0].background,caret=['INPUT','TEXTAREA','SELECT'].includes(current.tag);
+      assert.ok(outline||bar||washed||caret,prefix+' 키보드 포커스 위치가 보이지 않습니다: '+JSON.stringify(current));
+      assert.ok(current.shadow==='none'||bar,prefix+' 바깥 그림자는 쓰지 않습니다.');
+    }else{
+      assert.equal(current.outlineStyle+current.outlineWidth,before[index].outlineStyle+before[index].outlineWidth,prefix+' 부모로 포커스 외곽선이 번졌습니다.');
+      assert.equal(current.shadow,before[index].shadow,prefix+' 부모로 포커스 그림자가 번졌습니다.');
+    }
     for(let side=0;side<current.borders.length;side++){
       const prior=before[index].borders[side],next=current.borders[side];
       assert.deepEqual(next.slice(0,2),prior.slice(0,2),prefix+' 포커스로 테두리 두께·종류가 바뀌었습니다.');
@@ -178,7 +185,7 @@ async function withDelayedTaskSelection(run){
 
     for(const skin of ['base','ink','paper'])for(const mode of ['light','dark']){
       const variant=skin+'/'+mode;
-      await test(variant+' 전 화면 포커스 테두리·그림자 제거',async()=>{
+      await test(variant+' 전 화면 키보드 포커스 표시·배치 유지',async()=>{
         await changeLook(skin,mode);measurements.matrix.push({skin,mode});
         await probe('[data-look=skin]','스킨 선택',variant);
         await probe('[data-look=mode]','모드 선택',variant);

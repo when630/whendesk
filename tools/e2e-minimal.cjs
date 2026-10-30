@@ -190,6 +190,9 @@ function durableData(state) {
       await screenshot('05-event-draft-restored');
       await noPersistentKeycaps('도움말을 닫은 일정 모달');
       await page.keyboard.press('Escape');
+      assert.equal(await form.isVisible(), true, '입력한 일정 초안을 Esc 한 번에 버렸습니다.');
+      assert.match(await page.locator('.td-feedback').innerText(), /한 번 더/, '초안을 버리기 전에 안내해야 합니다.');
+      await page.keyboard.press('Escape');
       await form.waitFor({ state: 'hidden' });
       assert.equal(await page.locator('#cf-dashboard-panel').isVisible(), true, '일정 모달의 Esc가 대시보드까지 접었습니다.');
     });
@@ -270,6 +273,9 @@ function durableData(state) {
       await page.keyboard.press('Escape');
       await page.locator('.minimal-help-layer').waitFor({ state: 'hidden' });
       assert.equal(await skin.isVisible(), true, '설정의 도움말을 닫으면 설정 화면이 유지돼야 합니다.');
+      // 화면 기본 자리가 아니면 Esc는 먼저 그 자리로 돌아오고, 기본 자리에서 한 번 더 누르면 Command로 간다.
+      await page.keyboard.press('Escape');
+      await waitUntil(() => skin.evaluate(element => element === document.activeElement), 'Esc가 설정의 기본 자리로 돌아가지 않았습니다.');
       await page.keyboard.press('Escape');
       await commandRestored('123+456', [1, 4]);
       await page.locator('.td-command input').press('Tab');
