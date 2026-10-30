@@ -177,6 +177,7 @@
       await flush(); clearTimeout(searchTimer); state.scope = next; scope.value = next; state.selectedId = null;
       state.note = null; ++openSeq; showNote(); await refresh({focus:true});
     }
+    let previewTimer = null;
     function select(delta,{edge} = {}) {
       if (!state.results.length) return;
       const current = Math.max(0,state.results.findIndex(note => note.id === state.selectedId));
@@ -185,6 +186,9 @@
       list.querySelectorAll('[data-note-row]').forEach(row => { const selected = row.dataset.noteRow === state.selectedId; row.classList.toggle('selected',selected); row.setAttribute('aria-selected',String(selected)); row.tabIndex = selected ? 0 : -1; });
       const row = list.querySelector('[aria-selected=true]'); row?.scrollIntoView({block:'nearest'});
       if (list.contains(document.activeElement)) row?.focus({preventScroll:true});
+      // 선택을 옮기면 오른쪽에 그 메모를 보기 모드로 바로 보여 준다(원본 WHENNOTE). 포커스는 목록에 둔다.
+      clearTimeout(previewTimer); const target = state.selectedId;
+      previewTimer = setTimeout(() => { if (state.active && state.selectedId === target && state.note?.id !== target && !pending.size) safe(() => open(target,{edit:false,touch:false,focus:false})); },120);
     }
     async function activateSelected({edit = true,createFromQuery = false} = {}) {
       const query = state.query, selectedScope = state.scope;
@@ -322,6 +326,18 @@
       }
       if (inList && K.is(event,'note.scope.cycle')) { const order = ['active','archived','trash']; return consume(() => setScope(order[(order.indexOf(state.scope) + (event.shiftKey ? order.length - 1 : 1)) % order.length])); }
       if (inEditor) return editList(event);
+      // 보기 모드의 본문에서 E는 편집으로 바꾼다.
+      if (state.note && state.preview && preview.contains(event.target) && !textField(event.target) && K.is(event,'note.edit')) return consume(() => setPreview(false));
+      // 목록에 포커스가 있을 때만 글자 키를 동작으로 읽는다(검색칸에서는 글자로 입력된다).
+      if (list.contains(event.target) && !textField(event.target)) {
+        if (K.is(event,'note.edit')) return consume(() => state.selectedId ? open(state.selectedId,{edit:true}) : null);
+        if (K.is(event,'note.new')) return consume(() => newNote());
+        if (K.is(event,'note.find')) return consume(() => { search.focus({preventScroll:true}); search.select(); });
+        const cursor = K.is(event,'note.cursorUp') ? -1 : K.is(event,'note.cursorDown') ? 1 : 0;
+        if (cursor) { event.preventDefault(); select(cursor); return true; }
+      }
+      // 검색칸의 ↓는 Work 검색과 같이 목록으로 내려간다. 목록에서는 ↑↓·J/K가 선택을 옮긴다.
+      if (event.target === search && K.is(event,'note.down') && state.results.length) return consume(() => focusList());
       if (inList) {
         const move = K.is(event,'note.up') ? -1 : K.is(event,'note.down') ? 1 : 0, reorder = K.is(event,'note.moveUp') ? -1 : K.is(event,'note.moveDown') ? 1 : 0;
         if (reorder && !list.contains(event.target)) return false;
@@ -334,7 +350,7 @@
       }
       const edge = K.is(event,'note.first') ? 'first' : K.is(event,'note.last') ? 'last' : null;
       if (list.contains(event.target) && edge) { event.preventDefault(); select(0,{edge}); return true; }
-      if (inList && K.is(event,'note.open')) return consume(() => activateSelected({edit:!mod,createFromQuery:event.shiftKey}));
+      if (inList && K.is(event,'note.open')) return consume(() => activateSelected({edit:mod,createFromQuery:event.shiftKey}));
       if (list.contains(event.target) && !textField(event.target) && K.is(event,'note.delete') && state.scope !== 'trash') return consume(() => remove(state.selectedId));
       if (!textField(event.target) && event.target.matches('a[role=button]') && K.is(event,'link.activate')) { event.preventDefault(); event.target.click(); return true; }
       return false;
@@ -372,7 +388,7 @@
       hasPending:() => pending.size > 0,
       status:() => ({active:state.active,selectedId:state.selectedId,noteId:state.note?.id || null,scope:state.scope,query:state.query,preview:state.preview,pending:pending.size,error:state.error?.message || null}),
       element,
-      dispose:async () => { await flush(); disposed = true; clearTimeout(saveTimer); clearTimeout(searchTimer); element.remove(); },
+      dispose:async () => { await flush(); disposed = true; clearTimeout(saveTimer); clearTimeout(searchTimer); clearTimeout(previewTimer); element.remove(); },
     };
   }
   window.WhendeskNotes = Object.freeze({create});

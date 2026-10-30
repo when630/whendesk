@@ -24,18 +24,19 @@ Command는 아이콘 바로 옆에 입력하는 한 줄 화면입니다. 연결�
 
 | 범위 | 조작 |
 | --- | --- |
+| 공통 키 | 목록에서 화면과 관계없이 같은 뜻: ↑↓·J/K 이동, Enter 열기, E 편집, N 새로, X·Delete 삭제, U·Ctrl+Z 되돌리기, / 검색, Tab 화면 안 분류 순환. 되돌리기는 화면을 넘나들어 가장 최근 작업부터 되돌립니다 |
 | 화면 이동 | Alt+H Dashboard, Alt+T Work/ToDo, Alt+I Work/InBox, Alt+W Work/Waiting, Alt+D Work/Done, Alt+N Note, Alt+C Calendar, Alt+S Settings |
 | 새 항목·저장 | Ctrl+N 현재 화면에서 작성, Ctrl+S 저장. 할 일 캡처는 Enter 저장 후 InBox의 새 행으로 이동하여 M·D 등으로 바로 분류. 입력에서 ↓·Esc로 목록 복귀 |
 | Work 분류 | 목록에서 Tab·Shift+Tab 순환하며 해당 분류의 마지막 행으로 복귀. 빈 탭을 거쳐도 다음 목록으로 바로 진입. 탭에서 ←→·Home/End 분류 선택, ↓ 목록 진입 |
-| 할 일 목록 | ↑↓·J/K·Home/End·PageUp/Down 선택, Enter 편집, Space 완료·해제, E 제목, D 마감, N 상세, M 프로젝트, W 대기 상대 지정, P·R 재촉 기록, Delete·X 삭제, U·Ctrl+Z 연속 되돌리기 |
-| 할 일 편집 | Tab·Shift+Tab으로 필드 이동, Ctrl+Enter 또는 Esc로 목록 복귀 |
+| 할 일 목록 | ↑↓·J/K·Home/End·PageUp/Down 선택, Enter 편집, Space 완료·해제, E 제목, D 마감, N 상세, M 프로젝트, W 대기 상대 지정, P·R 재촉 기록, Delete·X 삭제, 1~9 프로젝트 바로 지정(목록 순서), U·Ctrl+Z 연속 되돌리기(완료 포함) |
+| 할 일 편집 | Tab·Shift+Tab으로 필드 이동, Ctrl+Enter 또는 Esc로 목록 복귀. 접힌 행의 Ctrl+Enter는 아무 동작도 하지 않음 |
 | Work 검색 | /·Ctrl+F 검색, Enter·↓ 목록 복귀, Tab으로 프로젝트 필터·정렬 이동, Esc 검색 해제. 목록에서 Tab은 검색을 유지하며 분류 순환. F는 ToDo 마감 필터, H는 완료 기록 |
-| 프로젝트 | Projects에서 Ctrl+N·N 추가, E 이름 수정, Shift+↑↓ 순서, Delete·X 보관, U 보관함 전환, 보관함 Enter 복원. 할 일에서는 M으로 지정하며 InBox 항목은 ToDo로 이동 |
+| 프로젝트 | Projects에서 Ctrl+N·N 추가, E 이름 수정, Shift+↑↓ 순서, Delete·X 보관, A 보관함 보기, 보관함 Enter 복원. 할 일에서는 M으로 지정하며 InBox 항목은 ToDo로 이동 |
 | 메모 | Ctrl+N 새 메모, Ctrl+F 검색, Ctrl+S 저장, Ctrl+E 미리보기, Ctrl+P 고정, Ctrl+Shift+A 보관·해제 |
-| 메모 목록 | ↑↓ 선택, Enter 편집, Tab·Shift+Tab 또는 Ctrl+Shift+M/B/T로 메모·보관함·휴지통, Delete 삭제, Ctrl+Shift+Z 복원 |
+| 메모 목록 | 검색에서 ↓로 목록 진입. ↑↓·J/K 선택하면 오른쪽에 바로 보기, Enter 보기, E 편집(보기에서도 E), N 새 메모, / 검색, Tab·Shift+Tab 또는 Ctrl+Shift+M/B/T로 메모·보관함·휴지통, X·Delete 삭제, U 되돌리기, Ctrl+Shift+Z 휴지통에서 복원 |
 | 메모 파일 | Ctrl+Shift+I 이미지 선택, Ctrl+Shift+E Markdown 내보내기. 이미지 붙여넣기도 지원 |
-| 캘린더 | 날짜 ←→ 하루·↑↓ 일주일, PageUp/Down 월 이동, T 오늘, Ctrl+N 새 일정, Enter 날짜의 일정 목록·일정 편집 |
-| 대화상자 | Tab·Shift+Tab은 내부 순환, Ctrl+S 저장, Esc 닫기. 일정 목록의 Delete는 삭제 확인 화면으로 이동 |
+| 캘린더 | 날짜 ←→ 하루·↑↓ 일주일, PageUp/Down 월 이동, T 오늘, N·Ctrl+N 새 일정, Enter 날짜의 일정 목록·일정 편집, E 편집, X·Delete 삭제(반복 일정은 범위 선택), U 되돌리기 |
+| 대화상자 | Tab·Shift+Tab은 내부 순환, Ctrl+S 저장, Esc 닫기 |
 | 돌아가기 | Esc는 한 단계씩: 편집 → 검색·필터·보관함/휴지통 → 화면 기본 자리 → Command. Ctrl+K는 Command로 이동하며 일정 대화상자 초안은 닫지 않음 |
 
 단축키 안내는 화면에 상시 표시하지 않고 Ctrl+/에서 확인합니다. 입력 중에는 목록용 문자 단축키가 본문을 가로채지 않습니다.
@@ -82,6 +83,7 @@ npm run build
 - `node tools/e2e-keyboard-notes.cjs`: 마우스 입력 없이 메모·할 일·캘린더·설정과 파일 기능을 개발본에서 검증
 - `node tools/e2e-work.cjs`: Work 내부 탭·프로젝트 지정/관리·자연어 마감·대기·재촉/연속 되돌림·원본 검색 규칙을 키보드로 검사
 - `node tools/e2e-focus-flow.cjs`: 6개 스킨/모드 조합의 전 화면 포커스 228개 검사와 캡처·탭 왕복·검색/필터·캘린더 진입·저장 지연 중 포커스 흐름 검사
+- `node tools/e2e-common-keys.cjs`: 메모 공통 키·즉시 미리보기·화면을 넘나드는 되돌리기·Projects A/U·접힌 행 Ctrl+Enter 검사
 - `node tools/e2e-escape-flow.cjs`: 단계형 Esc·Command에서 연달아 담기·메모 분류 Tab·초안 보호·키보드 포커스 표시 검사
 - `node tools/e2e-command-bar.cjs`: 한 줄 Command·조건부 미디어·입력 및 버튼 포커스·작은 창 배치를 모의 미디어로 검사
 - `npm run smoke -- --headless --data-dir=<테스트 폴더>`: 별도 저장소 부팅 검사

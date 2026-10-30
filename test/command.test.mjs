@@ -354,7 +354,7 @@ test('메모 화면 이동과 명시적인 메모 추가는 기존 할 일 추�
     for (const [query,body] of [['메모 추가 배포 확인 #릴리스','배포 확인 #릴리스'],['노트 추가 내일 볼 내용','내일 볼 내용'],['note add sample text','sample text'],['메모 추가','']]) {
       const capture=(await f.command.query(query)).items[0];
       assert.equal(capture.key,'capture:note');assert.equal(capture.source,'notes');
-      assert.deepEqual((await f.command.run(capture.key,null,{query})).route,{view:'notes',id:'new-note'});
+      assert.deepEqual((await f.command.run(capture.key,null,{query})).route,{view:'notes',id:'new-note',edit:true});
       assert.deepEqual(f.mutations.at(-1),{type:'note.create',payload:{body}});
     }
     const task=(await f.command.query('할 일 추가 메모 정리')).items[0];

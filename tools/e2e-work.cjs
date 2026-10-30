@@ -196,7 +196,7 @@ function setOwnedFixtureDoneDates(entries){
       await gotoTab('projects');await focusProject(secondProjectId);await press('Delete');await page.locator('.work-archive-form').waitFor();await press('Control+s');await page.locator('.work-archive-form').waitFor({state:'hidden'});
       await waitUntil(async()=>!(await state()).projects.some(project=>project.id===secondProjectId),'프로젝트가 보관되지 않았습니다.');
       const moved=await task(taskId);assert.equal(moved.project_id,null);assert.equal(moved.kind,'inbox');
-      await press('u');await page.locator(`[data-restore-project="${secondProjectId}"]`).waitFor();await press('Home');await waitWithin(`[data-work-project-row="${secondProjectId}"]`);await press('Enter');
+      await press('a');await page.locator(`[data-restore-project="${secondProjectId}"]`).waitFor();await press('Home');await waitWithin(`[data-work-project-row="${secondProjectId}"]`);await press('Enter');
       await waitUntil(async()=>(await state()).projects.some(project=>project.id===secondProjectId),'보관함에서 프로젝트를 복원하지 못했습니다.');
       const restored=await task(taskId);assert.equal(restored.project_id,secondProjectId,'같은 실행에서 보관했던 할 일이 프로젝트로 복귀하지 않았습니다.');assert.equal(restored.kind,'todo');
       await screenshot('05-work-project-restored');
@@ -214,12 +214,16 @@ function setOwnedFixtureDoneDates(entries){
       await press('f');await waitUntil(async()=>!await page.locator('[data-due-only]').isChecked(),'F로 마감 필터를 해제하지 못했습니다.');await page.locator(`[data-task-row="${fixture.todoB}"]`).waitFor();await screenshot('06-work-search-and-filter');
     });
 
-    await test('편집 초안·도움말·Command 왕복은 저장 내용과 화면 상태를 보존하고 숫자 프로젝트키는 추가하지 않음',async()=>{
+    await test('편집 초안·도움말·Command 왕복은 저장 내용과 화면 상태를 보존하고 숫자 키는 프로젝트를 바로 지정하고 U로 되돌림',async()=>{
       await focusTask(taskId);await press('n');await waitFocus('[data-field=note]');await text('Work 상세 초안 '+runId);await press('Control+s');await waitUntil(async()=>(await task(taskId))?.note==='Work 상세 초안 '+runId,'상세 초안이 저장되지 않았습니다.');
       await press('Home');await press('Shift+End');const selection=await page.locator('[data-field=note]').evaluate(element=>[element.selectionStart,element.selectionEnd]);
       await press('Control+Slash');await page.locator('.minimal-help-layer').waitFor();await press('Escape');await page.locator('.minimal-help-layer').waitFor({state:'hidden'});await waitFocus('[data-field=note]');assert.deepEqual(await page.locator('[data-field=note]').evaluate(element=>[element.selectionStart,element.selectionEnd]),selection);
       await press('Control+k');await waitFocus('.td-command input');await press('Tab');await waitFocus('[data-field=note]');assert.equal(await page.locator('[data-field=note]').inputValue(),'Work 상세 초안 '+runId);assert.deepEqual(await page.locator('[data-field=note]').evaluate(element=>[element.selectionStart,element.selectionEnd]),selection);
-      await press('Control+Enter');await waitWithin(`[data-task-row="${taskId}"]`);const previous=(await task(taskId)).project_id;await press('1');await page.waitForTimeout(90);assert.equal((await task(taskId)).project_id,previous,'숫자 키가 프로젝트를 지정했습니다.');
+      await press('Control+Enter');await waitWithin(`[data-task-row="${taskId}"]`);const previous=(await task(taskId)).project_id;
+      // 1~9는 활성 프로젝트 목록 순서로 바로 지정하고(원본 WHENWORK), U로 되돌린다.
+      const projects=(await state()).projects,target=projects.findIndex(project=>project.id!==previous);assert.ok(target>=0&&target<9);
+      await press(String(target+1));await waitUntil(async()=>(await task(taskId)).project_id===projects[target].id,'숫자 키가 프로젝트를 지정하지 않았습니다.');
+      await waitUntil(()=>focusWithin('.td-main'),'숫자 지정 뒤 Work 포커스를 잃었습니다.');await press('u');await waitUntil(async()=>(await task(taskId)).project_id===previous,'숫자 지정을 U로 되돌리지 못했습니다.');
       assert.equal(await page.locator('.td-chrome').count(),0);assert.equal(errors.length,0);measurements.finalTask=await task(taskId);await screenshot('07-work-final');
     });
 

@@ -225,7 +225,7 @@ async function withDelayedTaskSelection(run){
         await probe('[data-note-scope]','메모 보기',variant);
         await page.locator(`[data-note-row="${fixture.note.id}"]`).waitFor();
         await probe(`[data-note-row="${fixture.note.id}"]`,'메모 목록 행',variant);
-        await page.locator(`[data-note-row="${fixture.note.id}"]`).focus();await press('Enter');
+        await page.locator(`[data-note-row="${fixture.note.id}"]`).focus();await press('Control+Enter');
         await page.locator('[data-note-editor]').waitFor();
         await probe('[data-note-editor]','메모 본문',variant);
         await probe('[data-note-action=pin]','메모 도구',variant);

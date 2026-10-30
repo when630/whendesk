@@ -41,7 +41,9 @@ test('안내 표기는 Windows 키캡 표기로 만들고 숫자 할당을 포�
   assert.equal(K.format('list.up'), '↑ · K');
   assert.equal(K.format('back'), 'Esc');
   assert.equal(K.format('command.run'), 'Enter');
-  const shown = [...K.HELP].flatMap(group => [...group.rows].flatMap(([, ids]) => [...ids].map(K.format)));
+  assert.equal(K.format('task.assign'), '1 ~ 9', '프로젝트 바로 지정은 원본 WHENWORK의 숫자 키를 쓴다');
+  // 숫자 키는 프로젝트 바로 지정 한 줄에만 허용한다.
+  const shown = [...K.HELP].flatMap(group => [...group.rows].flatMap(([, ids]) => [...ids].filter(id => id !== 'task.assign').map(K.format)));
   assert.deepEqual(shown.filter(text => /\d/.test(text)), []);
 });
 

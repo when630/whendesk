@@ -50,6 +50,8 @@ async function noPersistentKeycaps() {
 async function noNumericBuiltInKeycaps() {
   const numeric=await page.evaluate(()=>[...document.querySelectorAll('.minimal-help-layer kbd')]
     .filter(element=>element.closest('dl')?.previousElementSibling?.textContent!=='어디서나')
+    // 원본 WHENWORK의 1~9 프로젝트 바로 지정만 숫자 키를 쓴다.
+    .filter(element=>element.closest('div')?.querySelector('dt')?.textContent!=='프로젝트 바로 지정 (목록 순서)')
     .map(element=>element.textContent).filter(value=>/\d/.test(value)));
   assert.deepEqual(numeric,[],'내장 단축키 안내에 숫자 할당이 남아 있습니다.');
 }

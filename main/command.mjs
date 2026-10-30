@@ -376,7 +376,8 @@ export function createCommand({ dataDir, domain, onMore, platform: providedPlatf
         : { ok: true, clear: true, message: `인박스에 담았습니다 · ${task.title || action.text}` };
     } else if (action.type === 'capture-note') {
       const note = await domain.mutate('note.create', { body:action.text });
-      result = { ok:true, route:{ view:'notes', id:note.id }, message:'메모에 저장했습니다.' };
+      // 새로 만든 메모는 이어서 쓰도록 편집으로 연다. 검색 결과로 여는 메모는 보기로 연다.
+      result = { ok:true, route:{ view:'notes', id:note.id, edit:true }, message:'메모에 저장했습니다.' };
     } else if (action.type === 'capture-event') {
       const parsed = await domain.mutate('calendar.parse', { text: action.text });
       if (!parsed?.ok) throw new Error('일정의 제목과 날짜를 해석하지 못했습니다.');

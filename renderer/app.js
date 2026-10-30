@@ -20,7 +20,7 @@
   const command = { seq:0, items:[], selected:0, pending:false, query:'', renderedQuery:null, request:null, running:false, activating:false, activation:0, composing:false, actions:null, more:null, waiters:new Set(), notice:'', start:0, end:0, timer:null };
   const pending = new Map();
   const workRules = window.VIEW;
-  const workUndo = [];
+  const workUndo = [], undoTimeline = [];
   const projectMoves = new Map();
   const workCursors = new Map();
   Object.assign(state,{ allTasks:[], archivedProjects:[], workQuery:'', workSort:'project', workRange:null, workTrash:false });
@@ -50,7 +50,7 @@
   function showError(error) { feedback(error?.message || String(error), null, true); console.error(error); }
   function feedback(message, action = null, error = false) {
     const element = root.querySelector('.td-feedback');
-    undoAction = action; element.classList.toggle('is-error', error);
+    undoAction = action; if (action) { undoTimeline.push(action); if (undoTimeline.length > 50) undoTimeline.shift(); } element.classList.toggle('is-error', error);
     element.innerHTML = `<span>${esc(message)}</span>${action ? '<button data-action="undo">되돌리기</button>' : ''}<button data-action="dismiss" aria-label="알림 닫기">${icon('x')}</button>`;
     element.hidden = false; clearTimeout(feedbackTimer);
     feedbackTimer = setTimeout(() => { element.hidden = true; undoAction = null; }, error ? 15000 : 7000); icons();
@@ -322,7 +322,7 @@
   async function navigate(route = {}) {
     if (route.shell === 'command') { await flushPending(); return shell('command'); }
     if (route.view === 'work' || route.view === 'tasks' && route.tab && !route.id) state.project=null;
-    if (route.view === 'notes') { await flushPending(); state.view='notes'; state.project=null; renderNav(); renderMainView(); await shell('dashboard',false); await notes?.refresh(); if(route.id) await notes?.open(route.id); else notes?.focus(); return; }
+    if (route.view === 'notes') { await flushPending(); state.view='notes'; state.project=null; renderNav(); renderMainView(); await shell('dashboard',false); await notes?.refresh(); if(route.id) await notes?.open(route.id,{edit:!!route.edit}); else notes?.focus(); return; }
     if (route.id && route.view !== 'calendar') await reveal(route.id);
     else { await flushPending(); state.view = route.settings ? 'settings' : route.view === 'work' ? 'tasks' : route.view || 'dashboard'; if(route.settings){state.prefs=await call('preferences.get');state.info=await call('app.info');} if (route.tab) state.tab = route.tab; if (route.date) { state.date = route.date; state.year = Number(route.date.slice(0,4)); state.month = Number(route.date.slice(5,7))-1; } await loadState(); await shell('dashboard'); }
     if (route.focusCapture) root.querySelector('.td-quick input')?.focus();
@@ -376,13 +376,13 @@
     modalLayer.querySelector('[type=submit]').focus();
   }
   function rememberWorkUndo(label,run,message) {
-    workUndo.push({label,run});if(workUndo.length>50)workUndo.shift();
-    feedback(message,undoWorkAction);
+    const entry={label,run};workUndo.push(entry);if(workUndo.length>50)workUndo.shift();
+    feedback(message,()=>undoWorkEntry(entry));
   }
-  function undoWorkAction() {
+  function undoWorkEntry(entry) {
     workUndoTail=workUndoTail.catch(()=>{}).then(async()=>{
-      const entry=workUndo.at(-1);if(!entry)return;
-      await entry.run();const index=workUndo.lastIndexOf(entry);if(index>=0)workUndo.splice(index,1);
+      const index=workUndo.lastIndexOf(entry);if(index<0)return;
+      await entry.run();workUndo.splice(workUndo.lastIndexOf(entry),1);
       feedback(`되돌림 · ${entry.label}`);focusView();
     });
     return workUndoTail;
@@ -696,11 +696,36 @@
     if(['title','note','project_id','kind'].includes(action))return openTaskField(id,action);
     if(action==='nudge')return nudgeTask(id);
     if(action==='waiting')return waitingModal(id);
-    if(action==='complete'){await mutate('task.complete',{id,done:!task.done});feedback(task.done?'완료를 해제했어요.':'완료했어요.');}
+    if(action==='complete'){await mutate('task.complete',{id,done:!task.done});rememberWorkUndo(task.title,()=>mutate('task.complete',{id,done:task.done}),task.done?'완료를 해제했어요.':'완료했어요.');}
     if(action==='delete')return deleteTask(id);
     const after=visibleTasks();if(!after.some(item=>item.id===state.selected))state.selected=null;focusTask(after[Math.min(Math.max(index,0),after.length-1)]?.id||null);
   }
-  async function undoLastAction() {if(state.view==='tasks'&&workUndo.length)return undoWorkAction();const action=undoAction;if(!action)return;await action();undoAction=null;root.querySelector('.td-feedback').hidden=true;focusView();}
+  async function undoLastAction() {
+    const action=undoTimeline.pop();if(!action){feedback('되돌릴 작업이 없어요.');return;}
+    if(undoAction===action){undoAction=null;root.querySelector('.td-feedback').hidden=true;}
+    await action();if(state.view!=='notes')focusView();
+  }
+  /* 1~9: 활성 프로젝트 목록 순서로 바로 지정한다(원본 WHENWORK). InBox 항목은 도메인 규칙대로 ToDo로 옮겨진다. */
+  async function assignProjectByNumber(id,number) {
+    const task=visibleTasks().find(item=>item.id===id),project=state.projects[number-1];
+    if(!task||task.archived)return;if(!project){feedback(`${number}번 프로젝트가 없어요.`);return;}
+    if(task.project_id===project.id)return;
+    const before=visibleTasks(),index=before.findIndex(item=>item.id===id),previous={project_id:task.project_id,kind:task.kind};
+    await mutate('task.update',{id,project_id:project.id});
+    rememberWorkUndo(task.title,()=>mutate('task.update',{id,...previous}),`${project.name}에 지정했어요.`);
+    const after=visibleTasks();focusTask(after.some(item=>item.id===id)?id:after[Math.min(Math.max(index,0),after.length-1)]?.id||null);
+  }
+  /* 반복 없는 일정은 바로 지우고 되돌리기를 남긴다. 반복 일정은 범위를 고르는 대화상자로 간다. */
+  async function deleteEventByKey(id) {
+    const item=findEvent(id);if(!item||item.readonly)return;
+    if(item.recurrence||item.recurrenceId){eventModal(id);const scope=modalLayer.querySelector('[name=scope]');if(scope)scope.value='one';modalLayer.querySelector('[data-action=delete-event]')?.focus();return;}
+    // 삭제 뒤 목록을 다시 그리므로 영역은 그 뒤에 다시 찾는다.
+    const side=!!document.activeElement?.closest('.td-calendar-side'),container=()=>side?root.querySelector('.td-calendar-side'):body;
+    const index=[...container().querySelectorAll('[data-event]')].findIndex(row=>row.dataset.event===String(id));
+    await mutate('event.delete',{id:item.id,scope:'all'});
+    feedback('일정을 삭제했어요.',()=>mutate('event.restore',{id:item.id}));
+    const next=[...container().querySelectorAll('[data-event]')];(next[Math.min(Math.max(index,0),next.length-1)]||container().querySelector(`[data-date="${state.date}"]`))?.focus({preventScroll:true});
+  }
   function listStep(event) {
     if(K.is(event,'list.up'))return -1;if(K.is(event,'list.down'))return 1;if(K.is(event,'list.pageUp'))return -10;if(K.is(event,'list.pageDown'))return 10;
     if(K.is(event,'list.first'))return 'first';if(K.is(event,'list.last'))return 'last';return 0;
@@ -768,6 +793,7 @@
       if(K.is(event,'app.new')){event.preventDefault();if(!event.repeat)safe(newInContext);return true;}return false;
     }
     if(state.view==='notes'&&notes?.handleKeydown(event))return true;
+    if(state.view==='notes'&&K.is(event,'note.undo')&&!editingTarget(target)&&!target.closest('.desk-note-preview,[data-note-preview]')){event.preventDefault();if(!event.repeat)safe(undoLastAction);return true;}
     if(K.is(event,'project.new')&&['tasks','dashboard'].includes(state.view)){event.preventDefault();if(!event.repeat)projectModal();return true;}
     if(K.is(event,'app.new')){event.preventDefault();if(!event.repeat)safe(newInContext);return true;}
     if(K.is(event,'app.save')){event.preventDefault();if(state.view==='settings')body.querySelector('.preferences-form')?.requestSubmit();else safe(flushPending);return true;}
@@ -779,13 +805,15 @@
       if(dayMove){event.preventDefault();const [days,months]=DAY_MOVES[dayMove];safe(()=>moveCalendarDate(days,months,side,dayMove==='date.today'));return true;}
       if(K.is(event,'date.open')){event.preventDefault();const area=side?root.querySelector('.td-calendar-side'):body;const first=area.querySelector('[data-event]');if(first)first.focus();else eventModal();return true;}
       if(K.is(event,'event.new')){event.preventDefault();eventModal();return true;}
+      if(K.is(event,'calendar.undo')){event.preventDefault();if(!event.repeat)safe(undoLastAction);return true;}
     }
     const eventButton=target.closest('[data-event]');
     if(eventButton&&!editingTarget(target)){
       const step=K.is(event,'agenda.up')?-1:K.is(event,'agenda.down')?1:K.is(event,'agenda.first')?'first':K.is(event,'agenda.last')?'last':0;
       if(step){event.preventDefault();const area=eventButton.closest('.td-main-calendar-agenda,.td-day-detail')||body;const rows=[...area.querySelectorAll('[data-event]')],index=rows.indexOf(eventButton);const next=step==='first'?0:step==='last'?rows.length-1:(index+(step===1?1:rows.length-1))%rows.length;rows[next]?.focus();return true;}
       if(K.is(event,'event.edit')){event.preventDefault();eventModal(eventButton.dataset.event);return true;}
-      if(K.is(event,'event.delete')){event.preventDefault();const item=findEvent(eventButton.dataset.event);if(item&&!item.readonly){eventModal(eventButton.dataset.event);const scope=modalLayer.querySelector('[name=scope]');if(scope)scope.value='one';modalLayer.querySelector('[data-action=delete-event]')?.focus();}return true;}
+      if(K.is(event,'event.delete')){event.preventDefault();if(!event.repeat)safe(()=>deleteEventByKey(eventButton.dataset.event));return true;}
+      if(K.is(event,'agenda.undo')){event.preventDefault();if(!event.repeat)safe(undoLastAction);return true;}
     }
     if(state.view==='tasks'){
       const row=target.closest('[data-task-row]'),rows=[...body.querySelectorAll('[data-task-row]')];
@@ -798,6 +826,7 @@
         let index=rows.findIndex(item=>item.dataset.taskRow===taskCursor);if(index<0)index=0;
         const step=listStep(event);
         if(step){event.preventDefault();index=step==='first'?0:step==='last'?rows.length-1:Math.max(0,Math.min(rows.length-1,index+step));focusTask(rows[index].dataset.taskRow);return true;}
+        if(row&&K.is(event,'task.assign')){event.preventDefault();if(!event.repeat)safe(()=>assignProjectByNumber(taskCursor,Number(event.code.slice(5))));return true;}
         if(row){
           const action=TASK_ACTIONS.find(([id])=>K.is(event,id))?.[1];
           if(action){event.preventDefault();if(!event.repeat)safe(()=>action==='undo'?undoLastAction():taskKeyboardAction(taskCursor,action));return true;}
@@ -848,7 +877,7 @@
       case 'new-event': eventModal(); break;
       case 'close-modal': closeModal(); break;
       case 'delete-event': { const selected=editingEvent; if (!selected || selected.readonly) return; const scope=modalLayer.querySelector('[name=scope]')?.value || 'all'; await mutate('event.delete',{id:selected.id,scope,recurrenceId:selected.recurrenceId||selected.startsAt}); closeModal(); feedback('일정을 삭제했어요.',()=>mutate('event.restore',{id:selected.id})); break; }
-      case 'undo': { const action=undoAction; if(action){ await action(); root.querySelector('.td-feedback').hidden=true; undoAction=null; } break; }
+      case 'undo': { const action=undoAction; if(action){ const index=undoTimeline.lastIndexOf(action); if(index>=0)undoTimeline.splice(index,1); undoAction=null; root.querySelector('.td-feedback').hidden=true; await action(); } break; }
       case 'dismiss': root.querySelector('.td-feedback').hidden=true; break;
       case 'settings': await flushPending(); state.prefs=await call('preferences.get'); state.info=await call('app.info'); state.view='settings'; renderNav(); renderMainView(); await shell('dashboard',false); focusView();break;
       case 'help': return openHelp();

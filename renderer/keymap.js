@@ -52,7 +52,7 @@
     A('project.new','work','프로젝트 추가',['Mod+Shift+KeyN']),
 
     A('task.open','task','편집',['Enter']),
-    A('task.complete','task','완료',['Space','Mod+Enter']),
+    A('task.complete','task','완료',['Space']),
     A('task.collapse','task','상세 편집 접기',['Mod+Enter']),
     A('task.title','task','제목',['KeyE']),
     A('task.due','task','마감',['KeyD']),
@@ -61,10 +61,11 @@
     A('task.waiting','task','대기 상대 지정',['KeyW']),
     A('task.nudge','task','재촉 기록',['KeyP','KeyR']),
     A('task.delete','task','삭제',['Delete','KeyX']),
+    A('task.assign','task','프로젝트 바로 지정 (목록 순서)',['Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','Digit7','Digit8','Digit9'],{display:'1 ~ 9'}),
 
     A('project.add','projects','프로젝트 추가',['KeyN']),
     A('project.rename','projects','이름 수정',['KeyE']),
-    A('project.trash','projects','보관함 전환',['KeyU']),
+    A('project.trash','projects','보관함 보기 전환',['KeyA']),
     A('project.archive','projects','프로젝트 보관',['KeyX','Delete']),
     A('project.open','projects','프로젝트 할 일 보기 · 보관함에서 복원',['Enter']),
     A('project.moveUp','projects','위로 옮기기',['Shift+ArrowUp','Shift+KeyK']),
@@ -84,7 +85,9 @@
     A('agenda.first','agenda','첫 일정',['Home']),
     A('agenda.last','agenda','마지막 일정',['End']),
     A('event.edit','agenda','일정 편집',['Enter','KeyE']),
-    A('event.delete','agenda','선택 일정 삭제 확인',['Delete','KeyX']),
+    A('event.delete','agenda','선택 일정 삭제',['Delete','KeyX']),
+    A('agenda.undo','agenda','되돌리기',['KeyU']),
+    A('calendar.undo','calendar','되돌리기',['KeyU']),
 
     A('note.search','notes','메모 검색',['Mod+KeyF']),
     A('note.preview','notes','미리보기',['Mod+KeyE']),
@@ -103,13 +106,19 @@
     A('note.moveDown','notes','고정 메모 아래로',['Shift+ArrowDown']),
     A('note.first','notes','첫 메모',['?Shift+Home']),
     A('note.last','notes','마지막 메모',['?Shift+End']),
-    A('note.open','notes','편집',['?Mod+?Shift+Enter']),
-    A('note.delete','notes','목록에서 삭제',['?Mod+Delete']),
+    A('note.open','notes','열기 (보기)',['?Mod+?Shift+Enter']),
+    A('note.edit','notes','편집',['KeyE']),
+    A('note.new','notes','새 메모',['KeyN']),
+    A('note.find','notes','검색',['?Shift+/']),
+    A('note.undo','notes','되돌리기',['KeyU']),
+    A('note.cursorUp','notes','위 메모',['KeyK']),
+    A('note.cursorDown','notes','아래 메모',['KeyJ']),
+    A('note.delete','notes','목록에서 삭제',['?Mod+Delete','KeyX']),
     A('link.activate','link','링크 열기',['?Mod+?Alt+?Shift+Enter','?Mod+?Alt+?Shift+Space']),
   ]);
 
-  /* 같은 묶음에서 같은 키를 쓰는 짝. 지금은 상태(편집기 열림·Projects 탭)로 갈리지만 뜻이 달라 2단계에서 정리한다. */
-  const KNOWN_OVERLAPS = Object.freeze([['task.complete','task.collapse'],['work.undo','project.trash']]);
+  /* 같은 묶음에서 같은 키를 쓰는 짝. 새로 생기면 여기 적고 이유를 남긴다. */
+  const KNOWN_OVERLAPS = Object.freeze([]);
   /* 한 화면에서 동시에 키를 받는 범위 묶음. 묶음 안에서는 같은 키를 두 동작이 쓰면 안 된다. global은 모든 묶음과 함께 검사한다. */
   const CONCURRENT = Object.freeze([['command'],['dialog'],['work','worksearch'],['work','workquick'],['work','worktab'],['work','list','task'],['work','list','projects'],['calendar'],['agenda'],['notes'],['link']]);
 
@@ -164,7 +173,7 @@
     return [...names, keyName].join(' + ');
   }
   /* 안내용 표기. 같은 표기로 보이는 대체 조합은 하나로 합친다. */
-  function format(id) { return [...new Set(entry(id).parsed.map(formatSpec))].join(' · '); }
+  function format(id) { const { action, parsed } = entry(id); return action.display || [...new Set(parsed.map(formatSpec))].join(' · '); }
 
   /* 단축키 안내(Ctrl+/)의 구성. 행은 [라벨, 동작 id 목록]이고 라벨을 생략하면 동작의 라벨을 쓴다. */
   const HELP = Object.freeze([
@@ -180,22 +189,22 @@
     ] },
     { title:'할 일 목록', rows:[
       ['항목 선택',['list.up','list.down','list.first','list.last']],['검색 · 마감 필터 · 완료 기록',['work.search','work.dueFilter','work.doneHistory']],
-      ['편집 · 완료',['task.open','task.complete']],['제목 · 마감 · 상세 · 프로젝트',['task.title','task.due','task.note','task.project']],
+      ['편집 · 완료',['task.open','task.complete']],[null,['task.assign']],['제목 · 마감 · 상세 · 프로젝트',['task.title','task.due','task.note','task.project']],
       ['대기 상대 지정 · 재촉 기록',['task.waiting','task.nudge']],['삭제 · 되돌리기',['task.delete','work.undo','app.undo']],
       [null,['task.collapse']],[null,['project.new']],
     ] },
     { title:'Projects', rows:[
       ['프로젝트 추가 · 이름 수정',['project.add','project.rename']],['프로젝트 순서',['project.moveUp','project.moveDown']],
-      ['프로젝트 보관 · 보관함',['project.archive','project.trash']],['보관된 프로젝트 복원',['project.open']],
+      ['프로젝트 보관 · 보관함 보기',['project.archive','project.trash']],['보관된 프로젝트 복원',['project.open']],
     ] },
     { title:'메모', rows:[
-      ['새 메모 · 검색 · 저장',['app.new','note.search','app.save']],['편집 · 미리보기',['note.open','note.preview']],['고정 · 보관',['note.pin','note.archive']],
-      ['메모 · 보관함 · 휴지통',['note.scope.cycle','note.scope.active','note.scope.archived','note.scope.trash']],['목록에서 삭제 · 복원',['note.delete','note.restore']],
+      ['새 메모 · 검색 · 저장',['note.new','app.new','note.find','note.search','app.save']],['보기 · 편집 · 편집 전환',['note.open','note.edit','note.preview']],['목록 이동',['note.up','note.down','note.cursorUp','note.cursorDown']],['고정 · 보관',['note.pin','note.archive']],
+      ['메모 · 보관함 · 휴지통',['note.scope.cycle','note.scope.active','note.scope.archived','note.scope.trash']],['목록에서 삭제 · 되돌리기 · 휴지통에서 복원',['note.delete','note.undo','note.restore']],
       ['이미지 첨부 · Markdown 내보내기',['note.attach','note.export']],
     ] },
     { title:'캘린더', rows:[
       ['날짜 이동 · 달 이동',['date.prev','date.prevWeek','date.nextWeek','date.next','date.prevMonth','date.nextMonth']],
-      ['오늘 · 새 일정',['date.today','event.new','app.new']],['날짜의 일정 목록 · 편집',['date.open','event.edit']],[null,['event.delete']],
+      ['오늘 · 새 일정',['date.today','event.new','app.new']],['날짜의 일정 목록 · 편집',['date.open','event.edit']],['선택 일정 삭제 · 되돌리기',['event.delete','agenda.undo']],
     ] },
   ]);
   for (const group of HELP) for (const [, ids] of group.rows) ids.forEach(entry);

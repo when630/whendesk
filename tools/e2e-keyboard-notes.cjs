@@ -118,7 +118,7 @@ async function closeApp(){
 
   await test('메모 검색·고정·보관·휴지통·복원을 키보드로 처리',async()=>{
    await press('Escape');await waitFocus('[data-note-row]');await press('Control+f');await waitFocus('[data-note-search]');await replaceText(noteTitle);
-   await page.locator('[data-note-row]').filter({hasText:noteTitle}).waitFor();await press('Enter');await waitFocus('[data-note-editor]');
+   await page.locator('[data-note-row]').filter({hasText:noteTitle}).waitFor();await press('Control+Enter');await waitFocus('[data-note-editor]');
    await press('Control+p');await waitUntil(async()=>(await state()).notes.find(note=>note.id===noteId)?.pinned===true,'메모 고정이 저장되지 않았습니다.');
    await press('Control+Shift+a');await waitUntil(async()=>(await state()).notes.find(note=>note.id===noteId)?.archived===true,'메모가 보관되지 않았습니다.');
    await press('Control+Shift+b');await page.locator('[data-note-row]').filter({hasText:noteTitle}).waitFor();await waitFocus('[data-note-row]');await press('Delete');
@@ -126,14 +126,17 @@ async function closeApp(){
    await press('Control+Shift+t');await page.locator('[data-note-row]').filter({hasText:noteTitle}).waitFor();await waitFocus('[data-note-row]');await press('Control+Shift+z');
    await waitFocus('[data-note-editor]');await waitUntil(async()=>{const note=(await state()).notes.find(note=>note.id===noteId);return note?.deleted===false&&note.archived===true;},'메모를 보관 상태로 복원하지 못했습니다.');
    await press('Control+Shift+a');await waitUntil(async()=>(await state()).notes.find(note=>note.id===noteId)?.archived===false,'보관 해제되지 않았습니다.');
-   await press('Control+Shift+m');await page.locator('[data-note-row]').filter({hasText:noteTitle}).waitFor();await press('Enter');await waitFocus('[data-note-editor]');assert.equal(await page.locator('[data-note-editor]').inputValue(),noteBody);
+   await press('Control+Shift+m');await page.locator('[data-note-row]').filter({hasText:noteTitle}).waitFor();await press('Control+Enter');await waitFocus('[data-note-editor]');assert.equal(await page.locator('[data-note-editor]').inputValue(),noteBody);
   });
 
-  await test('Command 검색에서 메모를 찾아 Enter로 편집 화면에 진입',async()=>{
+  await test('Command 검색에서 메모를 찾아 Enter로 보기, E로 편집',async()=>{
    await press('Control+k');await waitFocus('.td-command input');await replaceText(noteTitle);
    await page.locator('.td-command-result').filter({hasText:noteTitle}).waitFor();
    const keys=await page.locator('.td-command-result').evaluateAll(elements=>elements.map(element=>element.dataset.resultKey));const index=keys.indexOf('notes:'+noteId);assert.ok(index>=0,'Command 메모 결과가 없습니다.');
-   for(let step=0;step<index;step++)await press('ArrowDown');await press('Enter');await waitFocus('[data-note-editor]');assert.equal(await page.locator('[data-note-editor]').inputValue(),noteBody);
+   for(let step=0;step<index;step++)await press('ArrowDown');await press('Enter');
+   // 검색 결과로 연 메모는 보기 모드로 열리고, E로 편집한다(원본 WHENNOTE).
+   await waitFocus('[data-note-preview]');assert.equal(await page.locator('[data-note-editor]').isVisible(),false);
+   await press('e');await waitFocus('[data-note-editor]');assert.equal(await page.locator('[data-note-editor]').inputValue(),noteBody);
   });
 
   await test('휴지통 메모 미리보기에서 Command로 활성 메모를 열면 범위·선택·편집 권한을 복원',async()=>{
@@ -145,7 +148,7 @@ async function closeApp(){
    assert.equal(await page.locator('[data-note-scope]').inputValue(),'trash');assert.ok((await page.locator('[data-note-preview]').textContent()).includes(trashNoteTitle));
    await press('Control+k');await waitFocus('.td-command input');await replaceText(noteTitle);await page.locator('.td-command-result').filter({hasText:noteTitle}).waitFor();
    const keys=await page.locator('.td-command-result').evaluateAll(elements=>elements.map(element=>element.dataset.resultKey));const index=keys.indexOf('notes:'+noteId);assert.ok(index>=0,'활성 메모 A의 Command 결과가 없습니다.');
-   for(let step=0;step<index;step++)await press('ArrowDown');await press('Enter');await waitFocus('[data-note-editor]');
+   for(let step=0;step<index;step++)await press('ArrowDown');await press('Enter');await waitFocus('[data-note-preview]');await press('e');await waitFocus('[data-note-editor]');
    assert.equal(await page.locator('[data-note-scope]').inputValue(),'active');assert.equal(await page.locator('[data-note-list] [aria-selected=true]').getAttribute('data-note-row'),noteId);assert.equal(await page.locator('[data-note-editor]').inputValue(),noteBody);assert.equal(await page.locator('[data-note-editor]').getAttribute('readonly'),null);
    const pinned=(await state()).notes.find(note=>note.id===noteId).pinned;await press('Control+p');
    await waitUntil(async()=>(await state()).notes.find(note=>note.id===noteId)?.pinned===!pinned,'휴지통에서 이동한 뒤 활성 메모 A의 고정 동작이 작동하지 않았습니다.');
@@ -179,14 +182,17 @@ async function closeApp(){
    await waitUntil(async()=>{const event=(await state()).events.find(event=>event.title===eventTitle);eventId=event?.id;return !!eventId;},'일정이 저장되지 않았습니다.');
    await section('calendar');await waitFocus('.td-body [data-date]');await press('Enter');await waitFocus('.td-main-calendar-agenda [data-event]');await press('Enter');await waitFocus('.event-form [name=title]');await replaceText(editedEventTitle);await press('Control+s');await page.locator('.event-form').waitFor({state:'hidden'});
    await waitUntil(async()=>(await state()).events.find(event=>event.id===eventId)?.title===editedEventTitle,'일정 수정이 저장되지 않았습니다.');
-   await section('calendar');await waitFocus('.td-body [data-date]');await press('Enter');await waitFocus('.td-main-calendar-agenda [data-event]');await press('Delete');await page.locator('.event-form').waitFor();await waitFocus('[data-action=delete-event]');await press('Enter');await page.locator('.event-form').waitFor({state:'hidden'});
-   await waitUntil(async()=>!(await state()).events.some(event=>event.id===eventId),'일정이 삭제되지 않았습니다.');await tabTo('.td-nav [data-action=calendar]');await press('Control+z');await waitUntil(async()=>(await state()).events.some(event=>event.id===eventId),'일정 삭제를 키보드로 복원하지 못했습니다.');await screenshot('05-calendar-keyboard');
+   await section('calendar');await waitFocus('.td-body [data-date]');await press('Enter');await waitFocus('.td-main-calendar-agenda [data-event]');await press('Delete');
+   // 반복 없는 일정은 확인 없이 바로 지우고 되돌리기를 남긴다(원본 WHENCALENDAR X·U).
+   await waitUntil(async()=>!(await state()).events.some(event=>event.id===eventId),'일정이 삭제되지 않았습니다.');assert.equal(await page.locator('.event-form').count(),0,'반복 없는 일정 삭제가 대화상자를 열었습니다.');
+   await waitUntil(()=>page.evaluate(()=>!!document.activeElement?.closest('.td-main')),'일정을 지운 뒤 캘린더 포커스를 잃었습니다.');await press('u');await waitUntil(async()=>(await state()).events.some(event=>event.id===eventId),'U로 일정 삭제를 되돌리지 못했습니다.');
+   await waitFocus('.td-body [data-date]');await press('Enter');await waitFocus('.td-main-calendar-agenda [data-event]');await press('Delete');await waitUntil(async()=>!(await state()).events.some(event=>event.id===eventId),'일정을 다시 삭제하지 못했습니다.');await tabTo('.td-nav [data-action=calendar]');await press('Control+z');await waitUntil(async()=>(await state()).events.some(event=>event.id===eventId),'일정 삭제를 키보드로 복원하지 못했습니다.');await screenshot('05-calendar-keyboard');
   });
 
   await test('최종 데이터·도움말과 Command 복귀 확인',async()=>{
    const final=await state();assert.ok(final.tasks.some(task=>task.id===taskId&&task.title===editedTaskTitle));assert.ok(final.notes.some(note=>note.id===noteId&&note.body.includes('attachments/')));assert.ok(final.events.some(event=>event.id===eventId&&event.title===editedEventTitle));
    assert.equal(final.notes.length,2);assert.equal(final.notes.filter(note=>!note.deleted&&!note.archived).length,1);assert.ok(final.notes.some(note=>note.id===trashNoteId&&note.deleted));
-   await press('Control+Slash');await page.locator('.minimal-help-layer').waitFor();assert.ok(await page.locator('.minimal-help-layer kbd').count()>0);assert.deepEqual(await page.locator('.minimal-help-layer kbd').allTextContents().then(keys=>keys.filter(key=>/\d/.test(key))),[],'단축키 안내에 숫자 할당이 남아 있습니다.');await press('Escape');await page.locator('.minimal-help-layer').waitFor({state:'hidden'});await press('Control+k');await waitFocus('.td-command input');
+   await press('Control+Slash');await page.locator('.minimal-help-layer').waitFor();assert.ok(await page.locator('.minimal-help-layer kbd').count()>0);assert.deepEqual(await page.locator('.minimal-help-layer kbd').allTextContents().then(keys=>keys.filter(key=>/\d/.test(key)&&key!=='1 ~ 9'/* 원본 WHENWORK 프로젝트 바로 지정만 허용 */)),[],'단축키 안내에 숫자 할당이 남아 있습니다.');await press('Escape');await page.locator('.minimal-help-layer').waitFor({state:'hidden'});await press('Control+k');await waitFocus('.td-command input');
    assert.deepEqual(await page.evaluate(()=>[...document.querySelectorAll('kbd')].filter(element=>!element.closest('.minimal-help-layer')&&element.getClientRects().length).map(element=>element.textContent)),[]);assert.deepEqual(errors,[]);
    measurements.final={tasks:final.tasks.length,notes:final.notes.length,activeNotes:final.notes.filter(note=>!note.deleted&&!note.archived).length,trashNotes:final.notes.filter(note=>note.deleted).length,events:final.events.length,projectId,taskId,noteId,trashNoteId,eventId};
   });
