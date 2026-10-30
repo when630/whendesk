@@ -112,8 +112,31 @@ async function closeApp(){
       assert.equal(errors.length,0,errors.join('\n'));
     });
 
+    await test('할 일 편집기의 마감 칸은 자연어로 입력하고, 잘못된 값은 되돌리며, U로 되돌린다',async()=>{
+      const dayKey=offset=>page.evaluate(offset=>{const d=new Date();d.setDate(d.getDate()+offset);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');},offset);
+      await press('Alt+i');await waitWithin(`[data-task-row="${inboxTask.id}"]`);
+      await press('Enter');await waitFocus('[data-editor] [data-field=title]');
+      for(let step=0;step<6&&!await focused('[data-editor] [data-field=due]');step++)await press('Tab');
+      await waitFocus('[data-editor] [data-field=due]');
+      const due=page.locator('[data-editor] [data-field=due]');
+      await press('Control+a');await page.keyboard.insertText('+3');await press('Enter');
+      const plus3=await dayKey(3);
+      await waitUntil(async()=>(await task(inboxTask.id)).due===plus3,'+3이 사흘 뒤 마감으로 저장되지 않았습니다.');
+      await waitUntil(async()=>await due.inputValue()===plus3,'해석한 날짜가 칸에 보이지 않습니다.');
+      await press('Control+a');await page.keyboard.insertText('아무때나');await press('Enter');
+      await waitUntil(async()=>/마감 형식/.test(await page.locator('.td-feedback').innerText().catch(()=>'')),'잘못된 마감 형식을 알리지 않았습니다.');
+      assert.equal(await due.inputValue(),plus3,'잘못된 값이 칸에 남았습니다.');assert.equal((await task(inboxTask.id)).due,plus3);
+      await press('Control+a');await press('Backspace');await press('Enter');
+      await waitUntil(async()=>!(await task(inboxTask.id)).due,'비운 마감이 해제되지 않았습니다.');
+      await press('Escape');await waitWithin(`[data-task-row="${inboxTask.id}"]`);
+      await press('u');await waitUntil(async()=>(await task(inboxTask.id)).due===plus3,'U가 마감 해제를 되돌리지 않았습니다.');
+      await press('u');await waitUntil(async()=>!(await task(inboxTask.id)).due,'U가 처음 마감 지정까지 되돌리지 않았습니다.');
+    });
+
     await test('하단 힌트는 포커스 자리에 맞는 키를 보여 준다',async()=>{
       const hints=()=>page.locator('.td-hints').innerText();
+      await press('Alt+i');await waitWithin('.td-main');for(let step=0;step<4;step++)await press('Tab');
+      await waitUntil(async()=>await page.locator('.td-work-nav [role=tab][aria-selected=true]').getAttribute('data-tab')==='projects','Projects 탭으로 가지 않았습니다.');
       await waitUntil(async()=>/보관함/.test(await hints()),'Projects 힌트가 아닙니다.');
       await press('Alt+i');await waitWithin(`[data-task-row="${inboxTask.id}"]`);
       await waitUntil(async()=>/Space\s*완료/.test(await hints())&&/1 ~ 9\s*프로젝트/.test(await hints()),'할 일 목록 힌트가 아닙니다.');

@@ -275,7 +275,7 @@
     return `<article class="td-task ${open ? 'selected' : ''} ${task.done ? 'done' : ''}" data-task-row="${esc(task.id)}" ${open ? `data-editor="${esc(task.id)}"` : ''}><div class="td-row"><input type="checkbox" data-check="${esc(task.id)}" aria-label="${esc(task.title)} 완료" ${task.done ? 'checked' : ''}>${open ? `<div class="td-task-open"><input class="td-row-title" data-field="title" aria-label="할 일 제목" value="${esc(task.title)}"><small>${meta}</small></div>` : `<button class="td-task-open" data-task="${esc(task.id)}" draggable="true" aria-expanded="false"><span>${esc(task.title)}</span><small>${meta}</small></button>`}<button class="td-due ${badge?.cls==='today'?'today':''} ${badge?.cls==='over'?'work-overdue':''}" data-edit-due="${esc(task.id)}" title="${esc(task.due||'마감 없음')}">${badge?esc(badge.text):'마감 없음'}</button>${open ? `<button class="td-drag-handle" data-task="${esc(task.id)}" draggable="true" aria-label="할 일 끌기">${icon('grip-vertical')}</button>` : ''}</div>${open ? taskEditor(task) : ''}</article>`;
   }
   function taskEditor(task) {
-    return `<div class="td-inline"><div class="td-fields"><label class="td-field">상태<select data-field="kind" aria-label="할 일 상태">${[['inbox','인박스'],['todo','할 일'],['waiting','대기']].map(([value,label]) => `<option value="${value}" ${task.kind === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label><label class="td-field">마감<input type="date" data-field="due" aria-label="할 일 마감" value="${esc(task.due)}"></label><label class="td-field">프로젝트<select data-field="project_id" aria-label="할 일 프로젝트"><option value="">미지정</option>${state.projects.map(p => `<option value="${p.id}" ${task.project_id === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label>${task.kind === 'waiting' ? `<label class="td-field">대기 상대<input data-field="waitingFor" aria-label="대기 상대" value="${esc(task.waitingFor)}"></label>` : ''}</div><textarea class="td-note" data-field="note" aria-label="할 일 상세 내용" placeholder="상세 내용" spellcheck="false">${esc(task.note)}</textarea><div class="td-inline-foot"><span data-save-status>수정 내용 자동 저장</span><div>${task.kind === 'waiting' ? `<button data-nudge="${esc(task.id)}">재촉 기록</button>` : ''}<button data-delete-task="${esc(task.id)}">삭제</button><button data-action="collapse">${icon('chevron-up')}접기</button></div></div></div>`;
+    return `<div class="td-inline"><div class="td-fields"><label class="td-field">상태<select data-field="kind" aria-label="할 일 상태">${[['inbox','인박스'],['todo','할 일'],['waiting','대기']].map(([value,label]) => `<option value="${value}" ${task.kind === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label><label class="td-field">마감<input data-field="due" aria-label="할 일 마감" value="${esc(task.due)}" placeholder="오늘 / 내일 / +3 / 8-12" autocomplete="off" spellcheck="false"></label><label class="td-field">프로젝트<select data-field="project_id" aria-label="할 일 프로젝트"><option value="">미지정</option>${state.projects.map(p => `<option value="${p.id}" ${task.project_id === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label>${task.kind === 'waiting' ? `<label class="td-field">대기 상대<input data-field="waitingFor" aria-label="대기 상대" value="${esc(task.waitingFor)}"></label>` : ''}</div><textarea class="td-note" data-field="note" aria-label="할 일 상세 내용" placeholder="상세 내용" spellcheck="false">${esc(task.note)}</textarea><div class="td-inline-foot"><span data-save-status>수정 내용 자동 저장</span><div>${task.kind === 'waiting' ? `<button data-nudge="${esc(task.id)}">재촉 기록</button>` : ''}<button data-delete-task="${esc(task.id)}">삭제</button><button data-action="collapse">${icon('chevron-up')}접기</button></div></div></div>`;
   }
   function home() {
     const tasks = state.tasks.filter(t => !t.done && t.kind === 'todo').sort((a,b) => (a.due || '9999').localeCompare(b.due || '9999'));
@@ -1025,6 +1025,19 @@
     if(element.matches('[data-work-sort]')){state.workSort=element.value;renderMainView();return;}
     if(element.matches('[data-work-range]')){state.workRange=element.value?Number(element.value):null;renderMainView();return;}
     if(element.matches('[data-due-only]')){state.dueOnly=element.checked;renderMainView();return;}
+    if(element.matches('[data-field=due]')&&element.closest('[data-editor]')) {
+      // 값을 확정할 때(Enter·칸 떠나기) 원본 WHENWORK 규칙으로 해석한다. 잘못된 형식이면 이전 값으로 되돌린다.
+      const id=element.closest('[data-editor]').dataset.editor,previous=state.tasks.find(task=>task.id===id)?.due||'';
+      if(element.value.trim()===previous)return;
+      let updated;
+      try{updated=await mutate('task.setDue',{id,text:element.value},{renderMain:false});}
+      catch(error){element.value=previous;feedback(error.message,null,true);if(document.activeElement===element)element.select();return;}
+      const due=updated?.due||'';if(element.isConnected)element.value=due;
+      const label=element.closest('.td-task')?.querySelector('.td-due'),badge=workRules.dueBadge(due);
+      if(label){label.textContent=badge?.text||'마감 없음';label.title=due||'마감 없음';label.classList.toggle('today',badge?.cls==='today');label.classList.toggle('work-overdue',badge?.cls==='over');}
+      rememberWorkUndo('마감일',()=>mutate('task.update',{id,due:previous}),due?`마감을 ${dueLabel(due)}로 정했어요.`:'마감을 해제했어요.');
+      return;
+    }
     if(element.matches('[data-field]') && ['kind','due','project_id'].includes(element.dataset.field)) {
       const id=element.closest('[data-editor]').dataset.editor;const field=element.dataset.field;const value=field==='project_id'?(element.value?Number(element.value):null):element.value;
       const activeAtRequest=document.activeElement,updated=await mutate('task.update',{id,[field]:value},{renderMain:false});

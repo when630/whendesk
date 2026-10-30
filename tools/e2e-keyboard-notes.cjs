@@ -84,8 +84,9 @@ async function closeApp(){
    await tabTo('[data-field=kind]');await press('Home');await press('ArrowDown');await press('Tab');
    await waitUntil(async()=>(await state()).tasks.find(task=>task.id===taskId)?.kind==='todo','키보드 분류가 저장되지 않았습니다.');
    await page.locator('.td-main h1').filter({hasText:'Work · ToDo'}).waitFor();
-   await tabTo('[data-field=due]');for(const key of ['ArrowUp','ArrowRight','ArrowUp','ArrowRight','ArrowUp','Tab'])await press(key);
-   await waitUntil(async()=>/^\d{4}-\d{2}-\d{2}$/.test((await state()).tasks.find(task=>task.id===taskId)?.due||''),'키보드로 입력한 마감이 저장되지 않았습니다.');
+   // 마감 칸은 자연어 입력이다. '내일'을 쓰고 Tab으로 떠나면 내일 날짜로 저장된다.
+   await tabTo('[data-field=due]');await replaceText('내일');await press('Tab');
+   await waitUntil(async()=>(await state()).tasks.find(task=>task.id===taskId)?.due===await page.evaluate(()=>{const d=new Date();d.setDate(d.getDate()+1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}),'키보드로 입력한 자연어 마감이 저장되지 않았습니다.');
    await tabTo('[data-field=project_id]');await press('End');await press('Tab');
    await waitUntil(async()=>(await state()).tasks.find(task=>task.id===taskId)?.project_id===projectId,'키보드 프로젝트 선택이 저장되지 않았습니다.');
    await tabTo('[data-field=note]');await text('키보드로 입력한 할 일 상세 내용');await press('Control+s');
