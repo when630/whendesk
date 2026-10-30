@@ -3,11 +3,10 @@ import path from 'node:path';
 import {createRequire} from 'node:module';
 import {fileURLToPath} from 'node:url';
 import crypto from 'node:crypto';
+import {electronRuntime} from './electron-runtime.mjs';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const require=createRequire(import.meta.url);const pkg=JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8'));
-let runtime=process.env.WHENDESK_ELECTRON_DIST;
-if(!runtime){try{runtime=path.join(path.dirname(require.resolve('electron/package.json')),'dist');}catch{runtime='D:/when630/whencommand/node_modules/electron/dist';}}
-if(!fs.existsSync(path.join(runtime,'electron.exe')))throw new Error('Electron Windows 런타임을 찾을 수 없습니다. npm install 또는 WHENDESK_ELECTRON_DIST를 설정하세요.');
+const runtime=electronRuntime().dir;
 const dist=path.join(root,'dist');const destination=path.resolve(dist,'WHENDESK-'+pkg.version+'-win-x64');
 if(!destination.startsWith(path.resolve(dist)+path.sep))throw new Error('잘못된 빌드 경로입니다.');
 fs.mkdirSync(destination,{recursive:true});

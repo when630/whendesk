@@ -1,6 +1,6 @@
 {
   "name": "whendesk",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "description": "WHENCOMMAND에서 Tab으로 펼치는 통합 작업 공간",
@@ -10,9 +10,18 @@
     "start": "node tools/start.mjs",
     "test": "node --test test/*.test.mjs",
     "build": "node tools/package.mjs",
-    "smoke": "node tools/start.mjs --smoke"
+    "smoke": "node tools/start.mjs --smoke",
+    "build:installer": "node tools/build-installer.mjs"
   },
-  "dependencies": { "ical.js": "2.2.1" },
-  "devDependencies": { "electron": "43.3.0" },
-  "engines": { "node": ">=24.0.0" }
+  "dependencies": {
+    "electron-updater": "^6.8.11",
+    "ical.js": "2.2.1"
+  },
+  "devDependencies": {
+    "electron": "43.7.3",
+    "electron-builder": "^26.18.0"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
 }

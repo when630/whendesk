@@ -373,7 +373,7 @@
     if (route.view === 'work' || route.view === 'tasks' && route.tab && !route.id) state.project=null;
     if (route.view === 'notes') { await flushPending(); state.view='notes'; state.project=null; renderNav(); renderMainView(); await shell('dashboard',false); await notes?.refresh(); if(route.id) await notes?.open(route.id,{edit:!!route.edit}); else notes?.focus(); return; }
     if (route.id && route.view !== 'calendar') await reveal(route.id);
-    else { await flushPending(); state.view = route.settings ? 'settings' : route.view === 'work' ? 'tasks' : route.view || 'dashboard'; if(route.settings){state.prefs=await call('preferences.get');state.info=await call('app.info');} if (route.tab) state.tab = route.tab; if (route.date) { state.date = route.date; state.year = Number(route.date.slice(0,4)); state.month = Number(route.date.slice(5,7))-1; } await loadState(); await shell('dashboard'); }
+    else { await flushPending(); state.view = route.settings ? 'settings' : route.view === 'work' ? 'tasks' : route.view || 'dashboard'; if(route.settings){state.prefs=await call('preferences.get');state.info=await call('app.info');state.update=await call('update.state').catch(()=>null);} if (route.tab) state.tab = route.tab; if (route.date) { state.date = route.date; state.year = Number(route.date.slice(0,4)); state.month = Number(route.date.slice(5,7))-1; } await loadState(); await shell('dashboard'); }
     if (route.focusCapture) root.querySelector('.td-quick input')?.focus();
     // 일정 결과는 날짜만이 아니라 그 일정에 포커스를 둔다.
     if (route.view === 'calendar' && route.id != null) focusEvent(route.id, route.date);
@@ -505,11 +505,19 @@
       root.querySelector('.td-hints').innerHTML = context ? K.hints(context).map(({ keys, label }) => `<span><kbd>${esc(keys)}</kbd>${esc(label)}</span>`).join('') : '';
     });
   }
+  /* 업데이트 상태는 설정 화면의 한 줄과 버튼만 바꾼다(포커스를 옮기지 않는다). */
+  function syncUpdate(value) {
+    state.update = value; if (state.view !== 'settings') return;
+    const line = body.querySelector('[data-update-line]'); if (line) line.textContent = value?.line || '';
+    const check = body.querySelector('[data-action=update-check]'); if (check) check.disabled = !value?.supported;
+    const install = body.querySelector('[data-action=update-install]'); if (install) install.disabled = value?.status !== 'ready';
+  }
   function settingsView() {
     const shortcutFields = SHORTCUT_UI;
     return `<section class="settings-section"><h2>모양</h2><div class="minimal-appearance"><label class="td-field">스킨<select data-look="skin" aria-label="스킨">${[['base','기본'],['ink','잉크'],['paper','페이퍼']].map(([value,label]) => `<option value="${value}" ${state.skin === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label><label class="td-field">모드<select data-look="mode" aria-label="화면 모드">${[['system','시스템'],['light','라이트'],['dark','다크']].map(([value,label]) => `<option value="${value}" ${state.mode === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label></div></section>
     <form class="preferences-form"><section class="settings-section"><h2>단축키</h2>${shortcutFields.map(([field,label,aria,fallback]) => `<label class="td-field">${label}<input name="${field}" data-shortcut="${field}" aria-label="${aria}" aria-describedby="shortcut-error-${field}" aria-invalid="${!!state.info.shortcutErrors?.[field]}" value="${esc(state.prefs[field] ?? fallback)}" placeholder="사용 안 함" autocomplete="off" spellcheck="false"><span id="shortcut-error-${field}" class="settings-warning" data-shortcut-error="${field}" ${state.info.shortcutErrors?.[field] ? '' : 'hidden'}>${esc(state.info.shortcutErrors?.[field])}</span></label>`).join('')}<div class="settings-actions"><button class="td-primary" type="submit">단축키 저장</button><button class="td-secondary" type="button" data-action="help">단축키 안내</button></div></section></form>
     <section class="settings-section"><h2>시작과 알림</h2><label class="settings-check"><input type="checkbox" data-pref="launchAtLogin" ${state.prefs.launchAtLogin ? 'checked' : ''} ${state.info.launchAtLoginSupported ? '' : 'disabled'}>로그인할 때 트레이에 숨겨 실행</label>${state.info.launchAtLoginSupported ? '' : '<small class="settings-path">배포본에서만 설정할 수 있습니다.</small>'}<label class="settings-check"><input type="checkbox" data-pref="briefEnabled" ${state.prefs.briefEnabled !== false ? 'checked' : ''}>아침 브리핑 알림</label><label class="td-field settings-time">브리핑 시각<input type="time" data-pref="briefAt" aria-label="아침 브리핑 시각" value="${esc(state.prefs.briefAt || '09:00')}"></label><small class="settings-path">하루 한 번, 정한 시각부터 3시간 안에 켜져 있으면 오늘 마감·지연·일정·대기·인박스를 알립니다.</small></section>
+    <section class="settings-section"><h2>업데이트</h2><p class="settings-update" data-update-line role="status">${esc(state.update?.line || '')}</p><div class="settings-actions"><button class="td-secondary" type="button" data-action="update-check" ${state.update?.supported ? '' : 'disabled'}>지금 확인</button><button class="td-secondary" type="button" data-action="update-install" ${state.update?.status === 'ready' ? '' : 'disabled'}>재시작해 설치</button></div></section>
     <section class="settings-section"><h2>데이터</h2><div class="settings-actions"><button class="td-secondary" data-data="importLegacy">기존 데이터 복사해 가져오기</button><button class="td-secondary" data-data="export">백업 내보내기</button><button class="td-secondary" data-data="restore">백업 복원</button><button class="td-secondary" data-data="openFolder">저장 폴더 열기</button></div><small class="settings-path">${esc(state.info.dataDir)}</small></section><section class="settings-section"><h2>WHENCOMMAND</h2><button class="td-secondary" data-action="refresh-command">검색 목록 새로고침</button></section><section class="settings-section"><h2>WHENDESK ${esc(state.info.version || '')}</h2><button class="td-secondary" data-action="quit">앱 종료</button></section>`;
   }
   function shortcutErrors(fields = {}) {
@@ -1006,6 +1014,8 @@
       case 'minimize': cancelCommandActivation();await flushPending();await call('window.minimize');break;
       case 'close-window': cancelCommandActivation();await flushPending();await call('window.close');break;
       case 'quit': await flushPending();await call('app.quit');break;
+      case 'update-check': syncUpdate(await call('update.check')); break;
+      case 'update-install': await flushPending(); await call('update.install'); break;
     }
   }));
   root.addEventListener('input', event => {
@@ -1147,6 +1157,7 @@
   api.on('command.more',message=>{if(message.ready){if(!command.running&&!command.activating&&!command.actions&&!command.composing)safe(()=>queryCommand(commandInput.value,true));return;}if(message.error){command.notice=message.error;renderCommand();return;}applyCommandMore(message);});
   api.on('navigate',route=>safe(()=>navigate(route)));
   api.on('media.changed',media=>renderMedia(media));
+  api.on('update.changed',syncUpdate);
   api.on('state.changed',()=>{clearTimeout(refreshTimer);refreshTimer=setTimeout(()=>safe(()=>loadState({renderMain:!helpOpen&&pending.size===0&&!body.contains(document.activeElement)})),70);});
   window.addEventListener('beforeunload',()=>{if(pending.size||notes?.hasPending())safe(flushPending);});
   new ResizeObserver(()=>resizeCommand()).observe(root.querySelector('#cf-command-panel'));

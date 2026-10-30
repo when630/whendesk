@@ -94,6 +94,9 @@ const methods = {
       : preferences.set(patch);
     nativeTheme.themeSource = next.mode; return next;
   },
+  'update.state':() => ({ status:'unsupported', line:'버전 development-test — 업데이트 확인은 설치본에서만', supported:false }),
+  'update.check':() => ({ status:'unsupported', line:'버전 development-test — 업데이트 확인은 설치본에서만', supported:false }),
+  'update.install':() => ({ installing:false }),
   'app.info':() => ({ name:'WHENDESK', version:'development-test', dataDir, ...shortcutManager.status(), commandReady:true, commandFailure:null, platform:process.platform, isPackaged:false }),
   'media.state':() => ({ available:false, sessions:[] }),
   'media.control':payload => { record('media.control',payload); return true; },

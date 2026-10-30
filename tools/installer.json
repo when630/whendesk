@@ -1,0 +1,31 @@
+{
+  "appId": "com.when630.whendesk",
+  "productName": "WHENDESK",
+  "asar": false,
+  "files": [
+    "main/**/*",
+    "renderer/**/*",
+    "modules/**/*",
+    "vendor/**/*",
+    "assets/**/*",
+    "!**/*.md"
+  ],
+  "extraFiles": [
+    { "from": "README.md", "to": "README.md" },
+    { "from": "NOTICE.md", "to": "NOTICE.md" }
+  ],
+  "directories": { "output": "dist/installer" },
+  "artifactName": "WHENDESK-${version}-${os}-${arch}.${ext}",
+  "win": {
+    "target": [{ "target": "nsis", "arch": ["x64"] }],
+    "icon": "assets/icon.png"
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "shortcutName": "WHENDESK"
+  },
+  "publish": [{ "provider": "github", "owner": "when630", "repo": "whendesk" }]
+}

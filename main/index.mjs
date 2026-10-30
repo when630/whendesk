@@ -5,6 +5,7 @@ import {fileURLToPath,pathToFileURL} from 'node:url';
 import {createPreferences} from './preferences.mjs';
 import {createShortcutManager,SHORTCUT_FIELDS} from './shortcuts.mjs';
 import {createPositionTracker} from './media-position.mjs';
+import {createUpdateState,updateLine} from './update-text.mjs';
 import {briefDecision,briefingLines,dayKey,STALE_WAITING_DAYS} from '../modules/work/main/brief.mjs';
 import {exportWorkspace,prepareRestore,prepareLegacy,installPrepared} from './data.mjs';
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
@@ -27,6 +28,8 @@ async function bootstrap(){
  let domain,command,win,tray,mediaControl,mediaTimer;
  let quitting=false,shellMode='command',dataBusy=false;
  let commandReady=false,commandFailure=null,mutationTail=Promise.resolve();
+ let updater=null;const updateState=createUpdateState();
+ const updateView=()=>({...updateState,line:updateLine(updateState,{current:app.getVersion()}),supported:!!updater?.supported});
  let media={available:false,sessions:[],failure:null};const positions=createPositionTracker();
  let dashboardBounds=null,commandHeight=54;
  const rendererURL=pathToFileURL(path.join(ROOT,'renderer','index.html')).href;
@@ -170,6 +173,9 @@ async function bootstrap(){
    const value=changesShortcut?shortcutManager.update({...before,...patch},next=>preferences.set({...patch,...Object.fromEntries(SHORTCUT_FIELDS.map(field=>[field,next[field]]))})):preferences.set(patch);
    nativeTheme.themeSource=value.mode;if('launchAtLogin'in patch&&!testMode&&app.isPackaged)app.setLoginItemSettings({openAtLogin:value.launchAtLogin,args:['--hidden']});return value;
   },
+  'update.state':()=>updateView(),
+  'update.check':async()=>{if(updater)await updater.check();return updateView();},
+  'update.install':()=>updater?updater.install(async()=>{quitting=true;try{await win.webContents.executeJavaScript('window.__whendeskFlush ? window.__whendeskFlush() : Promise.resolve()');}catch(error){console.error('업데이트 전 저장:',error.message);}await mutationTail;}):{installing:false},
   'app.info':()=>({name:'WHENDESK',version:app.getVersion(),dataDir,launchAtLoginSupported:app.isPackaged&&!testMode,...shortcutManager.status(),commandReady,commandFailure,platform:process.platform,isPackaged:app.isPackaged}),
   'data.export':()=>dataOperation('export'),
   'data.exportIcs':payload=>dataOperation('ics',payload),
@@ -211,6 +217,13 @@ async function bootstrap(){
  app.on('before-quit',()=>{quitting=true;shortcutManager.dispose();clearInterval(mediaTimer);mediaControl?.stop();stopServices();tray?.destroy();});
  await win.loadFile(path.join(ROOT,'renderer','index.html'));
  if(!argv.includes('--headless')&&!argv.includes('--hidden')){win.show();win.focus();}
+ /* 자동 업데이트: 설치본(NSIS)에서만. 폴더형 배포본에는 electron-updater가 없어 '설치본에서만'으로 남는다. */
+ try{
+  if(app.isPackaged&&!testMode){
+   const {setupUpdater}=await import('./update.mjs');
+   updater=setupUpdater({state:updateState,enabled:true,onChange:()=>{const view=updateView();send('update.changed',view);tray?.setToolTip('WHENDESK · '+view.line);}});
+  }else updateState.status='unsupported';
+ }catch(error){updateState.status='unsupported';console.error('업데이트:',error.message);}
  /* 아침 브리핑(원본 WHENWORK jobs.mjs): 하루 한 번, 설정 시각이 지난 뒤, 그 창(3시간)을 놓친 날은 조용히 넘긴다.
   * WHENDESK에는 캘린더가 있으므로 오늘 일정도 함께 말한다. 알림을 누르면 대시보드를 연다. */
  function maybeBrief(){

@@ -49,7 +49,9 @@ Work 검색은 초성·제목·본문·프로젝트·대기 상대를 지원합�
 
 ## 실행
 
-빌드 결과의 `WHENDESK.exe`를 실행합니다. `resources`와 DLL·로캘 폴더를 포함한 **폴더 전체**를 함께 보관해야 합니다. 서명되지 않은 Windows 폴더형 배포입니다.
+[릴리스](https://github.com/when630/whendesk/releases/latest)의 `WHENDESK-<버전>-win-x64.exe`로 설치합니다. 사용자 폴더(`%LOCALAPPDATA%ProgramsWHENDESK`)에 설치되어 관리자 권한이 필요 없고, 서명되지 않은 설치 파일이라 Windows SmartScreen이 경고하면 "추가 정보 → 실행"을 누릅니다.
+
+**자동 업데이트**: 설치본은 켜고 1분 뒤, 그 뒤로 하루 한 번 GitHub 릴리스를 확인해 새 버전을 받아 두고 **앱을 끌 때** 설치합니다(다른 when 앱과 같은 electron-updater 방식). 설정 → 업데이트에서 지금 확인하거나 받아 둔 버전을 재시작해 설치할 수 있습니다. 폴더형 배포본(0.2.x zip)은 자동 업데이트가 없으니 설치본으로 한 번 옮기세요. 데이터 폴더(`%APPDATA%whendesk`)는 같습니다.
 
 개발 실행은 이 프로젝트의 `run.cmd` 또는 다음 명령을 사용합니다.
 
@@ -57,7 +59,8 @@ Work 검색은 초성·제목·본문·프로젝트·대기 상대를 지원합�
 npm install
 npm start
 npm test
-npm run build
+npm run build             # 폴더형 배포본(dist/WHENDESK-<버전>-win-x64)
+npm run build:installer   # 설치 파일 + 자동 업데이트용 latest.yml(dist/installer)
 ```
 
 현재 PC의 기존 Electron 런타임도 개발 실행과 빌드에 재사용할 수 있습니다. 직접 지정하려면 `WHENDESK_ELECTRON`(실행 파일), `WHENDESK_ELECTRON_DIST`(런타임 폴더)를 사용합니다. Node.js 24 이상이 필요합니다. 빌드는 별도 네트워크 다운로드 없이 이미 설치된 Electron 런타임을 패키징합니다.
@@ -95,4 +98,4 @@ npm run build
 
 GUI 테스트는 Windows의 일반 사용자 세션에서 실행해야 합니다. 제한된 앱 컨테이너에서는 Electron 자체가 시작되지 않을 수 있습니다. 자동 테스트는 실제 다른 앱·사용자 스크립트·시스템 명령·미디어 재생을 실행하지 않습니다. 파일 검색은 Windows Search 서비스와 OS 인덱스에 의존하며 사용 불가 시 실제 상태를 표시합니다.
 
-현재 배포에는 별도 자동 업데이트 서버나 서명된 설치 관리자를 설정하지 않았습니다.
+릴리스 만들기: `npm run build:installer`가 `dist/installer/`에 설치 파일·`.blockmap`·`latest.yml`을 만듭니다(Electron 런타임은 내려받지 않고 `tools/electron-runtime.mjs`가 찾은 폴더를 씀). 세 파일을 `v<버전>` 태그의 GitHub 릴리스에 함께 올려야 설치본이 새 버전을 인식합니다. 코드 서명은 하지 않았습니다.

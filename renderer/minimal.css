@@ -148,3 +148,4 @@
 /* 설정: 시작과 알림 */
 #whendesk-command-first .settings-check{display:flex;align-items:center;gap:8px;font-size:13px;margin:4px 0 10px}
 #whendesk-command-first .settings-time{max-width:160px}
+#whendesk-command-first .settings-update{font-size:12px;color:var(--td-muted);margin:0 0 10px}
