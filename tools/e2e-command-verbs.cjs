@@ -8,6 +8,10 @@ const assert = require('node:assert/strict');
 const { _electron:electron } = require('C:/Users/forcs/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
 
 const root = path.resolve(__dirname,'..');
+// WHENDESK_TEST_PACKAGED=1이면 WHENDESK_TEST_EXECUTABLE의 배포본을 검사한다. 배포본은 resources/app을 앱 경로로 쓴다.
+const packaged = process.env.WHENDESK_TEST_PACKAGED === '1';
+const executable = process.env.WHENDESK_TEST_EXECUTABLE || 'D:/when630/whencommand/node_modules/electron/dist/electron.exe';
+const appRoot = packaged ? path.join(path.dirname(executable),'resources','app') : root;
 const runId = String(Date.now());
 const output = path.join(root,'test-output');
 const dataDir = path.join(output,'command-verbs-profile-'+runId);
@@ -42,7 +46,7 @@ function normalize(value){return String(value).replace(/\\"/g,'"').replace(/"/g,
 async function closeApp(){
   if(!app)return;
   const child=app.process(),spawn=(child?.spawnargs||[]).map(normalize).join(' '),argv=(identity?.argv||[]).map(normalize);
-  const owned=(spawn.includes(normalize(root))&&spawn.includes(normalize('--data-dir='+dataDir))) || (child?.pid===identity?.childPid&&identity?.dataDir===dataDir&&argv.includes(normalize('--data-dir='+dataDir))&&normalize(identity?.appPath)===normalize(root));
+  const owned=(spawn.includes(normalize(packaged?executable:root))&&spawn.includes(normalize('--data-dir='+dataDir))) || (child?.pid===identity?.childPid&&identity?.dataDir===dataDir&&argv.includes(normalize('--data-dir='+dataDir))&&normalize(identity?.appPath)===normalize(appRoot));
   let timer;
   try{await Promise.race([(async()=>{if(page&&!page.isClosed())await page.evaluate(()=>window.__whendeskFlush?.()).catch(()=>{});await app.evaluate(({app})=>{setTimeout(()=>app.quit(),0);return true;}).catch(()=>{});await app.close().catch(()=>{});})(),new Promise(resolve=>{timer=setTimeout(resolve,5000);})]);}finally{clearTimeout(timer);}
   const alive=child&&child.exitCode===null&&child.signalCode===null;
@@ -52,11 +56,11 @@ async function closeApp(){
 
 (async()=>{
   try{
-    app=await electron.launch({executablePath:process.env.WHENDESK_TEST_EXECUTABLE||'D:/when630/whencommand/node_modules/electron/dist/electron.exe',args:[root,'--test','--no-media','--data-dir='+dataDir],env,timeout:30000});
+    app=await electron.launch({executablePath:executable,args:[...(packaged?[]:[root]),'--test','--no-media','--data-dir='+dataDir],env,timeout:30000});
     page=await app.firstWindow();page.setDefaultTimeout(12000);page.on('pageerror',error=>errors.push(error.message));
     await page.waitForFunction(()=>window.desk?.call&&document.querySelector('.td-command input')===document.activeElement);
     identity=await app.evaluate(({app})=>({argv:[...process.argv],mainPid:process.pid,appPath:app.getAppPath()}));identity.childPid=app.process()?.pid;identity.dataDir=(await call('app.info')).dataDir;
-    assert.equal(identity.dataDir,dataDir);assert.equal(normalize(identity.appPath),normalize(root));
+    assert.equal(identity.dataDir,dataDir);assert.equal(normalize(identity.appPath),normalize(appRoot));assert.equal((await call('app.info')).isPackaged,packaged);
     const initial=await state();assert.equal(initial.tasks.length+initial.notes.length+initial.events.length,0);
     const target=await call('mutate',{type:'task.create',payload:{title:'커맨드동사 '+runId}});
 
@@ -165,7 +169,7 @@ async function closeApp(){
   }catch(error){failure=error.stack||String(error);if(page&&!page.isClosed())await screenshot('failure').catch(()=>{});}
   finally{
     try{await closeApp();}catch(error){failure=[failure,error.stack||String(error)].filter(Boolean).join('\n');}
-    const report={results,errors,failure,measurements,dataDir,packaged:false,actualMain:true,screenshots};
-    fs.writeFileSync(path.join(output,'e2e-command-verbs.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report));if(failure||errors.length)process.exitCode=1;
+    const report={results,errors,failure,measurements,dataDir,packaged,actualMain:true,screenshots};
+    fs.writeFileSync(path.join(output,packaged?'e2e-command-verbs-packaged.json':'e2e-command-verbs.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report));if(failure||errors.length)process.exitCode=1;
   }
 })();
