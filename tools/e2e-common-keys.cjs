@@ -59,6 +59,8 @@ async function closeApp(){
     await test('메모 목록: 검색 ↓로 목록 진입, J/K와 즉시 미리보기, Enter 보기, E 편집, / 검색, N 새 메모',async()=>{
       await press('Tab');await page.locator('#cf-dashboard-panel').waitFor();
       await press('Alt+n');await waitFocus('[data-note-search]');
+      // 목록이 그려지기 전의 ↓는 옮길 행이 없어 무시된다 — 행을 기다린 뒤 누른다(가끔 실패하던 원인).
+      await page.locator('[data-note-list] [data-note-row]').first().waitFor();
       await press('ArrowDown');await waitWithin('[data-note-list]');
       const first=await selectedNote();
       await press('j');await waitUntil(async()=>await selectedNote()!==first,'J가 선택을 옮기지 않았습니다.');

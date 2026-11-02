@@ -6,7 +6,7 @@ import {createPreferences} from './preferences.mjs';
 import {createShortcutManager,SHORTCUT_FIELDS} from './shortcuts.mjs';
 import {createPositionTracker} from './media-position.mjs';
 import {createUpdateState,updateLine} from './update-text.mjs';
-import {pickPosition} from './place.mjs';
+import {pickPosition,visibleOnAnyDisplay} from './place.mjs';
 import {createToast} from './toast.mjs';
 import {briefDecision,briefingLines,dayKey,STALE_WAITING_DAYS} from '../modules/work/main/brief.mjs';
 import {exportWorkspace,prepareRestore,prepareLegacy,installPrepared} from './data.mjs';
@@ -34,7 +34,9 @@ async function bootstrap(){
  const iconCache=async()=>{if(!icons){const {createIconCache}=await import('../modules/command/main/icons.mjs');icons=createIconCache();}return icons;};
  const updateView=()=>({...updateState,line:updateLine(updateState,{current:app.getVersion()}),supported:!!updater?.supported});
  let media={available:false,sessions:[],failure:null};const positions=createPositionTracker();
- let dashboardBounds=null,commandHeight=54;
+ let dashboardBounds=null,commandHeight=54,dashboardSaveTimer=null;
+ /* 대시보드 자리·크기를 기억한다. 옮기거나 늘리는 동안은 잠깐 모았다가 한 번 쓴다. */
+ function rememberDashboard(now=false){if(!win||win.isDestroyed()||shellMode!=='dashboard'||win.isMinimized()||win.isMaximized())return;dashboardBounds=win.getBounds();clearTimeout(dashboardSaveTimer);const save=()=>{if(!testMode)preferences.set({dashboardBounds});};if(now)save();else dashboardSaveTimer=setTimeout(save,400);}
  const rendererURL=pathToFileURL(path.join(ROOT,'renderer','index.html')).href;
  const send=(event,payload)=>{if(win&&!win.isDestroyed())win.webContents.send(event,payload);};
  const changed=()=>send('state.changed',{});
@@ -80,18 +82,22 @@ async function bootstrap(){
   const area=screen.getDisplayMatching(win.getBounds()).workArea;
   if(mode==='dashboard'){
    if(shellMode!=='dashboard'){
-    const previous=win.getBounds();const desired=dashboardBounds||{width:1120,height:820};
-    const width=Math.min(area.width,Math.max(800,desired.width));const h=Math.min(area.height,Math.max(580,desired.height));
-    win.setMinimumSize(Math.min(800,area.width),Math.min(560,area.height));
-    win.setBounds({width,height:h,x:Math.max(area.x,Math.min(previous.x+(previous.width-width)/2,area.x+area.width-width)),y:Math.max(area.y,Math.min(previous.y,area.y+area.height-h))});
+    // 대시보드는 자기 자리(옮기거나 크기를 바꾼 곳, 재시작 뒤에도)로 펼친다. 없거나 화면 밖이면 커서가 있는 디스플레이 가운데.
+    const saved=preferences.get().dashboardBounds||dashboardBounds;const usable=saved&&visibleOnAnyDisplay(saved,screen.getAllDisplays().map(display=>display.workArea));
+    const home=usable?screen.getDisplayMatching(saved).workArea:workArea();
+    const width=Math.min(home.width,Math.max(800,usable?saved.width:1120));const h=Math.min(home.height,Math.max(580,usable?saved.height:820));
+    win.setMinimumSize(Math.min(800,home.width),Math.min(560,home.height));
+    win.setBounds(usable?{x:Math.max(home.x,Math.min(saved.x,home.x+home.width-width)),y:Math.max(home.y,Math.min(saved.y,home.y+home.height-h)),width,height:h}:{x:Math.round(home.x+(home.width-width)/2),y:Math.round(home.y+(home.height-h)/2),width,height:h});
     win.setAlwaysOnTop(false);win.setVisibleOnAllWorkspaces(false);win.setSkipTaskbar(false);
    }
   }else{
-   if(shellMode==='dashboard')dashboardBounds=win.getBounds();
+   const entering=shellMode!=='command';
+   if(shellMode==='dashboard')rememberDashboard(true);
    shellMode='command'; // 축소 중 발생한 resize가 마지막 대시보드 크기를 덮어쓰지 않도록 한다.
-   const previous=win.getBounds();const width=Math.min(560,area.width);const h=Math.min(area.height,Math.max(54,Math.ceil(Number(height)||commandHeight)));commandHeight=h;
+   const width=Math.min(560,area.width);const h=Math.min(area.height,Math.max(54,Math.ceil(Number(height)||commandHeight)));commandHeight=h;
    win.setMinimumSize(Math.min(360,area.width),54);
-   win.setBounds(placeOnCommand?commandBoundsFor(width,h):{width,height:h,x:Math.max(area.x,Math.min(previous.x+(previous.width-width)/2,area.x+area.width-width)),y:Math.max(area.y,Math.min(previous.y,area.y+area.height-h))});placeOnCommand=false;
+   // 들어올 때는 Command 자기 자리로. 결과 수에 따라 높이만 바뀔 때는 자리를 옮기지 않는다.
+   if(entering||placeOnCommand)win.setBounds(commandBoundsFor(width,h));else{const [x,y]=win.getPosition();win.setBounds({x,y,width,height:h});}placeOnCommand=false;
    win.setAlwaysOnTop(true,'screen-saver');win.setVisibleOnAllWorkspaces(true,{visibleOnFullScreen:true});win.setSkipTaskbar(true);
   }
   shellMode=mode==='dashboard'?'dashboard':'command';return {mode:shellMode};
@@ -134,14 +140,14 @@ async function bootstrap(){
  win.webContents.session.setPermissionRequestHandler((_contents,_permission,callback)=>callback(false));
  win.on('close',event=>{if(!quitting){event.preventDefault();hideWindow();}});
  win.on('blur',()=>{if(shellMode!=='command'||quitting||testMode||!win.isVisible()||win.getOpacity()<1)return;setTimeout(()=>{if(!win.isDestroyed()&&!win.isFocused()&&win.isVisible()&&shellMode==='command')hideWindow();},60);});
- win.on('moved',()=>{if(shellMode==='command'&&win.isVisible()&&win.getOpacity()===1&&!testMode){const [x,y]=win.getPosition();preferences.set({commandPosition:{x,y}});}});
- win.on('resize',()=>{if(shellMode==='dashboard')dashboardBounds=win.getBounds();});
+ win.on('moved',()=>{if(!win.isVisible()||win.getOpacity()<1)return;if(shellMode==='dashboard'){rememberDashboard();return;}if(!testMode){const [x,y]=win.getPosition();preferences.set({commandPosition:{x,y}});}});
+ win.on('resize',()=>{if(shellMode==='dashboard'&&win.isVisible())rememberDashboard();});
  app.on('second-instance',()=>showCommand());
  app.on('activate',()=>showCommand());
  const trayImage=nativeImage.createFromPath(path.join(ROOT,'assets','tray.png'));
  tray=new Tray(trayImage.isEmpty()?nativeImage.createFromPath(path.join(ROOT,'assets','icon.png')).resize({width:24,height:24}):trayImage);
  tray.setToolTip(app.isPackaged?'WHENDESK':'WHENDESK 개발본');
- tray.setContextMenu(Menu.buildFromTemplate([{label:'WHENCOMMAND',click:showCommand},{label:'대시보드',click:()=>showDashboard()},{label:'인박스',click:()=>showDashboard({view:'tasks',tab:'inbox',focusCapture:true})},{type:'separator'},{label:'입력줄 위치 되돌리기',click:()=>{preferences.set({commandPosition:null});if(win?.isVisible()&&shellMode==='command'){const [width,height]=win.getSize();win.setBounds(commandBoundsFor(width,height));}}},{label:'앱 목록 새로고침',click:()=>command.refresh().catch(error=>dialog.showErrorBox('목록 새로고침',error.message))},{label:'설정',click:()=>showDashboard({settings:true})},{type:'separator'},{label:'종료',click:()=>requestQuit()}]));
+ tray.setContextMenu(Menu.buildFromTemplate([{label:'WHENCOMMAND',click:showCommand},{label:'대시보드',click:()=>showDashboard()},{label:'인박스',click:()=>showDashboard({view:'tasks',tab:'inbox',focusCapture:true})},{type:'separator'},{label:'입력줄 위치 되돌리기',click:()=>{preferences.set({commandPosition:null});if(win?.isVisible()&&shellMode==='command'){const [width,height]=win.getSize();win.setBounds(commandBoundsFor(width,height));}}},{label:'대시보드 위치 되돌리기',click:()=>{dashboardBounds=null;preferences.set({dashboardBounds:null});}},{label:'앱 목록 새로고침',click:()=>command.refresh().catch(error=>dialog.showErrorBox('목록 새로고침',error.message))},{label:'설정',click:()=>showDashboard({settings:true})},{type:'separator'},{label:'종료',click:()=>requestQuit()}]));
  tray.on('click',()=>win.isVisible()&&win.isFocused()?win.hide():showCommand());
  shortcutManager.initialize(preferences.get());
 

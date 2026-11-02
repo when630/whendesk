@@ -49,3 +49,17 @@ test('시작·브리핑 설정은 형식이 맞는 값만 저장한다', t => {
   assert.deepEqual([prefs.get().briefAt, prefs.get().briefEnabled, prefs.get().lastBriefing], ['07:30', false, '2026-10-30'], '잘못된 값은 무시한다');
   assert.equal(createPreferences(file).get().briefAt, '07:30', '재시작 뒤에도 유지');
 });
+
+test('Command 자리와 대시보드 자리·크기는 따로 저장하고 잘못된 값은 버린다', t => {
+  const file = path.join(temporary(t, 'whendesk-positions-'), 'preferences.json');
+  const prefs = createPreferences(file);
+  assert.equal(prefs.get().commandPosition, null); assert.equal(prefs.get().dashboardBounds, null);
+  prefs.set({ commandPosition:{ x:140.4, y:120 }, dashboardBounds:{ x:260, y:180, width:1120, height:820 } });
+  assert.deepEqual(createPreferences(file).get().commandPosition, { x:140, y:120 });
+  assert.deepEqual(createPreferences(file).get().dashboardBounds, { x:260, y:180, width:1120, height:820 });
+  prefs.set({ dashboardBounds:{ x:10, y:'위' } });
+  assert.deepEqual(prefs.get().dashboardBounds, { x:260, y:180, width:1120, height:820 }, '잘못된 값은 무시한다');
+  prefs.set({ dashboardBounds:null });
+  assert.equal(prefs.get().dashboardBounds, null, '트레이의 되돌리기는 기억한 자리를 지운다');
+  assert.deepEqual(prefs.get().commandPosition, { x:140, y:120 }, '대시보드를 되돌려도 Command 자리는 그대로');
+});
