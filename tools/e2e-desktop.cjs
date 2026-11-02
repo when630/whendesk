@@ -68,6 +68,14 @@ async function test(name,fn){await fn();results.push({name,ok:true});}
    assert.equal(await note.inputValue(),'다시 실행해도 남는 실제 상세 내용');
    await page.keyboard.press('Escape');await page.locator('.task-form').waitFor({state:'detached'});
   });
+  await test('대시보드가 떠 있을 때 Command를 부르면 창을 보이기 전에 Command 크기로 바꾼다(깜박임 없음)',async()=>{
+   assert.equal(await page.locator('#cf-dashboard-panel').isVisible(),true);
+   // 다시 부른 순간(렌더러가 응답하기 전)의 창 크기가 이미 Command 폭이어야 대시보드가 비치지 않는다.
+   const atSummon=await app.evaluate(({app,BrowserWindow})=>{const win=BrowserWindow.getAllWindows().find(item=>item.webContents.getURL().includes('index.html'));app.emit('second-instance');return win.getBounds();});
+   assert.ok(atSummon.width<=560&&atSummon.height<200,'Command를 부른 순간 창이 아직 대시보드 크기입니다: '+JSON.stringify(atSummon));
+   await page.locator('#cf-command-panel').waitFor();assert.equal(await page.locator('.td-command input').inputValue(),'','다시 부른 Command가 빈 입력으로 시작하지 않았습니다.');
+   await page.locator('.td-command input').press('Tab');await page.locator('#cf-dashboard-panel').waitFor();
+  });
   let eventId;
   await test('실제 Calendar 생성·수정·삭제·복원',async()=>{
    await page.locator('.td-nav [data-action=calendar]').click();await page.locator('.td-main-head [data-action=new-event]').click();

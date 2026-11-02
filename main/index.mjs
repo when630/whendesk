@@ -83,14 +83,16 @@ async function bootstrap(){
  function hideWindow(){if(!win||win.isDestroyed()||!win.isVisible())return;clearTimeout(revealTimer);revealTimer=null;if(!testMode)win.minimize();win.hide();win.setOpacity(1);}
  function summon(payload){
   if(!win||win.isDestroyed())return;
-  const fresh=!win.isVisible()||win.isMinimized();
+  // 대시보드가 다른 창 뒤에 떠 있을 때 Command를 불러도 새로 부르는 것과 같다. 대시보드가 앞으로 나왔다가 Command로 바뀌며 깜박이지 않게
+  // 투명한 채 Command 자리·크기로 먼저 바꾸고, 렌더러가 Command를 그린 뒤(window.painted) 나타낸다.
+  const fresh=!win.isVisible()||win.isMinimized()||(payload.shell==='command'&&shellMode==='dashboard');
   if(fresh&&!payload.capture&&command){try{command.setClipboard(preferences.get().clipboardRow!==false&&!testMode?clipboard.readText():'');}catch{command.setClipboard('');}}
   if(fresh){
    if(!testMode)win.setOpacity(0);
    if(win.isMinimized())win.restore();
-   if(shellMode==='command'){const [width,height]=win.getSize();win.setBounds(commandBoundsFor(width,height));}else placeOnCommand=true;
+   if(shellMode==='command'){const [width,height]=win.getSize();win.setBounds(commandBoundsFor(width,height));}else if(payload.shell==='command')setShell('command');else placeOnCommand=true;
    win.show();win.focus();
-   if(!testMode)revealTimer=setTimeout(reveal,150);
+   if(!testMode)revealTimer=setTimeout(reveal,300);
   }else win.focus();
   send('navigate',{...payload,fresh});
  }
