@@ -38,7 +38,7 @@ async function layout(){
     const rect=element=>{const r=element.getBoundingClientRect();return {x:r.x,y:r.y,right:r.right,bottom:r.bottom,width:r.width,height:r.height,centerY:r.y+r.height/2};};
     const bar=document.querySelector('.td-command'),brand=bar.querySelector('.command-brand'),query=bar.querySelector('input'),media=bar.querySelector('.td-media');
     const queryStyle=getComputedStyle(query);
-    return {bar:rect(bar),brand:rect(brand),input:rect(query),media:rect(media),mediaHidden:media.hidden,mediaCount:media.querySelectorAll('button').length,inputDecoration:{outlineStyle:queryStyle.outlineStyle,outlineWidth:queryStyle.outlineWidth,borderWidth:queryStyle.borderWidth,boxShadow:queryStyle.boxShadow},innerWidth,innerHeight,scrollWidth:document.documentElement.scrollWidth,barScrollWidth:bar.scrollWidth,barClientWidth:bar.clientWidth};
+    return {bar:rect(bar),brand:rect(brand),input:rect(query),media:rect(media),mediaHidden:media.hidden,mediaCount:media.querySelectorAll('button').length,inputDecoration:{background:queryStyle.backgroundColor,outlineStyle:queryStyle.outlineStyle,outlineWidth:queryStyle.outlineWidth,borderWidth:queryStyle.borderWidth,boxShadow:queryStyle.boxShadow},innerWidth,innerHeight,scrollWidth:document.documentElement.scrollWidth,barScrollWidth:bar.scrollWidth,barClientWidth:bar.clientWidth};
   });
 }
 function sameRow(measurement){
@@ -68,7 +68,7 @@ const playing=session('fixture-playing','재생 중인 아주 긴 노래 제목 
       assert.equal(await page.locator('.td-footer .td-media').count(),0);
       await waitUntil(async()=>(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].getBounds())).height===54,'빈 Command가 원본 입력줄 높이 54px로 줄지 않았습니다.');
       const measurement=await layout();sameRow(measurement);assert.equal(measurement.bar.height,54);assert.equal(measurement.innerHeight,54);assert.equal(measurement.innerWidth,560);
-      assert.equal(measurement.inputDecoration.outlineStyle,'none');assert.equal(measurement.inputDecoration.outlineWidth,'0px');assert.equal(measurement.inputDecoration.borderWidth,'0px');assert.equal(measurement.inputDecoration.boxShadow,'none');
+      assert.equal(measurement.inputDecoration.outlineStyle,'none');assert.equal(measurement.inputDecoration.outlineWidth,'0px');assert.equal(measurement.inputDecoration.borderWidth,'0px');assert.equal(measurement.inputDecoration.boxShadow,'none');assert.equal(measurement.inputDecoration.background,'rgba(0, 0, 0, 0)','Command 입력칸이 막대와 구분되는 배경을 가졌습니다.');
       measurements.empty=measurement;await screenshot('01-command-empty');
     });
 

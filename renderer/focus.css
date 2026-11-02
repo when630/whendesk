@@ -49,3 +49,7 @@
   outline:none!important;
   outline-width:0!important;
 }
+/* Command 입력줄은 입력칸 구분 없이 막대 전체가 하나다(원본 WHENCOMMAND). 위의 '글자 입력칸 옅은 배경' 규칙보다 뒤에서 이긴다. */
+#whendesk-command-first .td-app .cf-command-panel .td-command input:is(:focus,:focus-visible,:active,:hover){
+  background:none!important;
+}
