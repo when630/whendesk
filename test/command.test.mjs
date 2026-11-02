@@ -454,3 +454,29 @@ test('문장의 의도는 할 일·일정에 더해 메모로도 이어진다', 
     assert.ok(items.some(item => item.key === 'intent:note' && item.title === '메모 추가'), JSON.stringify(items.map(item => item.key)));
   } finally { f.cleanup(); }
 });
+
+test('스크립트는 먼저 숨기고 실행하며, 3줄 이하 성공은 토스트(한 줄이면 복사), 길거나 실패하면 출력 화면과 실패 위치를 돌려준다', async () => {
+  // 원본 WHENCOMMAND D-17·EXT-04·05. 실행기는 node로 바꿔 끼워 출력 모양만 흉내 낸다.
+  const programs = {
+    'short.ps1': "console.log('10.0.0.5')",
+    'long.ps1': "for (let i = 1; i <= 5; i++) console.log('줄 ' + i)",
+    'fail.ps1': "console.error(process.argv[1] + ':7 char:3 실패'); process.exit(2)",
+  };
+  let launched = 0;
+  const f = fixture({ platform: { scriptRunner: file => { const name = path.basename(file); return programs[name] ? { cmd: process.execPath, args: ['-e', programs[name], file] } : null; } },
+    options: { onLaunch: () => { launched++; } } });
+  try {
+    for (const name of Object.keys(programs)) fs.writeFileSync(path.join(f.command.scriptsDir, name), `# name: ${name.replace('.ps1', '')} 스크립트\n`);
+    await f.command.ready();
+    const run = async name => { const item = (await f.command.query(`${name} 스크립트`)).items.find(item => item.source === 'scripts'); return f.command.run(item.key); };
+    const short = await run('short');
+    assert.equal(short.hide, true); assert.equal(short.output, undefined);
+    assert.match(short.toast.body, /10\.0\.0\.5/); assert.deepEqual(f.copied.at(-1), '10.0.0.5', '한 줄 출력은 복사한다');
+    const long = await run('long');
+    assert.equal(long.reshow, true); assert.equal(long.output.code, 0); assert.match(long.output.stdout, /줄 5/);
+    const failed = await run('fail');
+    assert.equal(failed.ok, false); assert.equal(failed.output.code, 2); assert.equal(failed.output.line, 7, '실패 위치(줄)를 찾는다');
+    assert.ok(failed.output.ms >= 0);
+    assert.equal(launched, 3, '실행 전에 입력줄을 숨긴다');
+  } finally { f.cleanup(); }
+});

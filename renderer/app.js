@@ -610,8 +610,27 @@
     else command.selected = (command.selected + delta + length) % length;
     syncCommandSelection(true);
   }
+  /* 스크립트 출력 화면(원본 WHENCOMMAND D-17·EXT-04·05): 길거나 실패한 출력. 종료 코드·걸린 시간·실패 위치를 보이고
+   * Enter 다시 실행 · Ctrl+Enter 스크립트 열기 · Ctrl+C 복사 · Esc 닫기. */
+  function outputText(output) { return output.code !== 0 ? (String(output.stderr || '').trim() || String(output.stdout || '').trim() || '(출력 없음)') : String(output.stdout || '').replace(/\s+$/, ''); }
+  function showCommandOutput(output) {
+    command.output = output;
+    const failed = output.code !== 0, text = outputText(output), lines = text ? text.split('\n').length : 0;
+    const where = String(output.path || '').replace(/\\/g, '/') + (output.line != null ? ':' + output.line : '');
+    const element = root.querySelector('.command-output'); element.hidden = false;
+    element.innerHTML = `<div class="command-output-head ${failed ? 'is-failed' : ''}"><strong>${esc(output.title || '스크립트')}</strong><span>${failed ? '실패' : '완료'} · exit ${output.code ?? '—'} · ${failed ? 'stderr' : lines + '줄'} · ${((output.ms || 0) / 1000).toFixed(1)}초</span></div><pre>${esc(text)}${failed && where ? `\n<span class="command-output-where">${esc(where)}</span>` : ''}</pre><p class="command-output-keys">Enter 다시 실행 · Ctrl+Enter 스크립트 열기 · Ctrl+C 복사 · Esc 닫기</p>`;
+    resizeCommand();
+  }
   function clearCommandOutput() {
+    command.output = null;
     const output = root.querySelector('.command-output'); output.hidden = true; output.replaceChildren();
+  }
+  function outputKeys(event) {
+    const output = command.output; if (!output || state.shell !== 'command') return false;
+    if (K.is(event, 'output.copy') && !window.getSelection()?.toString()) { event.preventDefault(); call('command.copy', { text:outputText(output) }).then(() => commandNotice('출력을 복사했습니다')).catch(showError); return true; }
+    if (K.is(event, 'output.open')) { event.preventDefault(); if (!event.repeat) safe(async () => { clearCommandOutput(); await call('command.run', { key:output.key, actionId:'edit', query:output.query }); await call('window.close'); }); return true; }
+    if (K.is(event, 'output.rerun')) { event.preventDefault(); if (!event.repeat && !command.running) safe(() => executeCommand({ item:{ key:output.key, actions:[] }, query:output.query })); return true; }
+    return false;
   }
   function closeCommandActions(focus = true) {
     if (!command.actions) return;
@@ -760,7 +779,7 @@
       // Command에서 바꾼 것도 화면 쪽 U·Ctrl+Z로 되돌릴 수 있게 같은 기록에 쌓는다.
       if (result?.undo) { const { type, payload } = result.undo; undoTimeline.push(() => mutate(type, payload)); if (undoTimeline.length > 50) undoTimeline.shift(); }
       if (result?.message) { if (cleared && state.shell === 'command') commandNotice(result.message); else feedback(result.message); }
-      if (result?.output) { const output = root.querySelector('.command-output'); output.hidden = false; output.textContent = typeof result.output === 'string' ? result.output : [result.title,result.output.stdout,result.output.stderr,result.output.code ? `종료 코드: ${result.output.code}` : ''].filter(Boolean).join('\n'); }
+      if (result?.output) showCommandOutput({ ...result.output, title:result.title, key:item.key, query });
       if (result?.hide) await call('window.close');
     } finally {
       command.running = false; command.activating = false; commandInput.readOnly = false; root.querySelector('#cf-command-panel').removeAttribute('aria-busy');
@@ -844,7 +863,7 @@
       if(document.activeElement!==before&&document.activeElement!==document.body)return;
       await flushPending();return shell('command');
     }
-    if(!root.querySelector('.command-output').hidden){clearCommandOutput();resizeCommand();return;}
+    if(!root.querySelector('.command-output').hidden){clearCommandOutput();resizeCommand();return call('window.close');}
     if(commandInput.value){commandInput.value='';clearCommandNotice();if(!command.capture)queueCommandQuery('',0,true);return;}
     exitCapture();return call('window.close');
   }
@@ -1198,6 +1217,7 @@
     if(!modalLayer.hidden&&K.is(event,'app.save')){event.preventDefault();const form=modalLayer.querySelector('form');if(!event.repeat&&form?.querySelector('[type=submit]')&&!form.querySelector('[type=submit]').disabled)form.requestSubmit();return;}
     if(modalLayer.hidden&&workspaceKeys(event))return;
     const inCommandInput=state.shell==='command'&&event.target===commandInput;
+    if(command.output&&(inCommandInput||root.querySelector('.command-output').contains(event.target))&&outputKeys(event))return;
     if(command.capture&&inCommandInput){
       if(K.is(event,'capture.save')||K.is(event,'capture.saveOpen')){event.preventDefault();if(!event.repeat)safe(()=>saveCapture({open:K.is(event,'capture.saveOpen')}));return;}
       if(K.is(event,'capture.open')){event.preventDefault();const section=CAPTURE[command.capture].section;exitCapture();safe(()=>goSection(section));return;}

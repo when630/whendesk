@@ -154,3 +154,11 @@
 /* Command 결과 아이콘: OS 아이콘, 없으면 첫 글자 상자(원본 WHENCOMMAND) */
 #whendesk-command-first .command-icon{display:inline-grid;place-items:center;flex:0 0 auto;width:18px;height:18px;border-radius:4px;overflow:hidden;font-size:10px;font-weight:600;color:#fff}
 #whendesk-command-first .command-icon.is-image img{width:18px;height:18px;object-fit:contain}
+
+/* 스크립트 출력 화면 */
+#whendesk-command-first .command-output-head{display:flex;gap:10px;align-items:baseline;font-size:12px;margin-bottom:8px}
+#whendesk-command-first .command-output-head span{color:var(--td-muted)}
+#whendesk-command-first .command-output-head.is-failed span{color:light-dark(#a0473a,#e08b7d)}
+#whendesk-command-first .command-output pre{margin:0;max-height:220px;overflow:auto;font:12px Consolas,"D2Coding",monospace;white-space:pre-wrap}
+#whendesk-command-first .command-output-where{color:var(--td-muted)}
+#whendesk-command-first .command-output-keys{margin:8px 0 0;font-size:11px;color:var(--td-muted)}

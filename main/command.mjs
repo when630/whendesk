@@ -11,7 +11,7 @@ import { candidates as hintCandidates, saves as hintSaves } from '../modules/com
 import { classifyClipboard, brief } from '../modules/command/main/clip.mjs';
 import { calc, convert } from '../modules/command/main/sources/calc.mjs';
 import { createStore } from '../modules/command/main/store.mjs';
-import { parseHeader, lineCount } from '../modules/command/main/scripts.mjs';
+import { parseHeader, lineCount, route as scriptRoute, locate as scriptLocate } from '../modules/command/main/scripts.mjs';
 import { actionsFor, altAction } from '../modules/command/main/actions.mjs';
 import { detectIntents } from '../modules/command/main/intent.mjs';
 
@@ -75,6 +75,7 @@ export function createCommand({ dataDir, domain, onMore, onLaunch, platform: pro
   if (!dataDir || !domain) throw new Error('Command 데이터 폴더와 저장소가 필요합니다.');
   const commandDir = path.join(dataDir, 'command');
   const scriptsDir = path.join(commandDir, 'scripts');
+  const firstScriptsDir = !fs.existsSync(scriptsDir) && !fs.existsSync(path.join(os.homedir(), '.whencommand', 'scripts'));
   fs.mkdirSync(scriptsDir, { recursive: true });
   const store = createStore(path.join(commandDir, 'whencommand.db'));
   store.picks(); // 원본 pick의 첫 쓰기도 기존 hits를 기준으로 계산하도록 캐시를 먼저 읽는다.
@@ -95,6 +96,7 @@ export function createCommand({ dataDir, domain, onMore, onLaunch, platform: pro
 
   async function dependencies() {
     if (!platform) ({ platform } = await import('../modules/command/main/platform/index.mjs'));
+    if (firstScriptsDir && platform.exampleScript) { const example = platform.exampleScript(); try { fs.writeFileSync(path.join(scriptsDir, example.name), example.content, 'utf8'); } catch {} }
     if (!effects) {
       const electron = await import('electron');
       effects = { shell: electron.shell, clipboard: electron.clipboard, dialog: electron.dialog };
@@ -404,6 +406,8 @@ export function createCommand({ dataDir, domain, onMore, onLaunch, platform: pro
     if (!script || !fs.existsSync(file)) throw new Error('스크립트를 찾을 수 없습니다. 목록을 새로고침해 주세요.');
     const runner = platform.scriptRunner(file, args);
     if (!runner) throw new Error('지원하지 않는 스크립트 형식입니다.');
+    onLaunch?.();
+    const started = Date.now();
     const output = await new Promise(resolve => {
       let stdout = '', stderr = '', finished = false, child, timer;
       const finish = (code, extra = '') => { if (finished) return; finished = true; clearTimeout(timer); if (child) runningScripts.delete(child); resolve({ code, stdout, stderr: stderr + extra }); };
@@ -416,9 +420,14 @@ export function createCommand({ dataDir, domain, onMore, onLaunch, platform: pro
       child.on('error', error => finish(null, messageOf(error)));
       child.on('close', code => finish(code));
     });
-    if (output.code === 0 && lineCount(output.stdout) === 1) effects.clipboard.writeText(output.stdout.trim());
-    return { ok: output.code === 0, title: script.name, message: output.code === 0 ? output.stdout.trim() || '실행했습니다.' : output.stderr.trim() || `종료 코드 ${output.code}`,
-      output, hide: false };
+    output.ms = Date.now() - started;
+    if (scriptRoute(output) === 'toast') {
+      const text = output.stdout.trim(), copied = lineCount(text) === 1;
+      if (copied) effects.clipboard.writeText(text);
+      return { ok:true, title:script.name, hide:true, message:text || '실행했습니다.', toast:{ title:script.name, body:text ? (copied ? `${text}\n복사했습니다` : text) : '실행했습니다.' } };
+    }
+    return { ok: output.code === 0, title: script.name, hide:false, reshow:true,
+      output:{ ...output, path:file, line:scriptLocate(output.stderr, file) } };
   }
 
   async function run(key, actionId = null, { query: expectedQuery } = {}) {

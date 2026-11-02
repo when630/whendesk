@@ -30,6 +30,9 @@
     A('command.prev','command','이전 결과',['ArrowUp']),
     A('command.next','command','다음 결과',['ArrowDown']),
 
+    A('output.rerun','output','스크립트 다시 실행',['Enter']),
+    A('output.open','output','스크립트 열기',['Mod+Enter']),
+    A('output.copy','output','출력 복사',['Mod+KeyC']),
     A('capture.save','capture','담기',['Enter']),
     A('capture.saveOpen','capture','담고 열기',['Mod+Enter']),
     A('capture.open','capture','앱에서 열기',['Tab']),
@@ -130,7 +133,7 @@
   /* 같은 묶음에서 같은 키를 쓰는 짝. 새로 생기면 여기 적고 이유를 남긴다. */
   const KNOWN_OVERLAPS = Object.freeze([]);
   /* 한 화면에서 동시에 키를 받는 범위 묶음. 묶음 안에서는 같은 키를 두 동작이 쓰면 안 된다. global은 모든 묶음과 함께 검사한다. */
-  const CONCURRENT = Object.freeze([['command'],['capture'],['dialog'],['work','worksearch'],['work','workquick'],['work','worktab'],['work','list','task'],['work','list','projects'],['calendar','calview'],['agenda','calview'],['notes'],['link']]);
+  const CONCURRENT = Object.freeze([['command'],['capture'],['output'],['dialog'],['work','worksearch'],['work','workquick'],['work','worktab'],['work','list','task'],['work','list','projects'],['calendar','calview'],['agenda','calview'],['notes'],['link']]);
 
   const MODS = ['Mod','Alt','Shift'];
   function parse(spec) {
@@ -190,7 +193,7 @@
     { title:null, rows:[[null,['help.toggle']],[null,['command.open']]] },
     { title:'WHENCOMMAND', rows:[
       [null,['command.expand']],['검색 결과 선택',['command.prev','command.next']],[null,['command.run']],[null,['command.alternate']],
-      [null,['command.actions']],['검색어 전체 선택',['command.open']],['입력 지우기 → 창 숨기기',['back']],['빠른 담기: 담기 · 담고 열기 · 앱에서 열기',['capture.save','capture.saveOpen','capture.open']],[null,['command.media'],{media:true}],
+      [null,['command.actions']],['검색어 전체 선택',['command.open']],['입력 지우기 → 창 숨기기',['back']],['빠른 담기: 담기 · 담고 열기 · 앱에서 열기',['capture.save','capture.saveOpen','capture.open']],['스크립트 출력: 다시 실행 · 열기 · 복사',['output.rerun','output.open','output.copy']],[null,['command.media'],{media:true}],
     ] },
     { title:'화면 이동', rows:[
       [null,['nav.dashboard']],['Work · ToDo / InBox',['nav.todo','nav.inbox']],['Work · Waiting / Done',['nav.waiting','nav.done']],
