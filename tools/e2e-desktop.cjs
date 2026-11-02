@@ -41,10 +41,13 @@ async function test(name,fn){await fn();results.push({name,ok:true});}
   await test(mockClipboard?'실제 Command 계산과 격리 클립보드':'실제 Command 계산과 클립보드',async()=>{
    const input=page.locator('.td-command input');await input.fill('123+456');await input.press('Enter');
    let copied='';for(let attempt=0;attempt<20;attempt++){copied=await app.evaluate(({clipboard})=>clipboard.readText());if(copied.includes('579'))break;await page.waitForTimeout(100);}assert.ok(copied.includes('579'),'계산 결과 클립보드: '+copied);
+   // 복사는 창을 닫는다(CALC-02). 다음 단계를 위해 다시 부른다.
+   for(let attempt=0;attempt<20&&await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows().some(w=>w.isVisible()&&w.webContents.getURL().includes('index.html')));attempt++)await page.waitForTimeout(100);
+   await app.evaluate(({app})=>app.emit('second-instance'));await page.locator('.td-command input').waitFor();
   });
   let taskId,projectId;
   await test('실제 인박스 생성·할 일 분류·프로젝트',async()=>{
-   await page.locator('.td-command input').press('Tab');await page.locator('.td-nav > [data-action=work]').click();await page.locator('.td-main > .td-work-nav [data-tab=inbox]').click();
+   for(let attempt=0;attempt<20&&!await page.locator('.td-nav > [data-action=work]').isVisible();attempt++){await page.locator('.td-command input').press('Tab');await page.waitForTimeout(150);}await page.locator('.td-nav > [data-action=work]').click();await page.locator('.td-main > .td-work-nav [data-tab=inbox]').click();
    await page.locator('.td-quick input').fill('E2E 실제 할 일');await page.locator('.td-quick input').press('Enter');
    await page.locator('.td-task-open').filter({hasText:'E2E 실제 할 일'}).waitFor();await page.locator('.td-task-open').filter({hasText:'E2E 실제 할 일'}).click();
    await page.locator('[data-field=kind]').selectOption('todo');await page.waitForTimeout(200);
@@ -75,7 +78,7 @@ async function test(name,fn){await fn();results.push({name,ok:true});}
    await page.locator('[data-action=undo]').click();await page.waitForTimeout(200);assert.ok((await call('state',{})).events.some(e=>e.id===eventId));
   });
   await test('설정 IPC와 실제 검색 결과',async()=>{
-   await page.locator('.td-sidebar-bottom [data-action=settings]').click();await page.locator('[aria-label="Command 단축키"]').waitFor();assert.ok((await page.locator('.settings-path').textContent()).includes('e2e-profile'));
+   await page.locator('.td-sidebar-bottom [data-action=settings]').click();await page.locator('[aria-label="Command 단축키"]').waitFor();assert.ok((await page.locator('.settings-path').filter({hasText:'e2e-profile'}).first().textContent()).includes('e2e-profile'));
    const prefs=await call('preferences.get');assert.equal(prefs.skin,'paper');assert.equal(prefs.mode,'dark');
    await page.waitForFunction(async()=>{const info=await window.desk.call('app.info');return info.commandReady||info.commandFailure;},null,{timeout:30000});
    const query=await call('command.query',{q:'계산기',seq:100});assert.ok(Array.isArray(query.items));assert.ok(query.items.some(i=>i.source==='apps'),query.notice||'설치된 계산기 앱 검색 결과 없음');
