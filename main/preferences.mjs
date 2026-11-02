@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {normalizeShortcutValues,SHORTCUT_FIELDS} from './shortcuts.mjs';
-export const DEFAULTS=Object.freeze({skin:'base',mode:'system',hotkey:'Alt+Space',captureHotkey:'Control+Alt+Space',noteCaptureHotkey:'Control+Alt+M',mediaPlayHotkey:'Control+Alt+P',mediaRewindHotkey:'Control+Alt+Left',mediaForwardHotkey:'Control+Alt+Right',media:true,launchAtLogin:false,briefEnabled:true,briefAt:'09:00',lastBriefing:null});
+export const DEFAULTS=Object.freeze({skin:'base',mode:'system',hotkey:'Alt+Space',captureHotkey:'Control+Alt+Space',noteCaptureHotkey:'Control+Alt+M',mediaPlayHotkey:'Control+Alt+P',mediaRewindHotkey:'Control+Alt+Left',mediaForwardHotkey:'Control+Alt+Right',media:true,launchAtLogin:false,briefEnabled:true,briefAt:'09:00',lastBriefing:null,commandPosition:null,clipboardRow:true});
 export function createPreferences(file){
  let values={...DEFAULTS};
  if(fs.existsSync(file)){
@@ -17,6 +17,8 @@ export function createPreferences(file){
     else if(SHORTCUT_FIELDS.includes(key))next[key]=value;
     else if(['media','launchAtLogin','briefEnabled'].includes(key)&&typeof value==='boolean')next[key]=value;
     else if(key==='briefAt'&&typeof value==='string'&&/^([01]?\d|2[0-3]):[0-5]\d$/.test(value))next.briefAt=value.padStart(5,'0');
+    else if(key==='commandPosition'&&(value===null||value&&Number.isFinite(value.x)&&Number.isFinite(value.y)))next.commandPosition=value?{x:Math.round(value.x),y:Math.round(value.y)}:null;
+    else if(key==='clipboardRow'&&typeof value==='boolean')next.clipboardRow=value;
     else if(key==='lastBriefing'&&(value===null||typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)))next.lastBriefing=value;
    }
    if(SHORTCUT_FIELDS.some(field=>Object.hasOwn(patch||{},field)))Object.assign(next,normalizeShortcutValues(next));

@@ -369,7 +369,14 @@
     renderNav(); renderMainView(); await shell('dashboard', false); body.querySelector('[data-field=title]')?.focus({ preventScroll:true });
   }
   async function navigate(route = {}) {
-    if (route.shell === 'command') { await flushPending(); await shell('command'); if (route.capture) enterCapture(route.capture); else exitCapture(); return; }
+    if (route.shell === 'command') {
+      await flushPending(); await shell('command');
+      if (route.capture) enterCapture(route.capture); else exitCapture();
+      // 숨어 있다가 다시 불렸으면 빈 입력줄로 시작한다(원본 WHENCOMMAND PANEL-07). 대시보드에서 내려온 경우는 검색어를 유지한다.
+      if (route.fresh && !route.capture) { commandInput.value = ''; clearCommandNotice(); closeCommandActions(false); clearCommandOutput(); queueCommandQuery('', 0, true); commandInput.focus({ preventScroll:true }); }
+      if (route.fresh) requestAnimationFrame(() => requestAnimationFrame(() => call('window.painted').catch(() => {})));
+      return;
+    }
     if (route.view === 'work' || route.view === 'tasks' && route.tab && !route.id) state.project=null;
     if (route.view === 'notes') { await flushPending(); state.view='notes'; state.project=null; renderNav(); renderMainView(); await shell('dashboard',false); await notes?.refresh(); if(route.id) await notes?.open(route.id,{edit:!!route.edit}); else notes?.focus(); return; }
     if (route.id && route.view !== 'calendar') await reveal(route.id);

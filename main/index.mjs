@@ -6,6 +6,8 @@ import {createPreferences} from './preferences.mjs';
 import {createShortcutManager,SHORTCUT_FIELDS} from './shortcuts.mjs';
 import {createPositionTracker} from './media-position.mjs';
 import {createUpdateState,updateLine} from './update-text.mjs';
+import {pickPosition} from './place.mjs';
+import {createToast} from './toast.mjs';
 import {briefDecision,briefingLines,dayKey,STALE_WAITING_DAYS} from '../modules/work/main/brief.mjs';
 import {exportWorkspace,prepareRestore,prepareLegacy,installPrepared} from './data.mjs';
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
@@ -28,7 +30,7 @@ async function bootstrap(){
  let domain,command,win,tray,mediaControl,mediaTimer;
  let quitting=false,shellMode='command',dataBusy=false;
  let commandReady=false,commandFailure=null,mutationTail=Promise.resolve();
- let updater=null;const updateState=createUpdateState();
+ let updater=null,toast=null;const updateState=createUpdateState();
  const updateView=()=>({...updateState,line:updateLine(updateState,{current:app.getVersion()}),supported:!!updater?.supported});
  let media={available:false,sessions:[],failure:null};const positions=createPositionTracker();
  let dashboardBounds=null,commandHeight=54;
@@ -43,13 +45,34 @@ async function bootstrap(){
  function enqueueMutation(fn){const pending=mutationTail.then(fn);mutationTail=pending.catch(()=>{});return pending;}
  function startServices(){
   domain=createDomain({dataDir});
-  command=createCommand({dataDir,domain,onMore:payload=>send('command.more',payload)});
+  command=createCommand({dataDir,domain,onMore:payload=>send('command.more',payload),onLaunch:()=>hideWindow()});
   commandReady=false;commandFailure=null;
   Promise.resolve(command.ready()).then(()=>{commandReady=true;send('command.more',{ready:true});}).catch(error=>{commandFailure=error.message;console.error('Command 준비 실패:',error.message);send('command.more',{error:error.message});});
  }
  function stopServices(){command?.close?.();domain?.close?.();}
  startServices();
  function workArea(){return screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea;}
+ /* 입력줄 창 동작(원본 WHENCOMMAND panel.mjs·platform/win32.mjs).
+  * - 숨길 때 minimize를 거친다: 항상 위·작업표시줄 제외 창을 hide()만 하면 OS가 아무 창에나 포커스를 준다(원본 함정 #8).
+  * - 다시 부르면 빈 입력줄로 시작한다. 직전 화면이 한 프레임 보이지 않게 투명하게 띄웠다가 렌더러가 그린 뒤 나타낸다(D-30).
+  * - 자리는 끌어 둔 곳, 없으면 커서가 있는 디스플레이의 위 28%(D-08·D-19). 전체화면 앱 위에도 뜬다(PANEL-04).
+  * - Command에서 포커스가 빠지면 숨는다(PANEL-05). 대시보드는 일반 창이라 숨지 않는다. */
+ const COMMAND_PLACE_HEIGHT=390;let placeOnCommand=false,revealTimer=null;
+ function commandBoundsFor(width,height){const saved=preferences.get().commandPosition;const pos=pickPosition({saved,size:{width,height:COMMAND_PLACE_HEIGHT},workAreas:screen.getAllDisplays().map(display=>display.workArea),cursorArea:workArea(),centerY:false});return {x:pos.x,y:pos.y,width,height};}
+ function reveal(){clearTimeout(revealTimer);revealTimer=null;if(win&&!win.isDestroyed()&&win.isVisible()&&win.getOpacity()<1){win.setOpacity(1);win.focus();}}
+ function hideWindow(){if(!win||win.isDestroyed()||!win.isVisible())return;clearTimeout(revealTimer);revealTimer=null;if(!testMode)win.minimize();win.hide();win.setOpacity(1);}
+ function summon(payload){
+  if(!win||win.isDestroyed())return;
+  const fresh=!win.isVisible()||win.isMinimized();
+  if(fresh){
+   if(!testMode)win.setOpacity(0);
+   if(win.isMinimized())win.restore();
+   if(shellMode==='command'){const [width,height]=win.getSize();win.setBounds(commandBoundsFor(width,height));}else placeOnCommand=true;
+   win.show();win.focus();
+   if(!testMode)revealTimer=setTimeout(reveal,150);
+  }else win.focus();
+  send('navigate',{...payload,fresh});
+ }
  function setShell(mode,height){
   if(!win||win.isDestroyed())return {mode:shellMode};
   const area=screen.getDisplayMatching(win.getBounds()).workArea;
@@ -59,26 +82,26 @@ async function bootstrap(){
     const width=Math.min(area.width,Math.max(800,desired.width));const h=Math.min(area.height,Math.max(580,desired.height));
     win.setMinimumSize(Math.min(800,area.width),Math.min(560,area.height));
     win.setBounds({width,height:h,x:Math.max(area.x,Math.min(previous.x+(previous.width-width)/2,area.x+area.width-width)),y:Math.max(area.y,Math.min(previous.y,area.y+area.height-h))});
-    win.setAlwaysOnTop(false);win.setSkipTaskbar(false);
+    win.setAlwaysOnTop(false);win.setVisibleOnAllWorkspaces(false);win.setSkipTaskbar(false);
    }
   }else{
    if(shellMode==='dashboard')dashboardBounds=win.getBounds();
    shellMode='command'; // 축소 중 발생한 resize가 마지막 대시보드 크기를 덮어쓰지 않도록 한다.
    const previous=win.getBounds();const width=Math.min(560,area.width);const h=Math.min(area.height,Math.max(54,Math.ceil(Number(height)||commandHeight)));commandHeight=h;
    win.setMinimumSize(Math.min(360,area.width),54);
-   win.setBounds({width,height:h,x:Math.max(area.x,Math.min(previous.x+(previous.width-width)/2,area.x+area.width-width)),y:Math.max(area.y,Math.min(previous.y,area.y+area.height-h))});
-   win.setAlwaysOnTop(true);win.setSkipTaskbar(true);
+   win.setBounds(placeOnCommand?commandBoundsFor(width,h):{width,height:h,x:Math.max(area.x,Math.min(previous.x+(previous.width-width)/2,area.x+area.width-width)),y:Math.max(area.y,Math.min(previous.y,area.y+area.height-h))});placeOnCommand=false;
+   win.setAlwaysOnTop(true,'screen-saver');win.setVisibleOnAllWorkspaces(true,{visibleOnFullScreen:true});win.setSkipTaskbar(true);
   }
   shellMode=mode==='dashboard'?'dashboard':'command';return {mode:shellMode};
  }
- function showCommand(){if(!win||win.isDestroyed())return;if(win.isMinimized())win.restore();win.show();win.focus();send('navigate',{shell:'command'});}
+ function showCommand(){summon({shell:'command'});}
  function showDashboard(route={}){if(!win||win.isDestroyed())return;if(win.isMinimized())win.restore();win.show();win.focus();setShell('dashboard');send('navigate',{shell:'dashboard',view:'dashboard',...route});}
  async function handleGlobalShortcut(field){
   if(win?.isVisible()&&win.isFocused()){
    try{if(await win.webContents.executeJavaScript(`window.__whendeskRecordShortcut?.(${JSON.stringify(preferences.get()[field])}) === true`))return;}
    catch(error){console.error('단축키 기록:',error.message);}
   }
-  if(field==='hotkey'){if(win?.isVisible()&&win.isFocused()&&shellMode==='command')win.hide();else showCommand();}
+  if(field==='hotkey'){if(win?.isVisible()&&win.isFocused()&&shellMode==='command')hideWindow();else showCommand();}
   else if(field==='mediaPlayHotkey')await toggleMedia();
   else if(field==='mediaRewindHotkey')await seekMedia(-SEEK_SEC);
   else if(field==='mediaForwardHotkey')await seekMedia(SEEK_SEC);
@@ -91,7 +114,7 @@ async function bootstrap(){
  async function toggleMedia(){const session=currentMedia();if(!mediaControl||!session)return;await mediaControl[session.playing?'pause':'play'](session.appId).catch(error=>console.error('미디어:',error.message));}
  async function seekMedia(delta){const session=currentMedia();if(!mediaControl||!session)return;const target=positions.target(session.appId,delta);positions.assumeSeek(session.appId,target);await mediaControl.seek(session.appId,target).catch(error=>console.error('미디어:',error.message));}
  /* 빠른 담기: Command 창을 한 줄 수집 모드로 연다. Enter로 담아도 창이 남아 연달아 담는다(원본 WHENWORK·WHENNOTE). */
- function showCapture(kind){if(!win||win.isDestroyed())return;if(win.isMinimized())win.restore();win.show();win.focus();send('navigate',{shell:'command',capture:kind});}
+ function showCapture(kind){summon({shell:'command',capture:kind});}
  const shortcutManager=createShortcutManager({globalShortcut,enabled:!testMode&&!argv.includes('--no-shortcuts'),handlers:{
   hotkey:()=>handleGlobalShortcut('hotkey'),
   captureHotkey:()=>handleGlobalShortcut('captureHotkey'),
@@ -107,14 +130,16 @@ async function bootstrap(){
  win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
  win.webContents.on('will-navigate',(event,url)=>{if(url!==rendererURL)event.preventDefault();});
  win.webContents.session.setPermissionRequestHandler((_contents,_permission,callback)=>callback(false));
- win.on('close',event=>{if(!quitting){event.preventDefault();win.hide();}});
+ win.on('close',event=>{if(!quitting){event.preventDefault();hideWindow();}});
+ win.on('blur',()=>{if(shellMode!=='command'||quitting||testMode||!win.isVisible()||win.getOpacity()<1)return;setTimeout(()=>{if(!win.isDestroyed()&&!win.isFocused()&&win.isVisible()&&shellMode==='command')hideWindow();},60);});
+ win.on('moved',()=>{if(shellMode==='command'&&win.isVisible()&&win.getOpacity()===1&&!testMode){const [x,y]=win.getPosition();preferences.set({commandPosition:{x,y}});}});
  win.on('resize',()=>{if(shellMode==='dashboard')dashboardBounds=win.getBounds();});
  app.on('second-instance',()=>showCommand());
  app.on('activate',()=>showCommand());
  const trayImage=nativeImage.createFromPath(path.join(ROOT,'assets','tray.png'));
  tray=new Tray(trayImage.isEmpty()?nativeImage.createFromPath(path.join(ROOT,'assets','icon.png')).resize({width:24,height:24}):trayImage);
  tray.setToolTip(app.isPackaged?'WHENDESK':'WHENDESK 개발본');
- tray.setContextMenu(Menu.buildFromTemplate([{label:'WHENCOMMAND',click:showCommand},{label:'대시보드',click:()=>showDashboard()},{label:'인박스',click:()=>showDashboard({view:'tasks',tab:'inbox',focusCapture:true})},{type:'separator'},{label:'앱 목록 새로고침',click:()=>command.refresh().catch(error=>dialog.showErrorBox('목록 새로고침',error.message))},{label:'설정',click:()=>showDashboard({settings:true})},{type:'separator'},{label:'종료',click:()=>requestQuit()}]));
+ tray.setContextMenu(Menu.buildFromTemplate([{label:'WHENCOMMAND',click:showCommand},{label:'대시보드',click:()=>showDashboard()},{label:'인박스',click:()=>showDashboard({view:'tasks',tab:'inbox',focusCapture:true})},{type:'separator'},{label:'입력줄 위치 되돌리기',click:()=>{preferences.set({commandPosition:null});if(win?.isVisible()&&shellMode==='command'){const [width,height]=win.getSize();win.setBounds(commandBoundsFor(width,height));}}},{label:'앱 목록 새로고침',click:()=>command.refresh().catch(error=>dialog.showErrorBox('목록 새로고침',error.message))},{label:'설정',click:()=>showDashboard({settings:true})},{type:'separator'},{label:'종료',click:()=>requestQuit()}]));
  tray.on('click',()=>win.isVisible()&&win.isFocused()?win.hide():showCommand());
  shortcutManager.initialize(preferences.get());
 
@@ -163,7 +188,7 @@ async function bootstrap(){
   state:payload=>domain.state(payload),
   mutate:async payload=>{if(dataBusy)throw new Error('데이터 가져오기를 마친 후 다시 시도해 주세요.');const value=await enqueueMutation(()=>domain.mutate(payload?.type,payload?.payload||{}));if(!/^(?:note\.(?:get|open|search|tags|attachments?|export)|work\.(?:history|archive))$/.test(payload?.type||''))changed();return value;},
   'command.query':async payload=>{if(dataBusy)return {items:[],notice:'데이터를 가져오는 중입니다.'};const result=await command.query(payload?.q||'',payload?.seq||0);if(!commandReady&&!result.notice)result.notice=commandFailure||'앱 목록을 준비하고 있습니다.';return result;},
-  'command.run':async payload=>{if(dataBusy)throw new Error('데이터 작업 중입니다.');const result=await enqueueMutation(()=>command.run(payload?.key,payload?.actionId,{query:payload?.query}));if(result?.route)changed();return result;},
+  'command.run':async payload=>{if(dataBusy)throw new Error('데이터 작업 중입니다.');const result=await enqueueMutation(()=>command.run(payload?.key,payload?.actionId,{query:payload?.query}));if(result?.route)changed();if(result?.toast&&!testMode)(toast??=createToast()).show(result.toast);return result;},
   'command.refresh':()=>command.refresh(),
   shell:payload=>setShell(payload?.mode,payload?.height),
   'preferences.get':()=>preferences.get(),
@@ -206,7 +231,8 @@ async function bootstrap(){
   'media.state':()=>media,
   'media.control':async payload=>{if(!mediaControl||!media.available)throw new Error('연결된 미디어를 제어할 수 없습니다.');if(!['play','pause','next','prev'].includes(payload?.action)||!media.sessions.some(s=>s.appId===payload?.appId))throw new Error('미디어 요청이 올바르지 않습니다.');const value=await mediaControl[payload.action](payload.appId);if(value===false)throw new Error('플레이어가 요청을 수락하지 않았습니다.');mediaControl.poll();return value;},
   'window.minimize':()=>win.minimize(),
-  'window.close':()=>win.hide(),
+  'window.close':()=>hideWindow(),
+  'window.painted':()=>reveal(),
   'app.quit':()=>requestQuit(),
  };
  ipcMain.handle('desk:call',async(event,method,payload)=>{
@@ -214,9 +240,10 @@ async function bootstrap(){
   try{if(!Object.hasOwn(methods,method))throw new Error('허용하지 않는 요청입니다.');return {ok:true,value:await methods[method](payload)};}catch(error){console.error(method,error);return {ok:false,error:error.message||String(error),...(error.fields?{fields:error.fields}:{})};}
  });
  win.webContents.on('render-process-gone',(_event,details)=>{console.error('renderer stopped',details);});
- app.on('before-quit',()=>{quitting=true;shortcutManager.dispose();clearInterval(mediaTimer);mediaControl?.stop();stopServices();tray?.destroy();});
+ app.on('before-quit',()=>{quitting=true;toast?.dispose();shortcutManager.dispose();clearInterval(mediaTimer);mediaControl?.stop();stopServices();tray?.destroy();});
  await win.loadFile(path.join(ROOT,'renderer','index.html'));
  if(!argv.includes('--headless')&&!argv.includes('--hidden')){win.show();win.focus();}
+ else if(argv.includes('--hidden')&&!testMode){win.setOpacity(0);win.showInactive();setTimeout(()=>{if(!win.isDestroyed()&&win.getOpacity()===0){win.hide();win.setOpacity(1);}},120);}
  /* 자동 업데이트: 설치본(NSIS)에서만. 폴더형 배포본에는 electron-updater가 없어 '설치본에서만'으로 남는다. */
  try{
   if(app.isPackaged&&!testMode){

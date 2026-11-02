@@ -7,6 +7,7 @@ import { execFile, spawn } from 'node:child_process';
 import { match } from '../modules/command/main/search.mjs';
 import { rank } from '../modules/command/main/rank.mjs';
 import { DEFAULT_ALIASES, aliasesFor, loadUserAliases, mergeAliases, matchWithAliases } from '../modules/command/main/aliases.mjs';
+import { candidates as hintCandidates, saves as hintSaves } from '../modules/command/main/hint.mjs';
 import { calc, convert } from '../modules/command/main/sources/calc.mjs';
 import { createStore } from '../modules/command/main/store.mjs';
 import { parseHeader, lineCount } from '../modules/command/main/scripts.mjs';
@@ -58,7 +59,7 @@ function executeFile(command, args) {
     (error, stdout, stderr) => error ? reject(new Error(String(stderr || error.message).trim())) : resolve(String(stdout || '').trim())));
 }
 
-export function createCommand({ dataDir, domain, onMore, platform: providedPlatform, effects: providedEffects, fileDebounceMs = 120, fileTimeoutMs = 1500 }) {
+export function createCommand({ dataDir, domain, onMore, onLaunch, platform: providedPlatform, effects: providedEffects, fileDebounceMs = 120, fileTimeoutMs = 1500 }) {
   if (!dataDir || !domain) throw new Error('Command 데이터 폴더와 저장소가 필요합니다.');
   const commandDir = path.join(dataDir, 'command');
   const scriptsDir = path.join(commandDir, 'scripts');
@@ -315,6 +316,33 @@ export function createCommand({ dataDir, domain, onMore, platform: providedPlatf
     }, fileDebounceMs);
   }
 
+  function appItems(q) {
+    const out = [];
+    for (const app of apps) {
+      const m = matchWithAliases(q, app.name, app.aliases);
+      if (m.score > 0) out.push({ key: `apps:${app.path}`, source: 'apps', title: app.name,
+        subtitle: m.via === 'alias' ? `별칭 ${m.alias}` : '', icon: 'app-window', path: app.path,
+        base: m.score, positions: m.positions, via: m.via, action: { type: 'open-app', path: app.path } });
+    }
+    return out;
+  }
+  function probe(q) {
+    const found = [...appItems(q), ...navigationItems(q), ...domainItems(q)];
+    for (const command of system) addMatched(found, q, { key: `system:${command.id}`, source: 'system', title: command.title, action: { type: 'system', id: command.id } }, .9);
+    return rank(found, store.picks());
+  }
+  /* 지름길 힌트(원본 WHENCOMMAND SRCH-11·D-36): 방금 고른 것을 더 짧게 부르는 입력 중 실제로 첫 줄에 오는 가장 짧은 것. 항목마다 한 번. */
+  const hinted = new Set();
+  function hintFor(item, typed) {
+    if (!item || !typed || hinted.has(item.key) || item.fallback || !['apps', 'system', 'builtin'].includes(item.source)) return null;
+    const aliases = item.source === 'apps' ? apps.find(app => `apps:${app.path}` === item.key)?.aliases || [] : [];
+    for (const candidate of hintCandidates(item.title, aliases)) {
+      if (!hintSaves(typed, candidate)) continue;
+      if (probe(candidate)[0]?.key === item.key) { hinted.add(item.key); return candidate; }
+    }
+    return null;
+  }
+
   async function query(raw, seq = 0) {
     ensureOpen();
     const q = String(raw ?? '').trim().slice(0, MAX_TEXT);
@@ -328,12 +356,7 @@ export function createCommand({ dataDir, domain, onMore, platform: providedPlatf
     const result = convert(q) || calc(q);
     if (result) found.push({ key: `calc:${result.kind}`, source: 'calc', title: result.display, subtitle: result.expr,
       icon: 'calculator', base: 3, action: { type: 'copy', text: result.display } });
-    for (const app of apps) {
-      const m = matchWithAliases(q, app.name, app.aliases);
-      if (m.score > 0) found.push({ key: `apps:${app.path}`, source: 'apps', title: app.name,
-        subtitle: m.via === 'alias' ? `별칭 ${m.alias}` : '', icon: 'app-window', path: app.path,
-        base: m.score, positions: m.positions, via: m.via, action: { type: 'open-app', path: app.path } });
-    }
+    found.push(...appItems(q));
     found.push(...navigationItems(q), ...domainItems(q), ...await previewEvents(captureItems(q)));
     for (const script of scripts) addMatched(found, q, { key: `scripts:${script.path}`, source: 'scripts', title: script.name,
       subtitle: script.description, icon: 'file-code', action: { type: 'run-script', path: script.path, args: [] } });
@@ -422,15 +445,20 @@ export function createCommand({ dataDir, domain, onMore, platform: providedPlatf
     } else if (action.type === 'event-delete') {
       await domain.mutate('event.delete', { id: action.id, scope: 'all' });
       result = { ok: true, clear: true, message: `일정을 삭제했습니다 · ${item.title}`, undo: { type: 'event.restore', payload: { id: action.id } } };
-    } else if (action.type === 'copy') { effects.clipboard.writeText(String(action.text)); result.message = `${action.text} 복사됨`; }
-    else if (action.type === 'open-app') {
+    } else if (action.type === 'copy') {
+      // 복사하고 닫는다(원본 CALC-02). 닫힌 뒤에도 무엇을 복사했는지 토스트로 알린다.
+      onLaunch?.(); effects.clipboard.writeText(String(action.text));
+      result.message = `${action.text} 복사됨`; result.hide = true; result.toast = { title:'복사했습니다', body:String(action.text) };
+    } else if (action.type === 'open-app') {
+      onLaunch?.();
       if (!await platform.openApp(action.path)) throw new Error('앱을 열지 못했습니다.');
       result.hide = true;
     } else if (action.type === 'open-path') {
+      onLaunch?.();
       const error = await effects.shell.openPath(action.path);
       if (error) throw new Error(String(error));
       result.hide = true;
-    } else if (action.type === 'reveal') { effects.shell.showItemInFolder(action.path); result.hide = true; }
+    } else if (action.type === 'reveal') { onLaunch?.(); effects.shell.showItemInFolder(action.path); result.hide = true; }
     else if (action.type === 'refresh') { await refresh(); result.message = '앱과 스크립트 목록을 갱신했습니다.'; }
     else if (action.type === 'run-script') result = await runScript(action.path, action.args || []);
     else if (action.type === 'system') {
@@ -441,11 +469,14 @@ export function createCommand({ dataDir, domain, onMore, platform: providedPlatf
           message: `${command.title}을 실행할까요?`, detail: command.description || '', buttons: ['취소', '실행'], defaultId: 0, cancelId: 0, noLink: true });
         if (confirm.response !== 1) return { ok: false, cancelled: true };
       }
-      await executeFile(command.exec.cmd, command.exec.args);
       result.hide = ['lock', 'sleep'].includes(command.id);
+      if (result.hide) onLaunch?.();
+      await executeFile(command.exec.cmd, command.exec.args);
       result.message = `${command.title} 실행됨`;
     } else throw new Error('지원하지 않는 실행 동작입니다.');
     if (result.ok && item.source !== 'calc') store.pick(item.key, item.source);
+    // 고른 것이 순위에 반영된 뒤에 힌트를 찾는다 — 다음에 실제로 첫 줄에 오는 입력이어야 한다.
+    if (result.ok && !actionId && !result.toast) { const shortcut = hintFor(item, queryText); if (shortcut) result.toast = { title:item.title, body:`다음엔 ‹${shortcut}› 만 쳐도 첫 줄입니다` }; }
     return result;
   }
 

@@ -320,7 +320,10 @@ test('실행을 요청한 직후 새 질의가 들어와도 이미 선택한 항
     const app = (await f.command.query('크롬')).items.find(item => item.source === 'apps');
     const running = f.command.run(app.key);
     await f.command.query('2+2');
-    assert.deepEqual(await running, { ok: true, hide: true });
+    const ran = await running;
+    assert.deepEqual({ ok:ran.ok, hide:ran.hide }, { ok: true, hide: true });
+    // 지름길 힌트(원본 SRCH-11): 친 것보다 두 글자 이상 짧고 실제로 첫 줄에 오는 입력을 한 번 알려 준다.
+    assert.match(ran.toast?.body || '', /^다음엔 ‹.+› 만 쳐도 첫 줄입니다$/);
     assert.deepEqual(f.opened, ['test-chrome.lnk']);
     assert.deepEqual(f.copied, []);
   } finally { f.cleanup(); }

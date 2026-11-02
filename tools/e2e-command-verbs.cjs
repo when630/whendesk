@@ -159,6 +159,17 @@ async function closeApp(){
       await press('Tab');await press('Tab');await waitUntil(async()=>await view()==='month','월 보기로 돌아오지 않았습니다.');await waitFocus('.td-main [data-date]');
     });
 
+    await test('숨어 있다가 다시 불린 Command는 빈 입력줄로 시작하고, 대시보드에서 내려온 Command는 검색어를 유지한다',async()=>{
+      await press('Control+k');await page.locator('#cf-command-panel').waitFor();
+      await page.locator(commandInput).fill('');await text('남은 검색어');
+      await press('Tab');await page.locator('#cf-dashboard-panel').waitFor();
+      await press('Control+k');await page.locator('#cf-command-panel').waitFor();
+      assert.equal(await page.locator(commandInput).inputValue(),'남은 검색어','대시보드에서 내려오며 검색어를 잃었습니다.');
+      await signal({shell:'command',fresh:true});
+      await waitUntil(async()=>await page.locator(commandInput).inputValue()==='','다시 불린 Command에 직전 검색어가 남았습니다(원본 PANEL-07).');
+      await waitFocus(commandInput);
+    });
+
     await test('Command에서 캘린더 구독 관리를 연다',async()=>{
       await press('Control+k');await page.locator('#cf-command-panel').waitFor();
       await commandQuery('구독 관리','캘린더 구독 관리');await selectResult('캘린더 구독 관리');await press('Enter');
