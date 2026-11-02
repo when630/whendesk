@@ -13,7 +13,7 @@
 #whendesk-command-first .work-overdue{color:light-dark(#ae5550,#db9690)!important}
 #whendesk-command-first .work-muted{font-size:11px;color:var(--td-muted)}
 #whendesk-command-first .work-archived .td-task-open>span{color:var(--td-muted)}
-#whendesk-command-first .work-project-row{display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--td-line);padding:13px 0}
+#whendesk-command-first .work-project-row{display:flex;align-items:center;gap:8px;padding:13px 10px;margin:0 -10px;background-image:linear-gradient(var(--td-line),var(--td-line));background-size:calc(100% - 20px) 1px;background-position:10px 100%;background-repeat:no-repeat}
 #whendesk-command-first .work-project-name{display:flex;align-items:center;gap:11px;min-width:0;flex:1;padding:3px 0}
 #whendesk-command-first .work-project-name>svg{width:15px;height:15px;color:var(--td-muted)}
 #whendesk-command-first .work-project-name>span{overflow-wrap:anywhere}
