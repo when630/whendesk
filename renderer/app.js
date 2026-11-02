@@ -880,8 +880,14 @@
     if(commandInput.value){commandInput.value='';clearCommandNotice();if(!command.capture)queueCommandQuery('',0,true);return;}
     exitCapture();return call('window.close');
   }
+  const MENU_ORDER = ['dashboard','work','notes','calendar'];
+  function cycleMenu(direction) {
+    const current = state.view === 'tasks' ? 'work' : state.view === 'settings' ? 'calendar' : state.view;
+    const index = MENU_ORDER.indexOf(current);
+    return goSection(MENU_ORDER[((index < 0 ? -1 : index) + direction + MENU_ORDER.length) % MENU_ORDER.length]);
+  }
   async function goSection(section) {
-    const route={settings:{settings:true,view:'settings'},dashboard:{view:'dashboard'},todo:{view:'tasks',tab:'todo'},inbox:{view:'tasks',tab:'inbox'},waiting:{view:'tasks',tab:'waiting'},done:{view:'tasks',tab:'done'},notes:{view:'notes'},calendar:{view:'calendar'}}[section];
+    const route={settings:{settings:true,view:'settings'},dashboard:{view:'dashboard'},work:{view:'tasks',tab:state.tab},todo:{view:'tasks',tab:'todo'},inbox:{view:'tasks',tab:'inbox'},waiting:{view:'tasks',tab:'waiting'},done:{view:'tasks',tab:'done'},notes:{view:'notes'},calendar:{view:'calendar'}}[section];
     if(!route)return;
     // 캘린더는 오늘 보기가 기본이다. 오늘 보기로 들어갈 때는 날짜도 오늘에 맞춘다.
     if(section==='calendar'&&state.calView==='today')route.date=dateKey();
@@ -1220,6 +1226,7 @@
     if(K.is(event,'help.toggle')){event.preventDefault();if(!event.repeat)safe(()=>helpOpen?closeHelp():openHelp());return;}
     if(helpOpen){if(K.is(event,'back')){event.preventDefault();safe(closeHelp);}else if(K.is(event,'focus.cycle')){event.preventDefault();helpLayer.querySelector('button')?.focus();}return;}
     if(section){event.preventDefault();if(!event.repeat&&modalLayer.hidden&&!command.running)safe(()=>goSection(section));return;}
+    if(K.is(event,'nav.next')||K.is(event,'nav.prev')){event.preventDefault();if(!event.repeat&&modalLayer.hidden&&!command.running&&state.shell==='dashboard')safe(()=>cycleMenu(K.is(event,'nav.next')?1:-1));return;}
     if(K.is(event,'command.open')){event.preventDefault();if(!event.repeat&&modalLayer.hidden&&!command.running){cancelCommandActivation();safe(async()=>{const same=state.shell==='command'&&!command.capture;exitCapture();await flushPending();await shell('command');if(same)commandInput.select();});}return;}
     if(!modalLayer.hidden&&K.is(event,'focus.cycle')){
       const focusable=[...modalLayer.querySelectorAll('button,input,select,textarea,[tabindex]')].filter(element=>!element.disabled&&element.tabIndex>=0&&element.getClientRects().length);

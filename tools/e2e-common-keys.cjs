@@ -180,6 +180,15 @@ async function closeApp(){
       await screenshot('05-grips');
     });
 
+    await test('Ctrl+Tab·Ctrl+Shift+Tab은 왼쪽 메뉴(Dashboard·Work·Note·Calendar)를 순환하고 Work는 보던 분류로 간다',async()=>{
+      const title=()=>page.locator('.td-main h1').innerText();
+      await press('Alt+w');await waitUntil(async()=>/Waiting/.test(await title()),'Waiting으로 가지 않았습니다.');
+      const visited=[];
+      for(const key of ['Control+Tab','Control+Tab','Control+Tab','Control+Tab','Control+Shift+Tab']){const before=await title();await press(key);await waitUntil(async()=>await title()!==before,key+'가 메뉴를 바꾸지 않았습니다.');visited.push(await title());}
+      measurements.menuCycle=visited;
+      assert.deepEqual(visited,['Note','Calendar','Dashboard','Work · Waiting','Dashboard'],'메뉴 순환 순서가 다릅니다: '+visited.join(' → '));
+    });
+
     await test('하단 힌트는 포커스 자리에 맞는 키를 보여 준다',async()=>{
       const hints=()=>page.locator('.td-hints').innerText();
       await press('Alt+i');await waitWithin('.td-main');for(let step=0;step<4;step++)await press('Tab');

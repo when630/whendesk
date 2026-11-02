@@ -20,7 +20,9 @@
     A('app.save','global','저장 · 대화상자 저장',['Mod+KeyS']),
     A('app.undo','global','되돌리기',['Mod+KeyZ']),
     A('back','global','닫기 · 뒤로',['?Mod+?Alt+?Shift+Escape']),
-    A('focus.cycle','dialog','대화상자 안 이동',['?Mod+?Alt+?Shift+Tab']),
+    A('focus.cycle','dialog','대화상자 안 이동',['Tab','Shift+Tab']),
+    A('nav.next','global','다음 메뉴',['Mod+Tab']),
+    A('nav.prev','global','이전 메뉴',['Mod+Shift+Tab']),
 
     A('command.expand','command','대시보드 펼치기',['Tab']),
     A('command.media','command','입력에서 미디어 버튼으로 이동',['Shift+Tab']),
@@ -197,7 +199,7 @@
     ] },
     { title:'화면 이동', rows:[
       [null,['nav.dashboard']],['Work · ToDo / InBox',['nav.todo','nav.inbox']],['Work · Waiting / Done',['nav.waiting','nav.done']],
-      ['Note / Calendar',['nav.notes','nav.calendar']],[null,['nav.settings']],[null,['app.new']],[null,['app.save']],
+      ['Note / Calendar',['nav.notes','nav.calendar']],['왼쪽 메뉴 순환 (Dashboard · Work · Note · Calendar)',['nav.next','nav.prev']],[null,['nav.settings']],[null,['app.new']],[null,['app.save']],
       ['화면 안 분류 순환 (Work · 메모)',['work.tab.cycle']],['한 단계 뒤로 (편집 → 필터 → 화면 → Command)',['back']],
     ] },
     { title:'할 일 목록', rows:[
