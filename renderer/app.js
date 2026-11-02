@@ -102,6 +102,7 @@
       commandInput.value = command.query; renderCommand(); resizeCommand();
       if (focus) { commandInput.focus({ preventScroll:true }); commandInput.setSelectionRange(command.start, command.end); }
     } else if (focus) {
+      quietFocus();
       const saved=dashboardReturn;
       if(saved?.element?.isConnected&&saved.element.getClientRects().length){saved.element.focus({preventScroll:true});if(saved.start!=null){try{saved.element.setSelectionRange(saved.start,saved.end);}catch{}}saved.element.scrollTop=saved.scroll;}
       else restoreFocus(dashboardFocus);
@@ -847,8 +848,10 @@
     taskCursor=id;syncTaskCursor();if(taskCursor)workCursors.set(workCursorKey(),taskCursor);const row=body.querySelector(`[data-task-row="${CSS.escape(taskCursor||'')}"]`);row?.focus({preventScroll:true});row?.scrollIntoView({block:'nearest'});
   }
   function workCursorKey(){return `${state.tab}|${state.project??''}`;}
+  /* 앱이 스스로 옮긴 포커스(화면 진입·펼치기)는 표시하지 않는다. 사용자가 키를 누르면 그때부터 보인다. */
+  function quietFocus() { root.classList.add('focus-quiet'); }
   function focusView() {
-    syncHints();
+    quietFocus(); syncHints();
     if(state.view==='notes'){notes?.focus();return;}
     if(state.view==='tasks'){if(state.tab==='projects'){focusWorkProject();return;}syncTaskCursor();if(taskCursor)focusTask();else root.querySelector('.td-work-nav [aria-selected=true]')?.focus({preventScroll:true});return;}
     if(state.view==='calendar'){if(state.calView==='month'){body.querySelector(`[data-date="${state.date}"]`)?.focus({preventScroll:true});return;}(body.querySelector(`[data-cal-day="${state.date}"] [data-event]`)||body.querySelector('[data-cal-home]'))?.focus({preventScroll:true});return;}
@@ -1218,6 +1221,8 @@
   commandActions.addEventListener('pointermove',event=>{const row=event.target.closest('[data-command-action]');if(row&&command.actions&&!command.running){const index=command.actions.item.actions.findIndex(action=>action.id===row.dataset.commandAction);if(index>=0&&index!==command.actions.selected){command.actions.selected=index;syncCommandSelection();}}});
   root.addEventListener('focusin',syncHints);
   root.addEventListener('focusout',event=>{if(event.target.matches('[data-field]')){const element=event.target;dashboardFocus={id:element.closest('[data-editor]')?.dataset.editor,field:element.dataset.field,start:element.selectionStart,end:element.selectionEnd,scroll:element.scrollTop};}});
+  // 보조 키만 누른 것은 이동이 아니다. 그 밖의 키는 조용한 포커스를 풀고, 이어지는 처리가 포커스를 옮기면 표시가 보인다.
+  document.addEventListener('keydown',event=>{if(!['Control','Alt','Shift','Meta','Process'].includes(event.key))root.classList.remove('focus-quiet');},true);
   document.addEventListener('keydown',event=>{
     if(event.isComposing||event.keyCode===229||command.composing){deferCompositionKey(event);return;}
     // 확정 직후 브라우저가 같은 키를 다시 보내면 미뤄 둔 처리는 버린다(두 번 움직이지 않게).

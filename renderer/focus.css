@@ -59,3 +59,10 @@
   outline-width:0!important;
   box-shadow:inset 0 -2px 0 var(--td-accent)!important;
 }
+/* 앱이 스스로 포커스를 둔 직후(화면 진입·펼치기)에는 표시를 숨긴다. 키를 누르면 .focus-quiet가 풀린다.
+ * :not(#_)는 위 버튼·행 규칙(!important)보다 우선하기 위한 특정도 보강이다. */
+#whendesk-command-first.focus-quiet .td-app :focus-visible:not(#_){
+  outline:none!important;
+  outline-width:0!important;
+  box-shadow:none!important;
+}

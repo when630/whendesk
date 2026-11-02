@@ -189,6 +189,17 @@ async function closeApp(){
       assert.deepEqual(visited,['Note','Calendar','Dashboard','Work · Waiting','Dashboard'],'메뉴 순환 순서가 다릅니다: '+visited.join(' → '));
     });
 
+    await test('화면에 들어온 직후에는 포커스 표시가 없고 키로 움직이면 생긴다',async()=>{
+      const mark=()=>page.evaluate(()=>{const element=document.activeElement,style=getComputedStyle(element);return {quiet:document.getElementById('whendesk-command-first').classList.contains('focus-quiet'),tag:element.tagName,shown:(style.outlineStyle!=='none'&&parseFloat(style.outlineWidth)>0)||style.boxShadow!=='none'};});
+      for(const key of ['Alt+c','Control+Tab']){
+        await press(key);await page.waitForTimeout(150);const landed=await mark();
+        assert.equal(landed.quiet,true,key+' 뒤 앱이 둔 포커스가 조용하지 않습니다.');assert.equal(landed.shown,false,key+' 뒤 포커스 표시가 바로 보입니다: '+JSON.stringify(landed));
+      }
+      await press('Tab');await page.waitForTimeout(100);const moved=await mark();
+      assert.equal(moved.quiet,false,'키로 움직였는데 조용한 포커스가 풀리지 않았습니다.');
+      assert.ok(moved.shown||['INPUT','TEXTAREA','SELECT'].includes(moved.tag),'키로 움직였는데 포커스 표시가 없습니다: '+JSON.stringify(moved));
+    });
+
     await test('하단 힌트는 포커스 자리에 맞는 키를 보여 준다',async()=>{
       const hints=()=>page.locator('.td-hints').innerText();
       await press('Alt+i');await waitWithin('.td-main');for(let step=0;step<4;step++)await press('Tab');
