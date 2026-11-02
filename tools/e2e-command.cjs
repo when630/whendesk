@@ -117,7 +117,7 @@ async function closeHarness() {
       await noPersistentKeycaps();
     });
 
-    await test('늦은 파일 통합 순위·선택 key 유지·Enter가 재검색 없이 파일 실행',async()=>{
+    await test('늦은 파일은 커서 아래로 합류·선택 유지·Enter가 재검색 없이 파일 실행',async()=>{
       const input=await query('LateSpec',{waitForFiles:false});
       await page.locator('.td-command-results [data-result-key]').filter({hasText:'LateSpec Alpha'}).waitFor();
       await input.press('ArrowDown');
@@ -126,10 +126,12 @@ async function closeHarness() {
       const after=await page.locator('.td-command-results [aria-selected=true]').getAttribute('data-result-key');
       assert.equal(after,before,'늦은 통합 결과가 선택한 앱을 바꿨습니다.');
       const ordered=await page.locator('.td-command-results [data-result-key]').evaluateAll(elements=>elements.map(element=>element.dataset.resultKey));
-      assert.equal(ordered[0],'files:C:\\fixture\\LateSpec.txt','늦은 파일이 통합 점수대로 정렬되지 않았습니다.');
-      const selectedIndex=ordered.indexOf(after);
-      for(let index=0;index<selectedIndex;index++) await input.press('ArrowUp');
-      assert.equal(await page.locator('.td-command-results [aria-selected=true]').getAttribute('data-result-key'),ordered[0]);
+      // 원본 WHENCOMMAND D-11: 커서까지의 행은 그대로 두고 늦은 결과는 그 아래로 합류한다.
+      assert.equal(ordered.indexOf(after),1,'늦은 결과가 보던 줄을 밀었습니다.');
+      assert.ok(await page.locator('.td-command-results .command-result-title em').count()>0,'맞은 글자를 강조하지 않았습니다(원본 panel.js highlight).');
+      const fileIndex=ordered.indexOf('files:C:\\fixture\\LateSpec.txt');assert.ok(fileIndex>1,'늦은 파일이 커서 위로 끼어들었습니다.');
+      for(let index=1;index<fileIndex;index++) await input.press('ArrowDown');
+      assert.equal(await page.locator('.td-command-results [aria-selected=true]').getAttribute('data-result-key'),ordered[fileIndex]);
       const count=(await records('command.query')).length;
       await input.press('Enter');
       await waitUntil(async()=>!!(await records('path.open')).find(call=>call.file==='C:\\fixture\\LateSpec.txt'),'선택한 파일을 실행하지 않았습니다.');

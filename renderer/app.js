@@ -553,10 +553,16 @@
     const names = { apps:'app-window', files:'file', calc:'calculator', tasks:'circle-check', work:'circle-check', events:'calendar-days', calendar:'calendar-days', notes:'notebook-pen', scripts:'file-code', system:'settings-2', builtin:'command', siblings:'command' };
     return names[item.source] || (/^[a-z-]+$/.test(item.icon || '') ? item.icon : 'command');
   }
+  /* 매칭 위치를 강조한다 — 초성·자판 교정으로 왜 걸렸는지 설명 없이 보인다(원본 WHENCOMMAND panel.js highlight). positions는 UTF-16 인덱스. */
+  function highlightTitle(title, positions) {
+    const marks = new Set(positions || []); let out = '';
+    for (let index = 0; index < title.length; index++) out += marks.has(index) ? `<em>${esc(title[index])}</em>` : esc(title[index]);
+    return out;
+  }
   function renderCommand() {
     command.selected = Math.max(0, Math.min(command.selected, Math.max(0, command.items.length-1)));
     const scrollTop = root.querySelector('#cf-command-panel').scrollTop;
-    commandBox.innerHTML = `${command.items.map((item,index) => `<button id="command-option-${index}" class="td-command-result ${index === command.selected ? 'selected' : ''}" data-result="${index}" data-result-key="${esc(item.key)}" role="option" aria-selected="${index === command.selected}" tabindex="-1" ${command.running ? 'disabled' : ''}>${icon(commandIcon(item))}<span class="command-result-text"><span class="command-result-title">${esc(item.title)}</span>${item.subtitle ? `<small class="command-subtitle">${esc(item.subtitle)}</small>` : ''}</span><small>${esc(({apps:'앱',files:'파일',calc:'계산',tasks:'할 일',work:'할 일',events:'일정',calendar:'일정',notes:'메모',scripts:'명령',system:'시스템',builtin:'명령'})[item.source] || '')}</small></button>`).join('')}${command.items.length || !command.query.trim() && !command.pending ? '' : `<div class="command-empty" role="status">${command.pending ? '검색 중…' : '결과 없음'}</div>`}`;
+    commandBox.innerHTML = `${command.items.map((item,index) => `<button id="command-option-${index}" class="td-command-result ${index === command.selected ? 'selected' : ''}" data-result="${index}" data-result-key="${esc(item.key)}" role="option" aria-selected="${index === command.selected}" tabindex="-1" ${command.running ? 'disabled' : ''}>${icon(commandIcon(item))}<span class="command-result-text"><span class="command-result-title">${highlightTitle(item.title, item.positions)}</span>${item.subtitle ? `<small class="command-subtitle">${esc(item.subtitle)}</small>` : ''}</span><small>${esc(({apps:'앱',files:'파일',calc:'계산',tasks:'할 일',work:'할 일',events:'일정',calendar:'일정',notes:'메모',scripts:'명령',system:'시스템',builtin:'명령'})[item.source] || '')}</small></button>`).join('')}${command.items.length || !command.query.trim() && !command.pending ? '' : `<div class="command-empty" role="status">${command.pending ? '검색 중…' : '결과 없음'}</div>`}`;
     if(command.notice&&command.query.trim())commandBox.insertAdjacentHTML('beforeend','<div class="command-notice" role="status">'+esc(command.notice)+'</div>');
     commandBox.hidden = !!command.actions || !command.items.length && !command.query.trim() && !command.pending;
     if (command.actions) renderCommandActions();
@@ -670,7 +676,7 @@
     const menu = command.actions;
     safe(() => menu ? executeCommand({ item:menu.item, query:menu.query, actionId:menu.item.actions[menu.selected]?.id }) : executeCommand({ alternate:mod && !alt }));
   }
-  function queueCommandQuery(query, delay = 85, force = false) {
+  function queueCommandQuery(query, delay = 0, force = false) {
     if (command.running || !force && query === command.query) return;
     clearTimeout(command.timer); command.timer = null;
     ++command.seq; command.request = null; command.more = null;
@@ -683,7 +689,12 @@
     if (message.seq !== command.seq || message.query != null && message.query !== command.query.trim().slice(0,8192)) return;
     if (command.request || command.running) { command.more = message; return; }
     const selectedKey = command.items[command.selected]?.key;
-    if (message.replace) command.items = (message.items || []).slice(0,12);
+    if (message.replace && command.items.length) {
+      // 늦게 합류한 결과(파일)는 커서까지의 행을 그대로 두고 그 아래만 다시 섞는다(원본 WHENCOMMAND D-11).
+      // 방향키를 누른 직후 도착해도 보던 줄이 밀리거나 선택이 튀지 않는다.
+      const keep = Math.min(command.selected + 1, command.items.length), fixed = command.items.slice(0, keep), fixedKeys = new Set(fixed.map(item => item.key));
+      command.items = [...fixed, ...(message.items || []).filter(item => !fixedKeys.has(item.key))].slice(0,12);
+    } else if (message.replace) command.items = (message.items || []).slice(0,12);
     else { const existing = new Set(command.items.map(item => item.key)); command.items = [...command.items, ...(message.items || []).filter(item => !existing.has(item.key))].slice(0,12); }
     command.selected = Math.max(0, command.items.findIndex(item => item.key === selectedKey));
     command.pending = !!message.pending; if ('notice' in message) command.notice = message.notice || '';
