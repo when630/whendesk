@@ -31,6 +31,7 @@ Command는 아이콘 바로 옆에 입력하는 한 줄 화면입니다. 연결�
 | --- | --- |
 | 공통 키 | 목록에서 화면과 관계없이 같은 뜻: ↑↓·J/K 이동, Enter 열기, E 편집, N 새로, X·Delete 삭제, U·Ctrl+Z 되돌리기, / 검색, Tab 화면 안 분류 순환. 되돌리기는 화면을 넘나들어 가장 최근 작업부터 되돌립니다 |
 | 화면 이동 | Alt+H Dashboard, Alt+T Work/ToDo, Alt+I Work/InBox, Alt+W Work/Waiting, Alt+D Work/Done, Alt+N Note, Alt+C Calendar, Ctrl+, Settings. Ctrl+Tab·Ctrl+Shift+Tab 왼쪽 메뉴(Dashboard·Work·Note·Calendar) 순환 |
+| Dashboard | ↑↓·J/K·Home/End 할 일과 Work·Note·Calendar 입구 사이 이동, Space 할 일 완료, U·Ctrl+Z 되돌리기, Enter 열기. 화면에 들어온 직후에는 선택 표시가 없고 키를 누르면 보입니다 |
 | 새 항목·저장 | Ctrl+N 현재 화면에서 작성, Ctrl+S 저장. 할 일 캡처는 Enter 저장 후 InBox의 새 행으로 이동하여 M·D 등으로 바로 분류. 입력에서 ↓·Esc로 목록 복귀 |
 | Work 분류 | 목록에서 Tab·Shift+Tab 순환하며 해당 분류의 마지막 행으로 복귀. 빈 탭을 거쳐도 다음 목록으로 바로 진입. 탭에서 ←→·Home/End 분류 선택, ↓ 목록 진입 |
 | 할 일 목록 | ↑↓·J/K·Home/End·PageUp/Down 선택, Enter 편집, Space 완료·해제, E 제목, D 마감, N 상세, M 프로젝트, W 대기 상대 지정, P·R 재촉 기록, Delete·X 삭제, 1~9 프로젝트 바로 지정(목록 순서), U·Ctrl+Z 연속 되돌리기(완료 포함) |
@@ -54,7 +55,7 @@ Work 검색은 초성·제목·본문·프로젝트·대기 상대를 지원합�
 
 [릴리스](https://github.com/when630/whendesk/releases/latest)의 `WHENDESK-<버전>-win-x64.exe`로 설치합니다. 사용자 폴더(`%LOCALAPPDATA%ProgramsWHENDESK`)에 설치되어 관리자 권한이 필요 없고, 서명되지 않은 설치 파일이라 Windows SmartScreen이 경고하면 "추가 정보 → 실행"을 누릅니다.
 
-**자동 업데이트**: 설치본은 켜고 1분 뒤, 그 뒤로 하루 한 번 GitHub 릴리스를 확인해 새 버전을 받아 두고 **앱을 끌 때** 설치합니다(다른 when 앱과 같은 electron-updater 방식). 설정 → 업데이트에서 지금 확인하거나 받아 둔 버전을 재시작해 설치할 수 있습니다. 폴더형 배포본(0.2.x zip)은 자동 업데이트가 없으니 설치본으로 한 번 옮기세요. 데이터 폴더(`%APPDATA%whendesk`)는 같습니다.
+**자동 업데이트**: 설치본은 켜고 1분 뒤, 그 뒤로 하루 한 번 GitHub 릴리스를 확인해 새 버전을 받아 둡니다. 설치 마법사 없이 조용히 설치하고 앱을 다시 띄웁니다: 창을 1분 넘게 숨겨 둔 사이(다시 뜰 때도 숨은 채로, "업데이트했습니다" 알림만), 앱을 끌 때, 또는 설정 → 업데이트의 재시작해 설치(0.3.8부터). 폴더형 배포본(0.2.x zip)은 자동 업데이트가 없으니 설치본으로 한 번 옮기세요. 데이터 폴더(`%APPDATA%whendesk`)는 같습니다.
 
 개발 실행은 이 프로젝트의 `run.cmd` 또는 다음 명령을 사용합니다.
 

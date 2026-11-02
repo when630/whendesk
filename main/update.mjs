@@ -1,6 +1,6 @@
 /* GitHub Releases(when630/whendesk)를 보고 새 버전을 받아 둔다. 원본 WHENMUSIC main/update.mjs에서 승계했다.
- * 사용자가 모르는 채로 바뀌지 않는다: 내려받은 뒤 바로 재시작하지 않고 다음에 앱을 끌 때 설치한다(autoInstallOnAppQuit).
- * 설정 화면의 "재시작해 설치"만 지금 갈아끼운다. 설치본(NSIS)에서만 동작하고, 개발 실행·테스트에서는 네트워크를 쓰지 않는다. */
+ * 설치 마법사는 띄우지 않는다: 조용히(/S) 설치하고 앱을 다시 띄운다(--force-run). 창을 쓰는 중에는 바꾸지 않고,
+ * 창이 숨어 있을 때(index.mjs)나 설정의 "재시작해 설치", 앱을 끌 때(autoInstallOnAppQuit) 갈아끼운다. 설치본(NSIS)에서만 동작하고, 개발 실행·테스트에서는 네트워크를 쓰지 않는다. */
 import { app, shell } from 'electron';
 import electronUpdater from 'electron-updater';
 import { friendlyUpdateError } from './update-text.mjs';
@@ -31,10 +31,12 @@ export function setupUpdater({ state, onChange, enabled }) {
     catch (error) { state.status = 'error'; state.error = friendlyUpdateError(error); change(); }
     return state;
   }
-  // 내려받아 둔 것이 있을 때만 재시작하며 갈아끼운다. 평소 경로(끌 때 설치)를 대신하지 않는다.
+  // 내려받아 둔 것이 있을 때만 갈아끼운다. electron-updater 6.x는 위치 인자(isSilent, isForceRunAfter)를 받는다.
+  let installing = false;
   function install(beforeQuit) {
-    if (state.status !== 'ready') return { installing:false };
-    setImmediate(async () => { await beforeQuit?.(); autoUpdater.quitAndInstall(); });
+    if (state.status !== 'ready' || installing) return { installing:false };
+    installing = true;
+    setImmediate(async () => { await beforeQuit?.(); autoUpdater.quitAndInstall(true, true); });
     return { installing:true };
   }
   const first = setTimeout(check, FIRST_CHECK_MS);

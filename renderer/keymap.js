@@ -241,7 +241,7 @@
     event:[['event.edit','편집'],['event.delete','삭제'],['agenda.undo','되돌리기'],['calendar.view','보기','Tab']],
     dialog:[['app.save','저장'],['back','닫기']],
     quickEvent:[[null,'추가','Enter'],['quickEvent.detail','자세히'],['back','닫기']],
-    home:[['command.open','Command'],['help.toggle','단축키 전체']],
+    home:[['list.down','이동','↑↓'],['task.complete','완료'],[null,'열기','Enter'],['help.toggle','단축키 전체']],
   });
   for (const items of Object.values(HINTS)) for (const [id, , keys] of items) { if (id) entry(id); else if (!keys) throw new Error('힌트에 키가 없습니다.'); }
   /* 힌트 한 칸: { keys, label } */

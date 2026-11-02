@@ -856,7 +856,7 @@
     if(state.view==='tasks'){if(state.tab==='projects'){focusWorkProject();return;}syncTaskCursor();if(taskCursor)focusTask();else root.querySelector('.td-work-nav [aria-selected=true]')?.focus({preventScroll:true});return;}
     if(state.view==='calendar'){if(state.calView==='month'){body.querySelector(`[data-date="${state.date}"]`)?.focus({preventScroll:true});return;}(body.querySelector(`[data-cal-day="${state.date}"] [data-event]`)||body.querySelector('[data-cal-home]'))?.focus({preventScroll:true});return;}
     if(state.view==='settings'){body.querySelector('[data-look]')?.focus({preventScroll:true});return;}
-    body.querySelector('[data-reveal],.cf-entry,button')?.focus({preventScroll:true});
+    (dashboardItems()[0]||body.querySelector('button'))?.focus({preventScroll:true});
   }
   /* 화면 안의 필터·하위 화면을 하나 푼다. 푼 것이 있으면 true. */
   function clearViewFilter() {
@@ -1005,6 +1005,21 @@
     else{next=new Date(current);next.setDate(next.getDate()+days);}
     await selectDate(dateKey(next));const area=side?root.querySelector('.td-calendar-side'):body;area.querySelector(`[data-date="${state.date}"]`)?.focus({preventScroll:true});
   }
+  /* 대시보드는 위아래 한 줄 목록이다: 할 일 다섯 개와 Work·Note·Calendar 입구. ↑↓·J/K로 옮기고 할 일은 Space로 완료한다. */
+  function dashboardItems() { return [...body.querySelectorAll('.cf-home-task [data-reveal],.cf-entry')]; }
+  function dashboardKeys(event) {
+    const items=dashboardItems();if(!items.length)return false;
+    const index=items.indexOf(event.target.closest('[data-reveal],.cf-entry'));
+    const to=K.is(event,'list.up')?index-1:K.is(event,'list.down')?index+1:K.is(event,'list.first')?0:K.is(event,'list.last')?items.length-1:null;
+    if(to!==null){event.preventDefault();items[index<0?0:Math.max(0,Math.min(items.length-1,to))].focus({preventScroll:false});return true;}
+    if(K.is(event,'work.undo')){event.preventDefault();if(!event.repeat)safe(undoLastAction);return true;}
+    const id=event.target.closest('.cf-home-task [data-reveal]')?.dataset.reveal,task=id&&state.tasks.find(item=>item.id===id);
+    if(task&&K.is(event,'task.complete')){event.preventDefault();if(!event.repeat)safe(async()=>{
+      await mutate('task.complete',{id,done:true});rememberWorkUndo(task.title,()=>mutate('task.complete',{id,done:false}),'완료했어요.');
+      const rest=dashboardItems();rest[Math.max(0,Math.min(index,rest.length-1))]?.focus({preventScroll:true});
+    });return true;}
+    return false;
+  }
   function workspaceKeys(event) {
     const target=event.target;
     if(state.shell!=='dashboard'){
@@ -1016,6 +1031,7 @@
     if(K.is(event,'app.new')){event.preventDefault();if(!event.repeat)safe(newInContext);return true;}
     if(K.is(event,'app.save')){event.preventDefault();if(state.view==='settings')body.querySelector('.preferences-form')?.requestSubmit();else safe(flushPending);return true;}
     if(K.is(event,'app.undo')&&!editingTarget(target)){event.preventDefault();safe(undoLastAction);return true;}
+    if(state.view==='dashboard'&&!editingTarget(target)&&body.contains(target)&&dashboardKeys(event))return true;
     if(workKeys(event))return true;
     if(state.view==='calendar'&&!editingTarget(target)&&target.closest('.td-full-calendar')&&K.is(event,'calendar.view')){event.preventDefault();if(!event.repeat){const order=CAL_VIEWS.map(([view])=>view);safe(()=>setCalView(order[(order.indexOf(state.calView)+(event.shiftKey?order.length-1:1))%order.length]));}return true;}
     if(state.view==='calendar'&&state.calView!=='month'&&!editingTarget(target)&&target.closest('.cal-list')){

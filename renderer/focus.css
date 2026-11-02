@@ -29,11 +29,10 @@
 #whendesk-command-first .td-app :is([data-task-row].keyboard-current,.desk-notes-list .desk-note-row.selected):not(:focus-visible){
   box-shadow:inset 2px 0 0 color-mix(in srgb,var(--td-accent) 40%,transparent);
 }
-/* 글자 입력칸은 캐럿이 위치를 알려 주므로 외곽선 대신 옅은 배경만 둔다. */
+/* 글자 입력칸은 캐럿이 위치를 알려 주므로 외곽선도 배경도 두지 않는다. */
 #whendesk-command-first .td-app :is(input:not([type=checkbox]):not([type=radio]),select,textarea):focus-visible{
   outline:none!important;
   outline-width:0!important;
-  background-color:color-mix(in srgb,var(--td-wash) 45%,var(--td-surface));
 }
 #whendesk-command-first .cf-command-panel .td-command input:is(:focus,:focus-visible,:active),
 #whendesk-command-first .desk-note-body:is(:focus,:focus-visible,:active){

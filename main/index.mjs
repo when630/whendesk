@@ -31,6 +31,8 @@ async function bootstrap(){
  let quitting=false,shellMode='command',dataBusy=false;
  let commandReady=false,commandFailure=null,mutationTail=Promise.resolve();
  let updater=null,toast=null,icons=null;const updateState=createUpdateState();
+ /* 창이 숨어 있는 동안 조용히 업데이트했으면 표시를 남겨, 다시 뜰 때도 숨은 채로 시작하고 알림만 띄운다. */
+ const UPDATED_MARK=path.join(dataDir,'updated-quietly');let updatedQuietly=false;try{updatedQuietly=fs.existsSync(UPDATED_MARK);if(updatedQuietly)fs.rmSync(UPDATED_MARK,{force:true});}catch{}
  const iconCache=async()=>{if(!icons){const {createIconCache}=await import('../modules/command/main/icons.mjs');icons=createIconCache();}return icons;};
  const updateView=()=>({...updateState,line:updateLine(updateState,{current:app.getVersion()}),supported:!!updater?.supported});
  let media={available:false,sessions:[],failure:null};const positions=createPositionTracker();
@@ -63,6 +65,21 @@ async function bootstrap(){
  const COMMAND_PLACE_HEIGHT=390;let placeOnCommand=false,revealTimer=null;
  function commandBoundsFor(width,height){const saved=preferences.get().commandPosition;const pos=pickPosition({saved,size:{width,height:COMMAND_PLACE_HEIGHT},workAreas:screen.getAllDisplays().map(display=>display.workArea),cursorArea:workArea(),centerY:false});return {x:pos.x,y:pos.y,width,height};}
  function reveal(){clearTimeout(revealTimer);revealTimer=null;if(win&&!win.isDestroyed()&&win.isVisible()&&win.getOpacity()<1){win.setOpacity(1);win.focus();}}
+ function installUpdate({quiet=false}={}){
+  if(!updater)return {installing:false};
+  return updater.install(async()=>{
+   quitting=true;if(quiet){try{fs.writeFileSync(UPDATED_MARK,app.getVersion());}catch{}}
+   try{await win.webContents.executeJavaScript('window.__whendeskFlush ? window.__whendeskFlush() : Promise.resolve()');}catch(error){console.error('업데이트 전 저장:',error.message);}
+   await mutationTail;
+  });
+ }
+ let idleSince=0;
+ function installWhenIdle(){
+  if(updateState.status!=='ready'||!win||win.isDestroyed())return;
+  if(win.isVisible()){idleSince=0;return;}
+  if(!idleSince)idleSince=Date.now();
+  if(Date.now()-idleSince>=60_000&&!dataBusy)installUpdate({quiet:true});else setTimeout(installWhenIdle,61_000);
+ }
  function hideWindow(){if(!win||win.isDestroyed()||!win.isVisible())return;clearTimeout(revealTimer);revealTimer=null;if(!testMode)win.minimize();win.hide();win.setOpacity(1);}
  function summon(payload){
   if(!win||win.isDestroyed())return;
@@ -139,7 +156,7 @@ async function bootstrap(){
  win.webContents.on('will-navigate',(event,url)=>{if(url!==rendererURL)event.preventDefault();});
  win.webContents.session.setPermissionRequestHandler((_contents,_permission,callback)=>callback(false));
  win.on('close',event=>{if(!quitting){event.preventDefault();hideWindow();}});
- win.on('blur',()=>{if(shellMode!=='command'||quitting||testMode||!win.isVisible()||win.getOpacity()<1)return;setTimeout(()=>{if(!win.isDestroyed()&&!win.isFocused()&&win.isVisible()&&shellMode==='command')hideWindow();},60);});
+ win.on('hide',()=>{idleSince=Date.now();});win.on('show',()=>{idleSince=0;});win.on('blur',()=>{if(shellMode!=='command'||quitting||testMode||!win.isVisible()||win.getOpacity()<1)return;setTimeout(()=>{if(!win.isDestroyed()&&!win.isFocused()&&win.isVisible()&&shellMode==='command')hideWindow();},60);});
  win.on('moved',()=>{if(!win.isVisible()||win.getOpacity()<1)return;if(shellMode==='dashboard'){rememberDashboard();return;}if(!testMode){const [x,y]=win.getPosition();preferences.set({commandPosition:{x,y}});}});
  win.on('resize',()=>{if(shellMode==='dashboard'&&win.isVisible())rememberDashboard();});
  app.on('second-instance',()=>showCommand());
@@ -210,7 +227,7 @@ async function bootstrap(){
   },
   'update.state':()=>updateView(),
   'update.check':async()=>{if(updater)await updater.check();return updateView();},
-  'update.install':()=>updater?updater.install(async()=>{quitting=true;try{await win.webContents.executeJavaScript('window.__whendeskFlush ? window.__whendeskFlush() : Promise.resolve()');}catch(error){console.error('업데이트 전 저장:',error.message);}await mutationTail;}):{installing:false},
+  'update.install':()=>installUpdate(),
   'app.info':()=>({name:'WHENDESK',version:app.getVersion(),dataDir,launchAtLoginSupported:app.isPackaged&&!testMode,...shortcutManager.status(),commandReady,commandFailure,platform:process.platform,isPackaged:app.isPackaged}),
   'data.export':()=>dataOperation('export'),
   'data.exportIcs':payload=>dataOperation('ics',payload),
@@ -252,13 +269,17 @@ async function bootstrap(){
  win.webContents.on('render-process-gone',(_event,details)=>{console.error('renderer stopped',details);});
  app.on('before-quit',()=>{quitting=true;toast?.dispose();shortcutManager.dispose();clearInterval(mediaTimer);mediaControl?.stop();stopServices();tray?.destroy();});
  await win.loadFile(path.join(ROOT,'renderer','index.html'));
- if(!argv.includes('--headless')&&!argv.includes('--hidden')){win.show();win.focus();}
- else if(argv.includes('--hidden')&&!testMode){win.setOpacity(0);win.showInactive();setTimeout(()=>{if(!win.isDestroyed()&&win.getOpacity()===0){win.hide();win.setOpacity(1);}},120);}
+ const hiddenStart=argv.includes('--hidden')||updatedQuietly;
+ if(!argv.includes('--headless')&&!hiddenStart){win.show();win.focus();}
+ else if(hiddenStart&&!testMode){win.setOpacity(0);win.showInactive();setTimeout(()=>{if(!win.isDestroyed()&&win.getOpacity()===0){win.hide();win.setOpacity(1);}},120);}
+ if(updatedQuietly&&!testMode)setTimeout(()=>(toast??=createToast()).show({title:'업데이트했습니다',body:'WHENDESK '+app.getVersion()}),1500);
  /* 자동 업데이트: 설치본(NSIS)에서만. 폴더형 배포본에는 electron-updater가 없어 '설치본에서만'으로 남는다. */
  try{
   if(app.isPackaged&&!testMode){
    const {setupUpdater}=await import('./update.mjs');
-   updater=setupUpdater({state:updateState,enabled:true,onChange:()=>{const view=updateView();send('update.changed',view);tray?.setToolTip('WHENDESK · '+view.line);}});
+   updater=setupUpdater({state:updateState,enabled:true,onChange:()=>{const view=updateView();send('update.changed',view);tray?.setToolTip('WHENDESK · '+view.line);if(updateState.status==='ready')installWhenIdle();}});
+   // 받아 둔 업데이트는 창을 쓰지 않을 때 갈아끼운다. 숨긴 직후가 아니라 잠시 뒤에 본다(곧바로 다시 부르는 경우).
+   setInterval(installWhenIdle,5*60_000);
   }else updateState.status='unsupported';
  }catch(error){updateState.status='unsupported';console.error('업데이트:',error.message);}
  /* 아침 브리핑(원본 WHENWORK jobs.mjs): 하루 한 번, 설정 시각이 지난 뒤, 그 창(3시간)을 놓친 날은 조용히 넘긴다.

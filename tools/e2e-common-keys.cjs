@@ -200,6 +200,22 @@ async function closeApp(){
       assert.ok(moved.shown||['INPUT','TEXTAREA','SELECT'].includes(moved.tag),'키로 움직였는데 포커스 표시가 없습니다: '+JSON.stringify(moved));
     });
 
+    await test('대시보드는 ↑↓로 항목을 오가고 Space로 할 일을 완료한다',async()=>{
+      for(const title of ['대시보드 첫째 '+runId,'대시보드 둘째 '+runId]){const created=await call('mutate',{type:'task.create',payload:{title}});await call('mutate',{type:'task.update',payload:{id:created.id,kind:'todo'}});}
+      await press('Alt+w');await press('Alt+h');await waitUntil(async()=>(await page.locator('.td-main h1').innerText())==='Dashboard','Dashboard로 가지 않았습니다.');
+      const active=()=>page.evaluate(()=>{const element=document.activeElement;return element.dataset.reveal?'task:'+element.dataset.reveal:element.classList.contains('cf-entry')?'entry:'+element.dataset.action:element.tagName+'.'+element.className;});
+      const tasks=await page.locator('.cf-home-task [data-reveal]').evaluateAll(elements=>elements.map(element=>element.dataset.reveal));
+      assert.ok(tasks.length>0,'대시보드에 할 일이 없어 완료를 확인할 수 없습니다.');
+      await waitUntil(async()=>await active()==='task:'+tasks[0],'첫 포커스가 첫 할 일이 아닙니다: '+await active());
+      await press('ArrowDown');const second=await active();assert.equal(second,tasks[1]?'task:'+tasks[1]:'entry:work');
+      await press('ArrowUp');assert.equal(await active(),'task:'+tasks[0]);
+      await press('End');assert.equal(await active(),'entry:calendar');await press('Home');assert.equal(await active(),'task:'+tasks[0]);
+      await press('Space');
+      await waitUntil(async()=>!(await page.locator('.cf-home-task [data-reveal]').evaluateAll(elements=>elements.map(element=>element.dataset.reveal))).includes(tasks[0]),'Space가 할 일을 완료하지 않았습니다.');
+      assert.ok(/^(task|entry):/.test(await active()),'완료 뒤 포커스가 목록에 남지 않았습니다: '+await active());
+      await press('u');await waitUntil(async()=>(await page.locator('.cf-home-task [data-reveal]').evaluateAll(elements=>elements.map(element=>element.dataset.reveal))).includes(tasks[0]),'U가 완료를 되돌리지 않았습니다.');
+    });
+
     await test('하단 힌트는 포커스 자리에 맞는 키를 보여 준다',async()=>{
       const hints=()=>page.locator('.td-hints').innerText();
       await press('Alt+i');await waitWithin('.td-main');for(let step=0;step<4;step++)await press('Tab');
