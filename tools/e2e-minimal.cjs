@@ -285,7 +285,7 @@ function durableData(state) {
       await page.locator('.td-task-open[data-task]').filter({ hasText: finalTitle }).click();
       assert.equal(await page.locator('[data-field=title]').inputValue(), finalTitle);
       assert.equal(await page.locator('[data-field=note]').inputValue(), finalNote);
-      assert.equal(await page.locator('[data-field=project_id]').inputValue(), String(projectId));
+      assert.equal(await page.locator('[data-field=project_id]').getAttribute('value'), String(projectId));
       assert.equal(await page.locator('[data-field=due]').inputValue(), today);
       await noPersistentKeycaps('외관 변경 후 할 일');
       await screenshot('08-task-restored');

@@ -170,7 +170,7 @@ async function closeApp(){
       await press('Alt+i');await waitWithin(`[data-task-row="${inboxTask.id}"]`);
       await press('Enter');await waitFocus('[data-editor] [data-field=title]');
       const visited=[];
-      for(let step=0;step<10;step++){await press('Tab');visited.push(await page.evaluate(()=>{const element=document.activeElement;return element.tagName+(element.type?':'+element.type:'')+(element.dataset.field?'#'+element.dataset.field:'');}));}
+      for(let step=0;step<10;step++){await press('Tab');visited.push(await page.evaluate(()=>{const element=document.activeElement;return (element.matches('.td-pick')?'PICK':element.tagName+(element.type?':'+element.type:''))+(element.dataset.field?'#'+element.dataset.field:'');}));}
       measurements.tabStops=visited;
       assert.deepEqual(visited.filter(stop=>stop.startsWith('BUTTON')||stop.includes(':checkbox')),[],'Tab이 버튼이나 체크박스에 멈췄습니다: '+visited.join(' → '));
       assert.ok(visited.some(stop=>stop.endsWith('#due'))&&visited.some(stop=>stop.endsWith('#note')),'편집기의 입력 칸을 Tab으로 돌지 못했습니다: '+visited.join(' → '));

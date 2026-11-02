@@ -157,8 +157,9 @@ function setOwnedFixtureDoneDates(entries){
     await test('할 일을 InBox에 담고 M 프로젝트 지정으로 ToDo 분류하며 입력중 Tab은 필드만 이동',async()=>{
       await gotoTab('inbox');await press('Control+n');await waitFocus('.td-quick input');await text(taskTitle);await press('Enter');
       await waitUntil(async()=>{taskId=(await state()).tasks.find(item=>item.title===taskTitle)?.id;return !!taskId;},'새 할 일이 InBox에 저장되지 않았습니다.');
-      await gotoTab('inbox');await focusTask(taskId);await press('m');await waitFocus('[data-field=project_id]');
-      assert.equal(await page.locator('[data-field=project_id] option').last().getAttribute('value'),String(secondProjectId));await press('End');await press('Tab');
+      await gotoTab('inbox');await focusTask(taskId);await press('m');await waitFocus('[data-field=project_id]');await page.locator('.td-pick-menu').waitFor();await screenshot('10-work-project-picker');
+      assert.deepEqual(await page.locator('.work-legend .project-num').allTextContents(),(await page.locator('.td-pick-menu .project-num').allTextContents()),'번호 띠와 프로젝트 목록의 번호가 다릅니다.');assert.ok((await page.locator('.work-legend .project-num').count())>=2,'번호 띠에 프로젝트 번호가 없습니다.');
+      assert.equal(await page.locator('.td-pick-menu [role=option]').last().getAttribute('data-value'),String(secondProjectId));await press('End');await press('Enter');await press('Tab');
       await waitUntil(async()=>{const item=await task(taskId);return item?.project_id===secondProjectId&&item.kind==='todo';},'프로젝트 지정이 InBox를 ToDo로 분류하지 않았습니다.');
       await gotoTab('todo');await focusTask(taskId);await press('e');await waitFocus('[data-field=title]');await replaceText(editedTaskTitle);await press('Control+s');
       await waitUntil(async()=>(await task(taskId))?.title===editedTaskTitle,'제목 편집이 저장되지 않았습니다.');
@@ -246,7 +247,7 @@ function setOwnedFixtureDoneDates(entries){
       setOwnedFixtureDoneDates(dates);
       for(const entry of dates)assert.equal((await task(entry.id)).doneAt,entry.iso);
       await gotoTab('done');
-      assert.deepEqual(await page.locator('[data-work-range] option').evaluateAll(options=>options.map(option=>option.value)),['7','30','']);
+      assert.deepEqual(JSON.parse(await page.locator('[data-work-range]').getAttribute('data-options')).map(option=>option.value),['7','30','']);
       await focusTask(dates[0].id);await press('Enter');await waitFocus('[data-field=title]');
       // 열린 첫 행의 제목 → 완료 체크박스 → toolbar 기간 순서로 거꾸로 이동한다.
       await tabTo('[data-work-range]',{reverse:true,limit:12});
@@ -256,9 +257,9 @@ function setOwnedFixtureDoneDates(entries){
         assert.deepEqual(await page.locator('.td-body .work-group[data-work-group]').evaluateAll(groups=>groups.map(group=>group.dataset.workGroup)),expectedGroups,'완료 기록 날짜 그룹이 최신 날짜순이 아닙니다.');
         for(const entry of expected){const group=page.locator(`.work-group[data-work-group="${entry.key}"]`);assert.ok((await group.textContent()).includes(Number(entry.key.slice(5,7))+'/'+Number(entry.key.slice(8))),'날짜 그룹 제목이 원본 날짜 표기와 다릅니다.');}
       };
-      await press('Home');await waitUntil(async()=>await page.locator('[data-work-range]').inputValue()==='7','최근 7일 기간을 키보드로 선택하지 못했습니다.');await expectHistory(dates.slice(0,1));
-      await press('ArrowDown');await waitUntil(async()=>await page.locator('[data-work-range]').inputValue()==='30','최근 30일 기간을 키보드로 선택하지 못했습니다.');await expectHistory(dates.slice(0,2));
-      await press('End');await waitUntil(async()=>await page.locator('[data-work-range]').inputValue()==='','전체 기록 기간을 키보드로 선택하지 못했습니다.');await expectHistory(dates);
+      await press('Enter');await press('Home');await press('Enter');await waitUntil(async()=>await page.locator('[data-work-range]').getAttribute('value')==='7','최근 7일 기간을 키보드로 선택하지 못했습니다.');await expectHistory(dates.slice(0,1));
+      await press('Enter');await press('Home');await press('ArrowDown');await press('Enter');await waitUntil(async()=>await page.locator('[data-work-range]').getAttribute('value')==='30','최근 30일 기간을 키보드로 선택하지 못했습니다.');await expectHistory(dates.slice(0,2));
+      await press('Enter');await press('End');await press('Enter');await waitUntil(async()=>await page.locator('[data-work-range]').getAttribute('value')==='','전체 기록 기간을 키보드로 선택하지 못했습니다.');await expectHistory(dates);
       measurements.doneRanges={days:dates.map(entry=>entry.days),seven:dates.slice(0,1).map(entry=>entry.id),thirty:dates.slice(0,2).map(entry=>entry.id),all:dates.map(entry=>entry.id),dateGroups:dates.map(entry=>entry.key)};
       assert.equal(errors.length,0);await screenshot('09-work-done-history');
     });

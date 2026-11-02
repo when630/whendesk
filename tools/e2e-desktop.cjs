@@ -50,10 +50,10 @@ async function test(name,fn){await fn();results.push({name,ok:true});}
    for(let attempt=0;attempt<20&&!await page.locator('.td-nav > [data-action=work]').isVisible();attempt++){await page.locator('.td-command input').press('Tab');await page.waitForTimeout(150);}await page.locator('.td-nav > [data-action=work]').click();await page.locator('.td-main > .td-work-nav [data-tab=inbox]').click();
    await page.locator('.td-quick input').fill('E2E 실제 할 일');await page.locator('.td-quick input').press('Enter');
    await page.locator('.td-task-open').filter({hasText:'E2E 실제 할 일'}).waitFor();await page.locator('.td-task-open').filter({hasText:'E2E 실제 할 일'}).click();
-   await page.locator('[data-field=kind]').selectOption('todo');await page.waitForTimeout(200);
+   await page.locator('[data-field=kind]').click();await page.locator('.td-pick-menu [data-value=todo]').click();await page.waitForTimeout(200);
    const project=await call('mutate',{type:'project.create',payload:{name:'E2E 프로젝트'}});projectId=project.id??project;
    await page.waitForTimeout(200);const task=(await call('state',{})).tasks.find(t=>t.title==='E2E 실제 할 일');taskId=task.id;
-   await page.locator('[data-field=project_id]').selectOption(String(projectId));
+   await page.locator('[data-field=project_id]').click();await page.locator(`.td-pick-menu [data-value="${projectId}"]`).click();
    await page.locator('[data-field=note]').fill('다시 실행해도 남는 실제 상세 내용');
    await page.locator('[data-field=title]').fill('E2E 저장 확인');
    await page.waitForTimeout(800);const saved=(await call('state',{})).tasks.find(t=>t.id===taskId);assert.equal(saved.title,'E2E 저장 확인');assert.equal(saved.note,'다시 실행해도 남는 실제 상세 내용');assert.equal(saved.project_id,projectId);

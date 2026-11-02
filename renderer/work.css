@@ -24,3 +24,34 @@
 #whendesk-command-first .work-modal-caption{font-size:12px;color:var(--td-muted);margin-bottom:18px}
 #whendesk-command-first .work-archive-form>p{font-size:12px;line-height:1.9}
 @media(max-width:850px){#whendesk-command-first .work-toolbar{gap:7px}#whendesk-command-first .work-toolbar select{max-width:125px;font-size:10px}}
+
+/* 프로젝트 번호와 색. 번호는 1~9 키, 색은 번호와 짝이다(원본 WHENWORK 칩·번호 띠). */
+#whendesk-command-first .project-dot{display:inline-block;flex:0 0 auto;width:7px;height:7px;border-radius:50%;background:var(--project,var(--td-muted))}
+#whendesk-command-first .project-num{font:600 10px ui-monospace,Consolas,monospace;color:var(--td-accent)}
+#whendesk-command-first .project-chip{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+#whendesk-command-first .work-group .project-chip{gap:6px;color:var(--td-text)}
+#whendesk-command-first .work-group .project-num{font-size:11px}
+#whendesk-command-first .project-mark{display:inline-flex;align-items:center;gap:7px;flex-direction:row-reverse;width:30px;justify-content:flex-end}
+#whendesk-command-first .project-mark .project-num{width:12px;text-align:right;font-size:11px}
+/* 고정 번호 띠: 스크롤 영역 밖, 힌트 줄 위 */
+#whendesk-command-first .td-main>.work-legend{flex:0 0 auto;display:flex;flex-wrap:wrap;align-items:center;gap:4px 16px;padding:8px 0;border-top:1px solid var(--td-line);font-size:11px;color:var(--td-muted)}
+#whendesk-command-first .td-main>.work-legend[hidden]{display:none}
+#whendesk-command-first .work-legend>span{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+#whendesk-command-first .work-legend>small{margin-left:auto;font-size:10px;opacity:.8}
+/* 목록 상자(기본 select 대체) */
+#whendesk-command-first .td-pick{display:inline-flex;align-items:center;justify-content:space-between;gap:6px;min-width:80px;max-width:180px;height:30px;padding:0 6px;border:0;border-radius:var(--td-radius);background:transparent;color:var(--td-muted);font-size:11px;text-align:left}
+#whendesk-command-first .td-pick:hover{background:var(--td-wash);color:var(--td-text)}
+#whendesk-command-first .td-pick[aria-expanded=true]{background:var(--td-wash);color:var(--td-text)}
+#whendesk-command-first .td-pick svg{width:13px;height:13px;flex:0 0 auto;opacity:.7}
+#whendesk-command-first .td-pick-label,#whendesk-command-first .td-pick-menu [role=option]{display:flex;align-items:center;gap:6px;min-width:0}
+#whendesk-command-first .td-pick-label>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#whendesk-command-first .td-field .td-pick{width:100%;max-width:none;height:34px;padding:0 9px;border:1px solid var(--td-line);background:var(--td-surface);color:var(--td-text);font-size:12px}
+#whendesk-command-first .td-pick-menu{position:fixed;z-index:60;max-height:280px;overflow:auto;padding:4px;border:1px solid var(--td-line);border-radius:6px;background:var(--td-surface);box-shadow:0 8px 24px rgb(0 0 0/.14);font-size:12px;color:var(--td-text);scrollbar-width:none}
+#whendesk-command-first .td-pick-menu [role=option]{padding:7px 10px;border-radius:4px;cursor:default;white-space:nowrap}
+#whendesk-command-first .td-pick-menu [role=option].active{background:var(--td-wash)}
+#whendesk-command-first .td-pick-menu [role=option][aria-selected=true]{font-weight:600}
+#whendesk-command-first .td-pick-menu .project-num{width:10px;text-align:right}
+/* 마감 배지: 오늘은 노랑, 지남은 빨강 알약(원본 WHENWORK .due) */
+#whendesk-command-first .td-due.today,#whendesk-command-first .td-due.work-overdue{padding:2px 7px;border-radius:99px;font-weight:600}
+#whendesk-command-first .td-due.today{color:light-dark(#9a6b00,#e0b64a)!important;background:color-mix(in srgb,#e0a400 14%,transparent)}
+#whendesk-command-first .td-due.work-overdue{background:color-mix(in srgb,#d0473f 12%,transparent)}

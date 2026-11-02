@@ -29,7 +29,7 @@
   let workUndoTail = Promise.resolve();
   const K = window.WhendeskKeys;
   let writeQueue = Promise.resolve(), saveTimer, resizeTimer, feedbackTimer, undoAction, dashboardFocus, returnFocus, editingEvent, lastEventKey, refreshTimer, loading = false;
-  let helpOpen = false, helpReturn = null;
+  let helpOpen = false, helpReturn = null, pick = null;
   let dashboardReturn = null, taskCursor = null, modalReturnKey = null, modalReturnEditor = null;
   let modalDirty = false, discardArmedAt = 0, commandNoticeTimer = null;
   let notes;
@@ -187,11 +187,13 @@
   }
   function dueLabel(value) { return !value ? '마감 없음' : value === today ? '오늘' : value === tomorrow ? '내일' : value.slice(5).replace('-', '.'); }
   function syncProjectOptions() {
-    body.querySelectorAll('[data-field=project_id]').forEach(select=>{
-      const value=select.value,previous=[...select.options].find(option=>option.value===value)?.cloneNode(true);
-      const options=[new Option('미지정',''),...state.projects.map(project=>new Option(project.name,String(project.id)))];
-      if(value&&!options.some(option=>option.value===value)&&previous)options.push(previous);
-      select.replaceChildren(...options);select.value=value;
+    // 목록 상자의 프로젝트 목록을 새 순서·번호로 바꾼다. 보관돼 목록에서 빠진 현재 값은 그대로 남긴다.
+    body.querySelectorAll('.td-pick[data-field=project_id]').forEach(button=>{
+      let before=[];try{before=JSON.parse(button.dataset.options||'[]');}catch{}
+      const value=button.value,options=projectOptions(),previous=before.find(option=>String(option.value)===String(value));
+      if(value&&!options.some(option=>option.value===value)&&previous)options.push({...previous,num:null,color:null});
+      button.dataset.options=JSON.stringify(options);
+      const current=options.find(option=>String(option.value)===String(value))||options[0];button.querySelector('.td-pick-label').innerHTML=pickLabel(current);
     });
   }
   function workItem(task) {
@@ -221,18 +223,91 @@
   function visibleProjects() {
     return (state.workTrash?state.archivedProjects:state.projects).filter(project=>workRules.matches(project,workRules.parseQuery(state.workQuery).text));
   }
+  function workQuerySummary() {
+    if(!state.workQuery.trim())return '';
+    const query=workRules.parseQuery(state.workQuery),parts=[query.text?'검색 결과':'',query.sort||'',...query.filters,query.project?'#'+query.project:''].filter(Boolean);
+    return ' · '+esc(parts.join(' · ')||'검색 결과');
+  }
   function workView() {
     const search=`<label class="work-search">${icon('search')}<input data-work-search aria-label="Work 검색" placeholder="검색" value="${esc(state.workQuery)}" autocomplete="off" spellcheck="false">${state.workQuery?`<button data-action="clear-work-search" aria-label="Work 검색 지우기">${icon('x')}</button>`:''}</label>`;
     if(state.tab==='projects') {
       const projects=visibleProjects();
-      return `<div class="work-toolbar">${search}<button class="work-text-button" data-action="new-project">${icon('plus')}프로젝트</button><button class="work-text-button ${state.workTrash?'active':''}" data-action="work-project-trash" aria-pressed="${state.workTrash}">${state.workTrash?'활성 프로젝트':'보관함'}</button></div><div class="td-list-label"><span>${state.workTrash?'보관된 프로젝트':'프로젝트'} ${projects.length}개</span></div><div class="work-project-list">${projects.map((project,index)=>`<article class="work-project-row" data-work-project-row="${project.id}" tabindex="${String(project.id)===String(projectCursor)||!projectCursor&&index===0?0:-1}"><button class="work-project-name" ${state.workTrash?`data-project-label="${project.id}" tabindex="-1"`:`data-project="${project.id}"`}>${icon('folder')}<span>${esc(project.name)}<small>${state.workTrash?`${project.itemCount??project.item_count??0}개 기록 보존`:state.tasks.filter(task=>task.project_id===project.id&&!task.done).length+'개 미완료'}</small></span></button><div class="work-row-actions">${state.workTrash?`<button data-restore-project="${project.id}" aria-label="${esc(project.name)} 복원">복원</button>`:`<button data-move-project="${project.id}" data-direction="up" aria-label="${esc(project.name)} 위로" ${index===0?'disabled':''}>${icon('arrow-up')}</button><button data-move-project="${project.id}" data-direction="down" aria-label="${esc(project.name)} 아래로" ${index===projects.length-1?'disabled':''}>${icon('arrow-down')}</button><button data-edit-project="${project.id}" aria-label="${esc(project.name)} 이름 수정">${icon('pencil')}</button><button data-archive-project="${project.id}" aria-label="${esc(project.name)} 보관">${icon('archive')}</button>`}</div></article>`).join('')}</div>${projects.length?'':`<div class="td-empty">${state.workTrash?'보관된 프로젝트가 없어요.':'프로젝트를 추가해 할 일을 묶으세요.'}</div>`}`;
+      return `<div class="work-toolbar">${search}<button class="work-text-button" data-action="new-project">${icon('plus')}프로젝트</button><button class="work-text-button ${state.workTrash?'active':''}" data-action="work-project-trash" aria-pressed="${state.workTrash}">${state.workTrash?'활성 프로젝트':'보관함'}</button></div><div class="td-list-label"><span>${state.workTrash?'보관된 프로젝트':'프로젝트'} ${projects.length}개</span></div><div class="work-project-list">${projects.map((project,index)=>`<article class="work-project-row" data-work-project-row="${project.id}" tabindex="${String(project.id)===String(projectCursor)||!projectCursor&&index===0?0:-1}"><button class="work-project-name" ${state.workTrash?`data-project-label="${project.id}" tabindex="-1"`:`data-project="${project.id}"`}>${state.workTrash?icon('folder'):`<span class="project-mark">${projectMark(project.id)}</span>`}<span>${esc(project.name)}<small>${state.workTrash?`${project.itemCount??project.item_count??0}개 기록 보존`:state.tasks.filter(task=>task.project_id===project.id&&!task.done).length+'개 미완료'}</small></span></button><div class="work-row-actions">${state.workTrash?`<button data-restore-project="${project.id}" aria-label="${esc(project.name)} 복원">복원</button>`:`<button data-move-project="${project.id}" data-direction="up" aria-label="${esc(project.name)} 위로" ${index===0?'disabled':''}>${icon('arrow-up')}</button><button data-move-project="${project.id}" data-direction="down" aria-label="${esc(project.name)} 아래로" ${index===projects.length-1?'disabled':''}>${icon('arrow-down')}</button><button data-edit-project="${project.id}" aria-label="${esc(project.name)} 이름 수정">${icon('pencil')}</button><button data-archive-project="${project.id}" aria-label="${esc(project.name)} 보관">${icon('archive')}</button>`}</div></article>`).join('')}</div>${projects.length?'':`<div class="td-empty">${state.workTrash?'보관된 프로젝트가 없어요.':'프로젝트를 추가해 할 일을 묶으세요.'}</div>`}`;
     }
-    const projectFilter=`<select data-work-project-filter aria-label="프로젝트 필터"><option value="">모든 프로젝트</option><option value="unassigned" ${state.project==='unassigned'?'selected':''}>미지정</option>${state.projects.map(project=>`<option value="${project.id}" ${state.project===project.id?'selected':''}>${esc(project.name)}</option>`).join('')}</select>`;
-    const sort=state.tab==='done'?`<select data-work-range aria-label="완료 기록 기간">${[['7','최근 7일'],['30','최근 30일'],['','전체 기록']].map(([value,label])=>`<option value="${value}" ${String(state.workRange??'')===value?'selected':''}>${label}</option>`).join('')}</select>`:`<select data-work-sort aria-label="할 일 정렬">${[['project','프로젝트순'],['due','마감순'],['new','최신순'],['old','오래된순'],['title','이름순']].map(([value,label])=>`<option value="${value}" ${state.workSort===value?'selected':''}>${label}</option>`).join('')}</select>`;
+    const projectFilter=pickButton('data-work-project-filter aria-label="프로젝트 필터"',state.project??'',[{value:'',label:'모든 프로젝트'},{value:'unassigned',label:'미지정'},...projectOptions().slice(1)]);
+    const sort=state.tab==='done'?pickButton('data-work-range aria-label="완료 기록 기간"',String(state.workRange??''),[['7','최근 7일'],['30','최근 30일'],['','전체 기록']].map(([value,label])=>({value,label}))):pickButton('data-work-sort aria-label="할 일 정렬"',state.workSort,[['project','프로젝트순'],['due','마감순'],['new','최신순'],['old','오래된순'],['title','이름순']].map(([value,label])=>({value,label})));
     const byProject=state.tab==='todo'&&!workRules.parseQuery(state.workQuery).sort&&state.workSort==='project';
     const groups=workGroups(),archive=workArchiveHits(),count=groups.reduce((sum,group)=>sum+group.items.length,0);
-    return `<div class="work-toolbar">${search}${projectFilter}${sort}</div><div class="td-list-label"><span role="status">${count}개${state.workQuery?' · 검색 결과':''}</span>${state.tab==='todo'?`<label><input type="checkbox" data-due-only ${state.dueOnly?'checked':''}>마감 있는 일</label>`:''}</div><div class="td-rows">${groups.map(group=>`${group.label?`<h2 class="work-group" data-work-group="${esc(group.key)}">${esc(group.label)}<small>${group.items.length}</small></h2>`:''}${group.items.map(task=>taskRow(task,{inProjectGroup:byProject})).join('')}`).join('')}</div>${count?'':'<div class="td-empty">표시할 항목이 없어요.</div>'}${archive.length?`<h2 class="work-group">목록 밖 · 완료·삭제 ${archive.length}개</h2>${archive.slice(0,30).map(taskRow).join('')}${archive.length>30?'<p class="work-muted">검색어를 좁혀 나머지 항목을 찾으세요.</p>':''}`:''}`;
+    return `<div class="work-toolbar">${search}${projectFilter}${sort}</div><div class="td-list-label"><span role="status">${count}개${workQuerySummary()}</span>${state.tab==='todo'?`<label><input type="checkbox" data-due-only ${state.dueOnly?'checked':''}>마감 있는 일</label>`:''}</div><div class="td-rows">${groups.map(group=>`${group.label?`<h2 class="work-group" data-work-group="${esc(group.key)}">${projectIndex(group.pid)>=0?projectChip(group.pid,group.label):esc(group.label)}<small>${group.items.length}</small></h2>`:''}${group.items.map(task=>taskRow(task,{inProjectGroup:byProject})).join('')}`).join('')}</div>${count?'':'<div class="td-empty">표시할 항목이 없어요.</div>'}${archive.length?`<h2 class="work-group">목록 밖 · 완료·삭제 ${archive.length}개</h2>${archive.slice(0,30).map(taskRow).join('')}${archive.length>30?'<p class="work-muted">검색어를 좁혀 나머지 항목을 찾으세요.</p>':''}`:''}`;
   }
+  /* 고정 번호 띠: InBox·ToDo·Waiting에서 1~9가 어느 프로젝트인지 늘 보이게 한다(원본 WHENWORK #numlegend). 스크롤 영역 밖, 힌트 줄 위. */
+  function renderWorkLegend() {
+    let legend=root.querySelector('.td-main>.work-legend');
+    if(!legend){legend=document.createElement('div');legend.className='work-legend';legend.setAttribute('role','note');legend.setAttribute('aria-label','프로젝트 번호');root.querySelector('.td-hints').before(legend);}
+    const projects=state.projects.slice(0,9);
+    legend.hidden=!(state.view==='tasks'&&['inbox','todo','waiting'].includes(state.tab)&&projects.length);
+    legend.innerHTML=legend.hidden?'':projects.map(project=>`<span>${projectMark(project.id)}${esc(project.name)}</span>`).join('')+'<small>숫자키로 지정</small>';
+  }
+  function openPick(button) {
+    closePick(false);
+    let options=[];try{options=JSON.parse(button.dataset.options||'[]');}catch{}
+    if(!options.length)return;
+    const menu=document.createElement('div');menu.className='td-pick-menu';menu.id='td-pick-menu';menu.setAttribute('role','listbox');menu.setAttribute('aria-label',button.getAttribute('aria-label')||'');
+    menu.innerHTML=options.map((option,index)=>`<div role="option" id="td-pick-${index}" data-pick-index="${index}" data-value="${esc(String(option.value))}" aria-selected="${String(option.value)===String(button.value)}">${pickLabel(option)}</div>`).join('');
+    app.append(menu);
+    const rect=button.getBoundingClientRect(),height=menu.offsetHeight,below=window.innerHeight-rect.bottom-8;
+    menu.style.minWidth=Math.max(rect.width,160)+'px';menu.style.left=Math.max(8,Math.min(rect.left,window.innerWidth-menu.offsetWidth-8))+'px';
+    menu.style.top=(height<=below||rect.top<height?rect.bottom+4:rect.top-height-4)+'px';
+    button.setAttribute('aria-expanded','true');button.setAttribute('aria-controls','td-pick-menu');
+    pick={button,options,index:0,menu};syncHints();
+    movePick(Math.max(0,options.findIndex(option=>String(option.value)===String(button.value))));
+  }
+  function movePick(index) {
+    if(!pick)return;pick.index=Math.max(0,Math.min(pick.options.length-1,index));
+    pick.menu.querySelectorAll('[data-pick-index]').forEach(option=>option.classList.toggle('active',Number(option.dataset.pickIndex)===pick.index));
+    pick.button.setAttribute('aria-activedescendant','td-pick-'+pick.index);
+    pick.menu.querySelector('.active')?.scrollIntoView({block:'nearest'});
+  }
+  function closePick(focus=true) {
+    if(!pick)return;const {button,menu}=pick;pick=null;menu.remove();syncHints();
+    button.setAttribute('aria-expanded','false');button.removeAttribute('aria-activedescendant');button.removeAttribute('aria-controls');
+    if(focus&&button.isConnected)button.focus({preventScroll:true});
+  }
+  function setPick(button,option) {
+    if(!option||String(button.value)===String(option.value))return;
+    button.value=option.value;button.querySelector('.td-pick-label').innerHTML=pickLabel(option);
+    button.dispatchEvent(new Event('change',{bubbles:true}));
+  }
+  function choosePick(index) { if(!pick)return;const {button,options}=pick;closePick();setPick(button,options[index]); }
+  /* 열린 목록 상자와 닫힌 목록 상자 버튼의 키. 다른 처리기보다 먼저(capture) 받아 목록 이동·Esc 단계와 섞이지 않게 한다. */
+  function pickKeys(event) {
+    const plain=!event.ctrlKey&&!event.altKey&&!event.metaKey,numbered=option=>plain&&option.num&&event.code==='Digit'+option.num;
+    if(pick){
+      const count=pick.options.length;let handled=true;
+      if(K.is(event,'pick.down'))movePick(pick.index+1);
+      else if(K.is(event,'pick.up'))movePick(pick.index-1);
+      else if(K.is(event,'pick.first'))movePick(0);
+      else if(K.is(event,'pick.last'))movePick(count-1);
+      else if(K.is(event,'pick.choose'))choosePick(pick.index);
+      else if(K.is(event,'back'))closePick();
+      else if(event.key==='Tab'){closePick(false);handled=false;}
+      else if(pick.options.some(numbered))choosePick(pick.options.findIndex(numbered));
+      else if(event.key.length===1&&plain){
+        const key=event.key.toLowerCase(),order=[...pick.options.keys()].map(offset=>(pick.index+1+offset)%count);
+        const hit=order.find(index=>String(pick.options[index].label).toLowerCase().startsWith(key));if(hit!=null)movePick(hit);
+      }else handled=false;
+      if(handled){event.preventDefault();event.stopImmediatePropagation();}
+      return;
+    }
+    const button=event.target.closest?.('.td-pick');if(!button||event.isComposing)return;
+    if(K.is(event,'pick.open')){event.preventDefault();event.stopImmediatePropagation();if(!event.repeat)openPick(button);return;}
+    let options=[];try{options=JSON.parse(button.dataset.options||'[]');}catch{}
+    const direct=options.find(numbered);
+    if(direct){event.preventDefault();event.stopImmediatePropagation();setPick(button,direct);}
+  }
+  document.addEventListener('keydown',pickKeys,true);
+  document.addEventListener('pointerdown',event=>{if(pick&&!pick.menu.contains(event.target)&&event.target.closest('.td-pick')!==pick.button)closePick(false);},true);
+  window.addEventListener('blur',()=>closePick(false));
   function renderNav() {
     const focused=root.querySelector('.td-sidebar').contains(document.activeElement)?controlSelector(document.activeElement):null;
     const workActive=state.view === 'tasks';
@@ -273,16 +348,31 @@
     const index=workTabs.findIndex(([key])=>key===state.tab);
     return switchWorkTab(workTabs[(Math.max(0,index)+direction+workTabs.length)%workTabs.length][0],options);
   }
+  /* 프로젝트 번호는 활성 프로젝트 순서(Projects 탭 순서)의 앞 9개다. 1~9 키가 같은 순서로 지정한다(원본 WHENWORK projNum).
+   * 번호와 짝이 되는 색을 함께 보여 어느 프로젝트인지 한눈에 알 수 있게 한다. */
+  const PROJECT_COLORS=['#5b8def','#e0883e','#3fa874','#c4628a','#8a6fd1','#2fa3a3','#c49a2c'];
+  function projectIndex(id){return id==null||id===''?-1:state.projects.findIndex(project=>String(project.id)===String(id));}
+  function projectNumber(id){const index=projectIndex(id);return index>=0&&index<9?index+1:null;}
+  function projectMark(id){const index=projectIndex(id);if(index<0)return '';return `<i class="project-dot" style="--project:${PROJECT_COLORS[index%PROJECT_COLORS.length]}"></i>${index<9?`<b class="project-num">${index+1}</b>`:''}`;}
+  function projectChip(id,name){return projectIndex(id)<0?esc(name||'프로젝트 미지정'):`<span class="project-chip">${projectMark(id)}${esc(name||state.projects[projectIndex(id)].name)}</span>`;}
+  function projectOptions(none='미지정'){return [{value:'',label:none},...state.projects.map(project=>({value:String(project.id),label:project.name,num:projectNumber(project.id),color:PROJECT_COLORS[projectIndex(project.id)%PROJECT_COLORS.length]}))];}
+  /* 목록 상자: 기본 select 대신 쓰는 버튼. data-*와 value를 그대로 들고 있어 change 처리기는 select일 때와 같다.
+   * Enter·Space·↓로 열고 ↑↓·J/K로 고르며 Enter로 확정, Esc로 닫는다. 번호가 있는 목록은 숫자키로 바로 고른다. */
+  function pickLabel(option){return option?`${option.color?`<i class="project-dot" style="--project:${option.color}"></i>`:''}${option.num?`<b class="project-num">${option.num}</b>`:''}<span>${esc(option.label)}</span>`:'';}
+  function pickButton(attrs,value,options){
+    const current=options.find(option=>String(option.value)===String(value??''))||options[0];
+    return `<button type="button" class="td-pick" ${attrs} value="${esc(current?.value??'')}" aria-haspopup="listbox" aria-expanded="false" data-options="${esc(JSON.stringify(options))}"><span class="td-pick-label">${pickLabel(current)}</span>${icon('chevron-down')}</button>`;
+  }
   /* inProjectGroup: 프로젝트별로 묶인 ToDo에서는 묶음 제목이 프로젝트를 말하므로 행에서 반복하지 않는다. */
   function taskRow(task,{inProjectGroup=false}={}) {
     if(task.archived)return `<article class="td-task work-archived" data-task-row="${esc(task.id)}"><div class="td-row"><span class="work-muted">${icon(task.deleted?'trash-2':'check')}</span><button class="td-task-open" data-revive-task="${esc(task.id)}"><span>${esc(task.title)}</span><small>${esc(task.project||'미지정')} · ${task.deleted?'삭제됨':'지난 완료'} · ${esc((task.deletedAt||task.doneAt||'').slice(0,10))}</small></button><button class="work-text-button" data-revive-task="${esc(task.id)}">되살리기</button></div></article>`;
     const open = state.selected === task.id;
     const wait=task.kind==='waiting'?workRules.waitMeta(workItem(task)):null,badge=workRules.dueBadge(task.due);
-    const meta=[inProjectGroup?'':esc(task.project||'프로젝트 미지정'),task.waitingFor?esc(task.waitingFor):'',wait?`<span class="${wait.hot?'work-overdue':''}">${esc(wait.label)}</span>${wait.nudges?' · 재촉 '+wait.nudges+'회':''}`:''].filter(Boolean).join(' · ');
+    const meta=[inProjectGroup?'':projectChip(task.project_id,task.project),task.waitingFor?esc(task.waitingFor):'',wait?`<span class="${wait.hot?'work-overdue':''}">${esc(wait.label)}</span>${wait.nudges?' · 재촉 '+wait.nudges+'회':''}`:''].filter(Boolean).join(' · ');
     return `<article class="td-task ${open ? 'selected' : ''} ${task.done ? 'done' : ''}" data-task-row="${esc(task.id)}" ${open ? `data-editor="${esc(task.id)}"` : ''}><div class="td-row"><input type="checkbox" data-check="${esc(task.id)}" aria-label="${esc(task.title)} 완료" ${task.done ? 'checked' : ''}>${open ? `<div class="td-task-open"><input class="td-row-title" data-field="title" aria-label="할 일 제목" value="${esc(task.title)}">${meta?`<small>${meta}</small>`:''}</div>` : `<button class="td-task-open" data-task="${esc(task.id)}" draggable="true" aria-expanded="false"><span>${esc(task.title)}</span>${meta?`<small>${meta}</small>`:''}</button>`}<button class="td-due ${badge?.cls==='today'?'today':''} ${badge?.cls==='over'?'work-overdue':''}" data-edit-due="${esc(task.id)}" title="${esc(task.due||'마감 없음')}">${badge?esc(badge.text):'마감 없음'}</button>${open ? `<button class="td-drag-handle" data-task="${esc(task.id)}" draggable="true" aria-label="할 일 끌기">${icon('grip-vertical')}</button>` : ''}</div>${open ? taskEditor(task) : ''}</article>`;
   }
   function taskEditor(task) {
-    return `<div class="td-inline"><div class="td-fields"><label class="td-field">상태<select data-field="kind" aria-label="할 일 상태">${[['inbox','인박스'],['todo','할 일'],['waiting','대기']].map(([value,label]) => `<option value="${value}" ${task.kind === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label><label class="td-field">마감<input data-field="due" aria-label="할 일 마감" value="${esc(task.due)}" placeholder="오늘 / 내일 / +3 / 8-12" autocomplete="off" spellcheck="false"></label><label class="td-field">프로젝트<select data-field="project_id" aria-label="할 일 프로젝트"><option value="">미지정</option>${state.projects.map(p => `<option value="${p.id}" ${task.project_id === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label>${task.kind === 'waiting' ? `<label class="td-field">대기 상대<input data-field="waitingFor" aria-label="대기 상대" value="${esc(task.waitingFor)}"></label>` : ''}</div><textarea class="td-note" data-field="note" aria-label="할 일 상세 내용" placeholder="상세 내용" spellcheck="false">${esc(task.note)}</textarea><div class="td-inline-foot"><span data-save-status>수정 내용 자동 저장</span><div>${task.kind === 'waiting' ? `<button data-nudge="${esc(task.id)}">재촉 기록</button>` : ''}<button data-delete-task="${esc(task.id)}">삭제</button><button data-action="collapse">${icon('chevron-up')}접기</button></div></div></div>`;
+    return `<div class="td-inline"><div class="td-fields"><label class="td-field">상태${pickButton('data-field="kind" aria-label="할 일 상태"',task.kind,[{value:'inbox',label:'인박스'},{value:'todo',label:'할 일'},{value:'waiting',label:'대기'}])}</label><label class="td-field">마감<input data-field="due" aria-label="할 일 마감" value="${esc(task.due)}" placeholder="오늘 / 내일 / +3 / 8-12" autocomplete="off" spellcheck="false"></label><label class="td-field">프로젝트${pickButton('data-field="project_id" aria-label="할 일 프로젝트"',task.project_id??'',projectOptions())}</label>${task.kind === 'waiting' ? `<label class="td-field">대기 상대<input data-field="waitingFor" aria-label="대기 상대" value="${esc(task.waitingFor)}"></label>` : ''}</div><textarea class="td-note" data-field="note" aria-label="할 일 상세 내용" placeholder="상세 내용" spellcheck="false">${esc(task.note)}</textarea><div class="td-inline-foot"><span data-save-status>수정 내용 자동 저장</span><div>${task.kind === 'waiting' ? `<button data-nudge="${esc(task.id)}">재촉 기록</button>` : ''}<button data-delete-task="${esc(task.id)}">삭제</button><button data-action="collapse">${icon('chevron-up')}접기</button></div></div></div>`;
   }
   function home() {
     const tasks = state.tasks.filter(t => !t.done && t.kind === 'todo').sort((a,b) => (a.due || '9999').localeCompare(b.due || '9999'));
@@ -290,10 +380,11 @@
     return `<section class="cf-home-section"><div class="cf-home-head"><h2>ToDo <small>${tasks.length}개</small></h2><button data-tab="todo">전체 보기 →</button></div>${tasks.slice(0,5).map(t => `<div class="cf-home-task"><input type="checkbox" data-check="${esc(t.id)}" aria-label="${esc(t.title)} 완료"><button data-reveal="${esc(t.id)}">${esc(t.title)}<small>${esc(t.project || '미지정')}</small></button><small>${dueLabel(t.due)}</small></div>`).join('') || '<div class="cf-home-empty">할 일 없음</div>'}</section><button class="cf-entry" data-action="work">${icon('briefcase-business')}<span>Work</span><b>${unfinished}</b>${icon('chevron-right')}</button><button class="cf-entry" data-action="notes">${icon('notebook-pen')}<span>Note</span>${icon('chevron-right')}</button><button class="cf-entry" data-action="calendar">${icon('calendar-days')}<span>Calendar</span>${icon('chevron-right')}</button>`;
   }
   function renderMainView() {
+    if (pick && !pick.button.isConnected) closePick(false);
     const focus = captureFocus();
     notes?.setActive(state.view === 'notes' && state.shell === 'dashboard');
     app.classList.toggle('is-calendar', state.view === 'calendar' || state.view === 'settings' || state.view === 'notes');
-    renderWorkTabs();
+    renderWorkTabs(); renderWorkLegend();
     root.querySelector('.td-quick').hidden = state.view !== 'tasks' || state.tab === 'projects';
     const workTitle=state.tab==='projects'?'Projects':state.projects.find(p => p.id === state.project)?.name || ({todo:'ToDo',inbox:'InBox',waiting:'Waiting',done:'Done'})[state.tab] || 'InBox';
     const title = state.view === 'dashboard' ? 'Dashboard' : state.view === 'calendar' ? 'Calendar' : state.view === 'settings' ? 'Settings' : state.view === 'notes' ? 'Note' : `Work · ${workTitle}`;
@@ -494,6 +585,7 @@
     if (state.shell !== 'dashboard' || helpOpen) return null;
     const active = document.activeElement;
     if (!modalLayer.hidden) return active?.closest('.quick-event-form') ? 'quickEvent' : 'dialog';
+    if (pick) return pick.options.some(option => option.num) ? 'pickNumbered' : 'pick';
     if (state.view === 'tasks') {
       if (active?.closest('[data-editor]')) return 'taskEditor';
       if (active?.matches('[data-work-search]')) return 'workSearch';
@@ -527,9 +619,9 @@
   }
   /* 대시보드의 Tab 정지점: 글자·선택 입력과 목록 항목만. 버튼은 단축키로 다루므로 건너뛴다(사이드바·도구 버튼·편집기의 삭제/접기 등). */
   function tabStops() {
-    return [...root.querySelectorAll('#cf-dashboard-panel :is(input:not([type=hidden]),select,textarea,[tabindex],button[data-reveal],[role=option])')]
+    return [...root.querySelectorAll('#cf-dashboard-panel :is(input:not([type=hidden]),select,textarea,[tabindex],button[data-reveal],button.td-pick,[role=option])')]
       .filter(element => element.tabIndex >= 0 && !element.disabled && element.getClientRects().length && !element.closest('[hidden],.td-sidebar') && !element.matches('input[type=checkbox],input[type=radio]')
-        && (element.tagName !== 'BUTTON' || element.matches('[data-reveal],[role=option],[data-task-row],[data-work-project-row]')));
+        && (element.tagName !== 'BUTTON' || element.matches('[data-reveal],[role=option],[data-task-row],[data-work-project-row],.td-pick')));
   }
   function nextTabStop(from, backwards = false) {
     // 문서 순서로 바로 다음(앞) 정지점. 지금 자리를 감싼 목록 행은 건너뛴다 — 편집기 안에서 행으로 되돌아가 갇히지 않게.
@@ -913,7 +1005,7 @@
     if(state.view==='tasks'&&state.tab==='projects'){projectModal();return;}
     root.querySelector('.td-quick input')?.focus();
   }
-  async function openTaskField(id,field='title') {await flushPending();if(!state.tasks.some(task=>task.id===id))return;state.selected=id;renderMainView();body.querySelector(`[data-editor="${CSS.escape(id)}"] [data-field="${field}"]`)?.focus({preventScroll:true});}
+  async function openTaskField(id,field='title') {await flushPending();if(!state.tasks.some(task=>task.id===id))return;state.selected=id;renderMainView();const element=body.querySelector(`[data-editor="${CSS.escape(id)}"] [data-field="${field}"]`);element?.focus({preventScroll:true});if(element?.matches('.td-pick'))openPick(element);}
   async function collapseTaskEditor() {const id=state.selected;await flushPending();state.selected=null;renderMainView();focusTask(id);}
   async function taskKeyboardAction(id,action) {
     const task=visibleTasks().find(item=>item.id===id);if(!task)return;
@@ -1089,7 +1181,9 @@
   }
 
   root.addEventListener('click', event => safe(async () => {
+    const option = event.target.closest('.td-pick-menu [data-pick-index]'); if (option) { choosePick(Number(option.dataset.pickIndex)); return; }
     const button = event.target.closest('button'); if (!button) { if (event.target === modalLayer) closeModal(); return; }
+    if (button.matches('.td-pick')) { if (pick?.button === button) closePick(); else openPick(button); return; }
     const data = button.dataset;
     if (data.action === 'close-help') return closeHelp();
     if (data.action === 'help-shortcuts') { await closeHelp(); return goSection('shortcuts'); }

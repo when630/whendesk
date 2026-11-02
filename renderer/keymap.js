@@ -96,6 +96,12 @@
     A('agenda.today','agenda','오늘',['KeyT']),
     A('agenda.new','agenda','새 일정',['KeyN']),
     A('calendar.view','calview','오늘 · 주 · 월 보기 순환',['Tab','Shift+Tab']),
+    A('pick.open','picker','목록 열기',['Enter','Space','ArrowDown','Alt+ArrowDown']),
+    A('pick.down','pick','목록 아래',['ArrowDown','KeyJ']),
+    A('pick.up','pick','목록 위',['ArrowUp','KeyK']),
+    A('pick.first','pick','목록 처음',['Home']),
+    A('pick.last','pick','목록 끝',['End']),
+    A('pick.choose','pick','목록에서 고르기',['Enter','Space']),
     A('settings.prev','settings','이전 설정 분류',['ArrowLeft']),
     A('settings.next','settings','다음 설정 분류',['ArrowRight']),
     A('quickEvent.detail','dialog','한 줄 입력에서 자세히 편집',['Mod+Enter']),
@@ -137,7 +143,7 @@
   /* 같은 묶음에서 같은 키를 쓰는 짝. 새로 생기면 여기 적고 이유를 남긴다. */
   const KNOWN_OVERLAPS = Object.freeze([]);
   /* 한 화면에서 동시에 키를 받는 범위 묶음. 묶음 안에서는 같은 키를 두 동작이 쓰면 안 된다. global은 모든 묶음과 함께 검사한다. */
-  const CONCURRENT = Object.freeze([['command'],['capture'],['output'],['dialog'],['work','worksearch'],['work','workquick'],['work','worktab'],['work','list','task'],['work','list','projects'],['calendar','calview'],['agenda','calview'],['notes'],['link'],['settings']]);
+  const CONCURRENT = Object.freeze([['command'],['capture'],['output'],['dialog'],['work','worksearch'],['work','workquick'],['work','worktab'],['work','list','task'],['work','list','projects'],['calendar','calview'],['agenda','calview'],['notes'],['link'],['settings'],['pick'],['picker']]);
 
   const MODS = ['Mod','Alt','Shift'];
   function parse(spec) {
@@ -244,6 +250,8 @@
     noteSearch:[['note.open','열기','Enter'],['note.down','목록'],['back','검색 지우기']],
     noteEditor:[['note.preview','보기'],['app.save','저장'],['back','목록']],
     notePreview:[['note.edit','편집'],['back','목록']],
+    pick:[['pick.down','고르기','↑↓'],['pick.choose','확정','Enter'],['back','닫기']],
+    pickNumbered:[['pick.down','고르기','↑↓'],[null,'번호로 바로','1 ~ 9'],['pick.choose','확정','Enter'],['back','닫기']],
     settings:[['settings.next','분류','← →'],['help.toggle','단축키 전체']],
     settingsShortcuts:[['settings.next','분류','← →'],['app.save','저장'],['help.toggle','단축키 전체']],
     calendarMonth:[['date.open','일정'],['event.new','새 일정'],['date.today','오늘'],['calendar.view','보기','Tab']],

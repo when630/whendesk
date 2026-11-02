@@ -123,13 +123,14 @@ async function withDelayedTaskSelection(run){
 
     await test('프로젝트로 거른 ToDo에서 새 캡처 후 InBox 행으로 이동해 바로 프로젝트·마감을 지정',async()=>{
       await section('t','.td-work-nav');await waitTab('todo');
-      await page.locator('[data-work-project-filter]').selectOption(String(fixture.project.id));
+      await page.locator('[data-work-project-filter]').focus();await press('Enter');await page.locator('.td-pick-menu').waitFor();
+      {const index=await page.locator('.td-pick-menu [role=option]').evaluateAll((options,value)=>options.findIndex(option=>option.dataset.value===value),String(fixture.project.id));await press('Home');for(let step=0;step<index;step++)await press('ArrowDown');await press('Enter');}
       await press('Control+n');await waitFocus('.td-quick input');
       const title='즉시 분류 캡처 '+runId;await page.keyboard.insertText(title);await press('Enter');
       await waitUntil(async()=>{fixture.captured=(await state()).tasks.find(task=>task.title===title);return !!fixture.captured;},'새 캡처가 저장되지 않았습니다.');
       await waitTab('inbox');await waitRowFocus(fixture.captured.id);
-      assert.equal(await page.locator('[data-work-project-filter]').inputValue(),'');
-      await press('m');await waitFocus('[data-field=project_id]');await press('Escape');await waitRowFocus(fixture.captured.id);
+      assert.equal(await page.locator('[data-work-project-filter]').getAttribute('value'),'');
+      await press('m');await waitFocus('[data-field=project_id]');await page.locator('.td-pick-menu').waitFor();await press('Escape');await page.locator('.td-pick-menu').waitFor({state:'detached'});await press('Escape');await waitRowFocus(fixture.captured.id);
       await press('d');await waitFocus('.work-due-form [name=text]');await press('Escape');await waitRowFocus(fixture.captured.id);
       measurements.captureFlow={id:fixture.captured.id,createdKind:fixture.captured.kind,returnedTab:'inbox',directActions:['M','D']};
     });
@@ -178,10 +179,10 @@ async function withDelayedTaskSelection(run){
       await call('mutate',{type:'task.update',payload:{id:fixture.delayTask.id,kind:'todo',project_id:fixture.project.id}});
       await section('t','.td-work-nav');await waitTab('todo');await page.locator(`[data-task-row="${fixture.delayTask.id}"]`).focus();await press('Enter');await waitFocus('[data-field=title]');
       await withDelayedTaskSelection(async()=>{
-        await page.locator('[data-field=project_id]').focus();await press('End');await press('Tab');await waitFocus('[data-field=note]');
+        await page.locator('[data-field=project_id]').focus();await press('Enter');await press('End');await press('Enter');await press('Tab');await waitFocus('[data-field=note]');
         await waitUntil(async()=>(await state()).tasks.find(task=>task.id===fixture.delayTask.id)?.project_id===fixture.altProject.id,'지연된 프로젝트 선택이 저장되지 않았습니다.');
         await page.waitForTimeout(120);await waitFocus('[data-field=note]');
-        await page.locator('[data-field=kind]').focus();await press('End');await press('Tab');await waitFocus('[data-field=due]');
+        await page.locator('[data-field=kind]').focus();await press('Enter');await press('End');await press('Enter');await press('Tab');await waitFocus('[data-field=due]');
         await waitUntil(async()=>(await state()).tasks.find(task=>task.id===fixture.delayTask.id)?.kind==='waiting','지연된 상태 선택이 저장되지 않았습니다.');
         await page.waitForTimeout(120);await waitFocus('[data-field=due]');
       });
