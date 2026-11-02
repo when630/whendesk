@@ -122,7 +122,8 @@ async function closeHarness() {
       await page.locator('.td-command-results [data-result-key]').filter({hasText:'LateSpec Alpha'}).waitFor();
       await input.press('ArrowDown');
       const before=await page.locator('.td-command-results [aria-selected=true]').getAttribute('data-result-key');
-      await page.locator('.td-command-results [data-result-key^="files:"]').waitFor();
+      try{await page.locator('.td-command-results [data-result-key^="files:"]').waitFor();}
+      catch(error){const detail=await app.evaluate(()=>({messages:globalThis.__commandTest.messages.slice(-4).map(m=>({seq:m.seq,query:m.query,keys:m.items.map(i=>i.key)})),calls:globalThis.__commandTest.calls.slice(-8).map(c=>({type:c.type,query:c.query??c.q,seq:c.seq}))}));detail.rows=await page.locator('.td-command-results [data-result-key]').evaluateAll(e=>e.map(x=>x.dataset.resultKey));detail.input=await input.inputValue();throw new Error('늦은 파일 결과가 오지 않았습니다: '+JSON.stringify(detail));}
       const after=await page.locator('.td-command-results [aria-selected=true]').getAttribute('data-result-key');
       assert.equal(after,before,'늦은 통합 결과가 선택한 앱을 바꿨습니다.');
       const ordered=await page.locator('.td-command-results [data-result-key]').evaluateAll(elements=>elements.map(element=>element.dataset.resultKey));
@@ -165,7 +166,7 @@ async function closeHarness() {
       await input.press('ArrowDown');await input.press('ArrowDown');await input.press('Enter');
       // 실패하면 원인을 바로 알 수 있게 선택 상태와 최근 실행 기록을 남긴다(전체 연속 실행에서 가끔 실패).
       try{await waitUntil(async()=>!!(await records('command.run')).find(call=>call.key===rows[2]),'x');}
-      catch{const detail={want:rows[2],selected:await page.evaluate(()=>document.querySelector('.td-command-results [aria-selected=true]')?.dataset.resultKey||null),input:await input.inputValue(),busy:await page.evaluate(()=>document.querySelector('#cf-command-panel').getAttribute('aria-busy')),visible:await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isVisible()),runs:(await records('command.run')).slice(-3)};assert.fail('방향키와 Enter가 세 번째 결과를 실행하지 않았습니다. '+JSON.stringify(detail));}
+      catch{const detail={rows,now:await page.locator('.td-command-results [data-result-key]').evaluateAll(e=>e.map(x=>x.dataset.resultKey)),want:rows[2],selected:await page.evaluate(()=>document.querySelector('.td-command-results [aria-selected=true]')?.dataset.resultKey||null),input:await input.inputValue(),busy:await page.evaluate(()=>document.querySelector('#cf-command-panel').getAttribute('aria-busy')),visible:await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isVisible()),runs:(await records('command.run')).slice(-3)};assert.fail('방향키와 Enter가 세 번째 결과를 실행하지 않았습니다. '+JSON.stringify(detail));}
       await executionDone();
       await app.evaluate(()=>globalThis.__commandTest.setCommandHeightLimit(320));
       try{

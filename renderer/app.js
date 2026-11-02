@@ -1212,7 +1212,9 @@
     const pending=command.afterComposition;command.afterComposition=null;
     if(pending){clearTimeout(command.deferredKey);command.deferredCode=pending.code;command.deferredKey=setTimeout(()=>runDeferredKey(pending),0);}
   });
-  commandBox.addEventListener('pointermove',event=>{const row=event.target.closest('[data-result]');if(row&&!command.running&&!command.actions&&command.selected!==Number(row.dataset.result)){command.selected=Number(row.dataset.result);syncCommandSelection();}});
+  // 결과가 다시 그려지거나 늦은 결과가 합류해 행이 커서 밑으로 지나가도 Chromium은 pointermove를 보낸다. 마우스가 실제로 움직였을 때만 선택을 옮긴다.
+  let lastPointer=null;
+  commandBox.addEventListener('pointermove',event=>{const at=event.screenX+','+event.screenY,moved=lastPointer!==null&&lastPointer!==at;lastPointer=at;if(!moved)return;const row=event.target.closest('[data-result]');if(row&&!command.running&&!command.actions&&command.selected!==Number(row.dataset.result)){command.selected=Number(row.dataset.result);syncCommandSelection();}});
   commandActions.addEventListener('pointermove',event=>{const row=event.target.closest('[data-command-action]');if(row&&command.actions&&!command.running){const index=command.actions.item.actions.findIndex(action=>action.id===row.dataset.commandAction);if(index>=0&&index!==command.actions.selected){command.actions.selected=index;syncCommandSelection();}}});
   root.addEventListener('focusin',syncHints);
   root.addEventListener('focusout',event=>{if(event.target.matches('[data-field]')){const element=event.target;dashboardFocus={id:element.closest('[data-editor]')?.dataset.editor,field:element.dataset.field,start:element.selectionStart,end:element.selectionEnd,scroll:element.scrollTop};}});
