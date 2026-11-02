@@ -11,8 +11,8 @@ const { autoUpdater } = electronUpdater;
 const RELEASES_URL = 'https://github.com/when630/whendesk/releases/latest';
 // 켜자마자 확인하지 않는다 — 부팅이 무거워진다.
 const FIRST_CHECK_MS = 60_000;
-// 하루 한 번. 트레이 앱은 몇 주씩 떠 있어 주기 확인이 곧 유일한 확인 기회다.
-const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
+// 한 시간마다. 트레이 앱은 몇 주씩 떠 있어 주기 확인이 곧 유일한 확인 기회다. 하루 한 번이면 켠 직후 나온 릴리스를 다음 날에야 본다.
+const CHECK_INTERVAL_MS = 60 * 60 * 1000;
 
 export function setupUpdater({ state, onChange, enabled }) {
   const unsupported = { check:async () => state, install:() => ({ installing:false }), openReleases:() => shell.openExternal(RELEASES_URL), stop:() => {}, supported:false };
