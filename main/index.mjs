@@ -88,7 +88,7 @@ async function bootstrap(){
     const width=Math.min(home.width,Math.max(800,usable?saved.width:1120));const h=Math.min(home.height,Math.max(580,usable?saved.height:820));
     win.setMinimumSize(Math.min(800,home.width),Math.min(560,home.height));
     win.setBounds(usable?{x:Math.max(home.x,Math.min(saved.x,home.x+home.width-width)),y:Math.max(home.y,Math.min(saved.y,home.y+home.height-h)),width,height:h}:{x:Math.round(home.x+(home.width-width)/2),y:Math.round(home.y+(home.height-h)/2),width,height:h});
-    win.setAlwaysOnTop(false);win.setVisibleOnAllWorkspaces(false);win.setSkipTaskbar(false);
+    win.setAlwaysOnTop(false);win.setVisibleOnAllWorkspaces(false);win.setSkipTaskbar(true);
    }
   }else{
    const entering=shellMode!=='command';
@@ -133,7 +133,7 @@ async function bootstrap(){
  }});
  function registerShortcuts(values=preferences.get()){return shortcutManager.update(values);}
  const area=workArea();
- win=new BrowserWindow({width:560,height:54,x:Math.round(area.x+(area.width-560)/2),y:Math.round(area.y+area.height*.22),minWidth:360,minHeight:54,frame:false,thickFrame:false,hasShadow:false,show:false,resizable:true,backgroundColor:'#20252c',title:'WHENDESK',icon:path.join(ROOT,'assets','icon.png'),webPreferences:{preload:path.join(ROOT,'main','preload.cjs'),contextIsolation:true,sandbox:true,nodeIntegration:false,webSecurity:true}});
+ win=new BrowserWindow({width:560,height:54,x:Math.round(area.x+(area.width-560)/2),y:Math.round(area.y+area.height*.22),minWidth:360,minHeight:54,frame:false,thickFrame:false,skipTaskbar:true,hasShadow:false,show:false,resizable:true,backgroundColor:'#20252c',title:'WHENDESK',icon:path.join(ROOT,'assets','icon.png'),webPreferences:{preload:path.join(ROOT,'main','preload.cjs'),contextIsolation:true,sandbox:true,nodeIntegration:false,webSecurity:true}});
  win.setMenu(null);
  win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
  win.webContents.on('will-navigate',(event,url)=>{if(url!==rendererURL)event.preventDefault();});
