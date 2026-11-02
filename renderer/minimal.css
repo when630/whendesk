@@ -171,9 +171,18 @@
 #whendesk-command-first .td-main>.td-main-head,#whendesk-command-first .td-main>.td-work-nav,#whendesk-command-first .td-main>.td-quick{flex:0 0 auto}
 #whendesk-command-first .td-main>.td-body{flex:1 1 auto;min-height:0;overflow-x:hidden;overflow-y:auto;margin:0 -12px;padding:0 12px 18px}
 #whendesk-command-first .td-main>.td-body>.desk-notes{height:100%;min-height:0}
-#whendesk-command-first .td-body .work-toolbar{position:sticky;top:0;z-index:3;background:var(--td-surface)}
+#whendesk-command-first .td-body .work-toolbar{position:sticky;top:0;z-index:3;background:var(--td-surface);margin:0 -12px;padding:0 12px 19px}
 #whendesk-command-first .td-hints{position:static;flex:0 0 auto;margin-top:0;padding:10px 0 14px}
 @media(max-width:850px){
   #whendesk-command-first .td-main{overflow:visible}
   #whendesk-command-first .td-main>.td-body{overflow:visible;flex:0 0 auto}
 }
+
+/* 창을 끌어 옮기는 자리 표시. 끌기 영역(Command 막대 여백·사이드바·제목 줄) 안에 놓여 배치를 밀지 않는다. */
+#whendesk-command-first .drag-grip{position:absolute;display:grid;place-items:center;color:var(--td-muted);opacity:.45;-webkit-app-region:drag;pointer-events:auto}
+#whendesk-command-first .drag-grip svg{width:12px;height:12px}
+#whendesk-command-first .cf-command-panel .td-command{position:relative}
+#whendesk-command-first .command-grip{left:2px;top:50%;transform:translateY(-50%);width:12px;height:24px}
+#whendesk-command-first .td-sidebar{position:relative}
+#whendesk-command-first .sidebar-grip{top:6px;left:50%;transform:translateX(-50%);width:28px;height:12px}
+#whendesk-command-first .sidebar-grip svg{width:14px;height:14px}

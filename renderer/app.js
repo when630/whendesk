@@ -232,7 +232,7 @@
     const focused=root.querySelector('.td-sidebar').contains(document.activeElement)?controlSelector(document.activeElement):null;
     const workActive=state.view === 'tasks';
     const page=active=>active?'aria-current="page"':'';
-    root.querySelector('.td-sidebar').innerHTML = `<nav class="td-nav" aria-label="주 메뉴">
+    root.querySelector('.td-sidebar').innerHTML = `<span class="drag-grip sidebar-grip" aria-hidden="true" title="끌어서 창 옮기기">${icon('grip-horizontal')}</span><nav class="td-nav" aria-label="주 메뉴">
       <button data-action="home" class="${state.view === 'dashboard' ? 'active' : ''}" ${page(state.view === 'dashboard')}>${icon('panels-top-left')}<span>Dashboard</span></button>
       <button data-action="work" class="${workActive ? 'active' : ''}" ${page(workActive)}>${icon('briefcase-business')}<span>Work</span></button>
       <button data-action="notes" class="${state.view === 'notes' ? 'active' : ''}" ${page(state.view === 'notes')}>${icon('notebook-pen')}<span>Note</span></button>
@@ -518,6 +518,19 @@
     const line = body.querySelector('[data-update-line]'); if (line) line.textContent = value?.line || '';
     const check = body.querySelector('[data-action=update-check]'); if (check) check.disabled = !value?.supported;
     const install = body.querySelector('[data-action=update-install]'); if (install) install.disabled = value?.status !== 'ready';
+  }
+  /* 대시보드의 Tab 정지점: 글자·선택 입력과 목록 항목만. 버튼은 단축키로 다루므로 건너뛴다(사이드바·도구 버튼·편집기의 삭제/접기 등). */
+  function tabStops() {
+    return [...root.querySelectorAll('#cf-dashboard-panel :is(input:not([type=hidden]),select,textarea,[tabindex],button[data-reveal],[role=option])')]
+      .filter(element => element.tabIndex >= 0 && !element.disabled && element.getClientRects().length && !element.closest('[hidden],.td-sidebar') && !element.matches('input[type=checkbox],input[type=radio]')
+        && (element.tagName !== 'BUTTON' || element.matches('[data-reveal],[role=option],[data-task-row],[data-work-project-row]')));
+  }
+  function nextTabStop(from, backwards = false) {
+    // 문서 순서로 바로 다음(앞) 정지점. 지금 자리를 감싼 목록 행은 건너뛴다 — 편집기 안에서 행으로 되돌아가 갇히지 않게.
+    const stops = tabStops().filter(element => element !== from && !element.contains(from)); if (!stops.length) return null;
+    const after = stops.filter(element => from.compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING);
+    const before = stops.filter(element => from.compareDocumentPosition(element) & Node.DOCUMENT_POSITION_PRECEDING);
+    return backwards ? before.at(-1) || stops.at(-1) : after[0] || stops[0];
   }
   function settingsView() {
     const shortcutFields = SHORTCUT_UI;
@@ -1219,6 +1232,7 @@
     if(!modalLayer.hidden&&event.target.closest('.quick-event-form')&&K.is(event,'quickEvent.detail')){event.preventDefault();if(!event.repeat)safe(()=>submitQuickEvent({detail:true}));return;}
     if(!modalLayer.hidden&&K.is(event,'app.save')){event.preventDefault();const form=modalLayer.querySelector('form');if(!event.repeat&&form?.querySelector('[type=submit]')&&!form.querySelector('[type=submit]').disabled)form.requestSubmit();return;}
     if(modalLayer.hidden&&workspaceKeys(event))return;
+    if(state.shell==='dashboard'&&modalLayer.hidden&&state.view!=='settings'&&K.is(event,'focus.cycle')){event.preventDefault();nextTabStop(event.target,event.shiftKey)?.focus({preventScroll:false});return;}
     const inCommandInput=state.shell==='command'&&event.target===commandInput;
     if(command.output&&(inCommandInput||root.querySelector('.command-output').contains(event.target))&&outputKeys(event))return;
     if(command.capture&&inCommandInput){

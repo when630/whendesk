@@ -166,6 +166,20 @@ async function closeApp(){
       assert.deepEqual(layout.bars,[],'보이는 스크롤바가 있습니다.');
     });
 
+    await test('대시보드의 Tab은 버튼·체크박스를 건너뛰고, 창을 끄는 자리에 표시가 있다',async()=>{
+      await press('Alt+i');await waitWithin(`[data-task-row="${inboxTask.id}"]`);
+      await press('Enter');await waitFocus('[data-editor] [data-field=title]');
+      const visited=[];
+      for(let step=0;step<10;step++){await press('Tab');visited.push(await page.evaluate(()=>{const element=document.activeElement;return element.tagName+(element.type?':'+element.type:'')+(element.dataset.field?'#'+element.dataset.field:'');}));}
+      measurements.tabStops=visited;
+      assert.deepEqual(visited.filter(stop=>stop.startsWith('BUTTON')||stop.includes(':checkbox')),[],'Tab이 버튼이나 체크박스에 멈췄습니다: '+visited.join(' → '));
+      assert.ok(visited.some(stop=>stop.endsWith('#due'))&&visited.some(stop=>stop.endsWith('#note')),'편집기의 입력 칸을 Tab으로 돌지 못했습니다: '+visited.join(' → '));
+      await press('Escape');
+      const grips=await page.evaluate(()=>['.command-grip','.sidebar-grip'].map(selector=>{const element=document.querySelector(selector);return element&&getComputedStyle(element).webkitAppRegion;}));
+      assert.deepEqual(grips,['drag','drag'],'창을 끄는 자리 표시가 없거나 끌기 영역이 아닙니다.');
+      await screenshot('05-grips');
+    });
+
     await test('하단 힌트는 포커스 자리에 맞는 키를 보여 준다',async()=>{
       const hints=()=>page.locator('.td-hints').innerText();
       await press('Alt+i');await waitWithin('.td-main');for(let step=0;step<4;step++)await press('Tab');

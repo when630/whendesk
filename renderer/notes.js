@@ -142,11 +142,13 @@
       });
       return writeTail;
     }
-    async function open(id,{ edit = true, touch = true, focus:shouldFocus = true } = {}) {
+    async function open(id,{ edit = true, touch = true, focus:shouldFocus = true, preview:fromPreview = false } = {}) {
       await flush();
       const seq = ++openSeq;
       const note = await mutate(touch ? 'note.open' : 'note.get',{id});
       if (seq !== openSeq || !note || disposed) return;
+      // 선택을 옮겨 즉시 미리보기를 연 사이에 선택이 또 바뀌었으면 이 미리보기는 버린다 — 늦게 끝나 선택을 되돌리지 않게.
+      if (fromPreview && state.selectedId !== id) return;
       const noteScope = isDeleted(note) ? 'trash' : isArchived(note) ? 'archived' : 'active';
       if (state.scope !== noteScope || !state.results.some(item => item.id === note.id)) {
         clearTimeout(searchTimer); state.scope = noteScope; scope.value = noteScope;
@@ -188,7 +190,7 @@
       if (list.contains(document.activeElement)) row?.focus({preventScroll:true});
       // 선택을 옮기면 오른쪽에 그 메모를 보기 모드로 바로 보여 준다(원본 WHENNOTE). 포커스는 목록에 둔다.
       clearTimeout(previewTimer); const target = state.selectedId;
-      previewTimer = setTimeout(() => { if (state.active && state.selectedId === target && state.note?.id !== target && !pending.size) safe(() => open(target,{edit:false,touch:false,focus:false})); },120);
+      previewTimer = setTimeout(() => { if (state.active && state.selectedId === target && state.note?.id !== target && !pending.size) safe(() => open(target,{edit:false,touch:false,focus:false,preview:true})); },120);
     }
     async function activateSelected({edit = true,createFromQuery = false} = {}) {
       const query = state.query, selectedScope = state.scope;
