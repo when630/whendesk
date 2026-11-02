@@ -55,3 +55,9 @@
 #whendesk-command-first .td-due.today,#whendesk-command-first .td-due.work-overdue{padding:2px 7px;border-radius:99px;font-weight:600}
 #whendesk-command-first .td-due.today{color:light-dark(#9a6b00,#e0b64a)!important;background:color-mix(in srgb,#e0a400 14%,transparent)}
 #whendesk-command-first .td-due.work-overdue{background:color-mix(in srgb,#d0473f 12%,transparent)}
+
+/* 할 일 편집 대화상자 */
+#whendesk-command-first .td-modal.task-form{width:min(640px,calc(100vw - 40px))}
+#whendesk-command-first .task-form .td-inline{margin:4px 0 0;padding:0;border:0;background:none}
+#whendesk-command-first .task-form .td-note{min-height:120px}
+#whendesk-command-first .task-form .td-inline-foot{margin-top:12px}

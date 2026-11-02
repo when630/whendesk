@@ -295,6 +295,8 @@ function durableData(state) {
       await noPersistentKeycaps('최종 Command');
       await screenshot('09-command-ink-light');
       await page.locator('.td-command input').press('Tab');
+      // 대시보드로 돌아오면 편집 대화상자가 그대로 열려 있다. Esc로 닫고 메뉴로 간다.
+      await page.locator('.task-form').waitFor();await page.keyboard.press('Escape');await page.locator('.task-form').waitFor({ state: 'detached' });
       await page.locator('.td-nav [data-action=home]').click();
       await page.locator('.td-main h1').filter({ hasText: 'Dashboard' }).waitFor();
       await page.locator('.cf-home-task').filter({ hasText: finalTitle }).waitFor();

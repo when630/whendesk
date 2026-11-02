@@ -155,7 +155,7 @@
     state.tasks = state.allTasks.filter(t => !t.deleted);
     state.projects = data.projects || []; state.archivedProjects=data.deletedProjects||data.archivedProjects||[]; state.events = data.events || []; state.calendars = data.calendars || [];
     for (const [id, patch] of pending) { const task = state.tasks.find(t => t.id === id); if (task) Object.assign(task, patch); }
-    renderNav(); renderCalendar(); if (renderMain) renderMainView(); else syncProjectOptions();
+    renderNav(); renderCalendar(); if (renderMain) renderMainView(); syncProjectOptions();
     if (!command.query.trim()) safe(() => queryCommand('', true));
     return data;
   }
@@ -188,7 +188,7 @@
   function dueLabel(value) { return !value ? '마감 없음' : value === today ? '오늘' : value === tomorrow ? '내일' : value.slice(5).replace('-', '.'); }
   function syncProjectOptions() {
     // 목록 상자의 프로젝트 목록을 새 순서·번호로 바꾼다. 보관돼 목록에서 빠진 현재 값은 그대로 남긴다.
-    body.querySelectorAll('.td-pick[data-field=project_id]').forEach(button=>{
+    [...body.querySelectorAll('.td-pick[data-field=project_id]'),...modalLayer.querySelectorAll('.td-pick[data-field=project_id]')].forEach(button=>{
       let before=[];try{before=JSON.parse(button.dataset.options||'[]');}catch{}
       const value=button.value,options=projectOptions(),previous=before.find(option=>String(option.value)===String(value));
       if(value&&!options.some(option=>option.value===value)&&previous)options.push({...previous,num:null,color:null});
@@ -371,8 +371,8 @@
     const meta=[inProjectGroup?'':projectChip(task.project_id,task.project),task.waitingFor?esc(task.waitingFor):'',wait?`<span class="${wait.hot?'work-overdue':''}">${esc(wait.label)}</span>${wait.nudges?' · 재촉 '+wait.nudges+'회':''}`:''].filter(Boolean).join(' · ');
     return `<article class="td-task ${open ? 'selected' : ''} ${task.done ? 'done' : ''}" data-task-row="${esc(task.id)}" ${open ? `data-editor="${esc(task.id)}"` : ''}><div class="td-row"><input type="checkbox" data-check="${esc(task.id)}" aria-label="${esc(task.title)} 완료" ${task.done ? 'checked' : ''}>${open ? `<div class="td-task-open"><input class="td-row-title" data-field="title" aria-label="할 일 제목" value="${esc(task.title)}">${meta?`<small>${meta}</small>`:''}</div>` : `<button class="td-task-open" data-task="${esc(task.id)}" draggable="true" aria-expanded="false"><span>${esc(task.title)}</span>${meta?`<small>${meta}</small>`:''}</button>`}<button class="td-due ${badge?.cls==='today'?'today':''} ${badge?.cls==='over'?'work-overdue':''}" data-edit-due="${esc(task.id)}" title="${esc(task.due||'마감 없음')}">${badge?esc(badge.text):'마감 없음'}</button>${open ? `<button class="td-drag-handle" data-task="${esc(task.id)}" draggable="true" aria-label="할 일 끌기">${icon('grip-vertical')}</button>` : ''}</div>${open ? taskEditor(task) : ''}</article>`;
   }
-  function taskEditor(task) {
-    return `<div class="td-inline"><div class="td-fields"><label class="td-field">상태${pickButton('data-field="kind" aria-label="할 일 상태"',task.kind,[{value:'inbox',label:'인박스'},{value:'todo',label:'할 일'},{value:'waiting',label:'대기'}])}</label><label class="td-field">마감<input data-field="due" aria-label="할 일 마감" value="${esc(task.due)}" placeholder="오늘 / 내일 / +3 / 8-12" autocomplete="off" spellcheck="false"></label><label class="td-field">프로젝트${pickButton('data-field="project_id" aria-label="할 일 프로젝트"',task.project_id??'',projectOptions())}</label>${task.kind === 'waiting' ? `<label class="td-field">대기 상대<input data-field="waitingFor" aria-label="대기 상대" value="${esc(task.waitingFor)}"></label>` : ''}</div><textarea class="td-note" data-field="note" aria-label="할 일 상세 내용" placeholder="상세 내용" spellcheck="false">${esc(task.note)}</textarea><div class="td-inline-foot"><span data-save-status>수정 내용 자동 저장</span><div>${task.kind === 'waiting' ? `<button data-nudge="${esc(task.id)}">재촉 기록</button>` : ''}<button data-delete-task="${esc(task.id)}">삭제</button><button data-action="collapse">${icon('chevron-up')}접기</button></div></div></div>`;
+  function taskEditor(task,{modal=false}={}) {
+    return `<div class="td-inline"><div class="td-fields"><label class="td-field">상태${pickButton('data-field="kind" aria-label="할 일 상태"',task.kind,[{value:'inbox',label:'인박스'},{value:'todo',label:'할 일'},{value:'waiting',label:'대기'}])}</label><label class="td-field">마감<input data-field="due" aria-label="할 일 마감" value="${esc(task.due)}" placeholder="오늘 / 내일 / +3 / 8-12" autocomplete="off" spellcheck="false"></label><label class="td-field">프로젝트${pickButton('data-field="project_id" aria-label="할 일 프로젝트"',task.project_id??'',projectOptions())}</label>${task.kind === 'waiting' ? `<label class="td-field">대기 상대<input data-field="waitingFor" aria-label="대기 상대" value="${esc(task.waitingFor)}"></label>` : ''}</div><textarea class="td-note" data-field="note" aria-label="할 일 상세 내용" placeholder="상세 내용" spellcheck="false">${esc(task.note)}</textarea><div class="td-inline-foot"><span data-save-status>수정 내용 자동 저장</span><div>${task.kind === 'waiting' ? `<button type="button" data-nudge="${esc(task.id)}">재촉 기록</button>` : ''}<button type="button" data-delete-task="${esc(task.id)}">삭제</button>${modal?'<button type="submit" class="td-primary">닫기</button>':`<button type="button" data-action="collapse">${icon('chevron-up')}접기</button>`}</div></div></div>`;
   }
   function home() {
     const tasks = state.tasks.filter(t => !t.done && t.kind === 'todo').sort((a,b) => (a.due || '9999').localeCompare(b.due || '9999'));
@@ -461,8 +461,8 @@
   }
   async function reveal(id) {
     await flushPending(); const task = state.tasks.find(t => String(t.id) === String(id)); if (!task) return;
-    state.view = 'tasks'; state.tab = task.done ? 'done' : task.kind; state.selected = task.id; state.project = null; state.dueOnly = false; state.workQuery='';state.workRange=null;
-    renderNav(); renderMainView(); await shell('dashboard', false); body.querySelector('[data-field=title]')?.focus({ preventScroll:true });
+    state.view = 'tasks'; state.tab = task.done ? 'done' : task.kind; state.selected = null; state.project = null; state.dueOnly = false; state.workQuery='';state.workRange=null;
+    renderNav(); renderMainView(); await shell('dashboard', false); focusTask(task.id); taskModal(task.id);
   }
   async function navigate(route = {}) {
     if (route.shell === 'command') {
@@ -498,10 +498,11 @@
   function openModal(html) { modalDirty = false; discardArmedAt = 0; returnFocus = document.activeElement; modalReturnKey=controlSelector(returnFocus); modalReturnEditor=captureFocus(); modalLayer.hidden = false; modalLayer.innerHTML = html; (modalLayer.querySelector('input:not([type=checkbox]):not([readonly]),textarea:not([readonly]),select:not([disabled])')||modalLayer.querySelector('button'))?.focus(); icons(); }
   /* 입력한 내용이 있는 대화상자는 Esc 한 번에 버리지 않는다. 3초 안에 한 번 더 누르면 닫는다. */
   function closeModalSafely() {
+    if (modalLayer.querySelector('.task-form')) { closeModal(); return; }
     if (modalDirty && modalLayer.querySelector('form') && Date.now() - discardArmedAt > 3000) { discardArmedAt = Date.now(); feedback('저장하지 않은 내용이 있어요. Esc를 한 번 더 누르면 버립니다.'); return; }
     closeModal();
   }
-  function closeModal() { modalDirty = false; discardArmedAt = 0; modalLayer.hidden = true; modalLayer.innerHTML = ''; editingEvent = null; if (returnFocus?.isConnected && root.contains(returnFocus)) returnFocus.focus({ preventScroll:true }); else if(modalReturnEditor&&body.querySelector(`[data-editor="${CSS.escape(modalReturnEditor.id)}"] [data-field="${modalReturnEditor.field}"]`))restoreFocus(modalReturnEditor);else if(modalReturnKey&&root.querySelector(modalReturnKey)?.getClientRects().length)root.querySelector(modalReturnKey).focus({preventScroll:true});else focusView(); }
+  function closeModal() { const editedTask = modalLayer.querySelector('.task-form')?.dataset.editor; if (editedTask) { modalLayer.hidden = true; modalLayer.innerHTML = ''; modalDirty = false; safe(() => afterTaskModal(editedTask)); return; } modalDirty = false; discardArmedAt = 0; modalLayer.hidden = true; modalLayer.innerHTML = ''; editingEvent = null; if (returnFocus?.isConnected && root.contains(returnFocus)) returnFocus.focus({ preventScroll:true }); else if(modalReturnEditor&&body.querySelector(`[data-editor="${CSS.escape(modalReturnEditor.id)}"] [data-field="${modalReturnEditor.field}"]`))restoreFocus(modalReturnEditor);else if(modalReturnKey&&root.querySelector(modalReturnKey)?.getClientRects().length)root.querySelector(modalReturnKey).focus({preventScroll:true});else focusView(); }
   function eventModal(key = null, parsed = null) {
     if (state.shell !== 'dashboard') safe(() => shell('dashboard', false));
     const event = key ? findEvent(key) : null; editingEvent = event; lastEventKey = key;
@@ -514,6 +515,22 @@
   function projectModal(id = null) {
     const project = state.projects.find(p => p.id === id);
     openModal(`<form class="td-modal project-form" role="dialog" aria-modal="true" aria-label="프로젝트 편집" data-project-id="${id || ''}"><div class="td-modal-header"><h2>${project ? '프로젝트 관리' : '프로젝트 추가'}</h2><button type="button" data-action="close-modal" aria-label="닫기">${icon('x')}</button></div><label class="td-field">이름<input name="name" aria-label="프로젝트 이름" value="${esc(project?.name)}" required></label><div class="td-modal-actions">${project ? `<button type="button" class="td-modal-delete" data-archive-project="${id}">프로젝트 보관</button>` : '<span></span>'}<div><button type="button" class="td-secondary" data-action="close-modal">취소</button><button class="td-primary" type="submit">저장</button></div></div></form>`);
+  }
+  /* 할 일 편집은 목록 안에서 펼치지 않고 대화상자로 연다(Ctrl+E·Enter·행 클릭, E·D·N·M은 그 칸으로).
+   * 같은 data-editor·data-field를 써서 자동 저장과 마감 해석 처리는 목록 편집기와 같다. 닫으면 목록을 새로 그린다. */
+  let taskModalKind=null;
+  function taskModal(id,field='title') {
+    const task=state.tasks.find(item=>item.id===id);if(!task)return;
+    taskCursor=id;taskModalKind=task.kind;
+    openModal(`<form class="td-modal task-form" role="dialog" aria-modal="true" aria-label="할 일 편집" data-editor="${esc(id)}"><div class="td-modal-header"><h2>할 일 편집</h2><button type="button" data-action="close-modal" aria-label="닫기">${icon('x')}</button></div><label class="td-field">제목<input data-field="title" aria-label="할 일 제목" value="${esc(task.title)}" autocomplete="off" spellcheck="false"></label>${taskEditor(task,{modal:true})}</form>`);
+    const element=modalLayer.querySelector(`[data-field="${field}"]`)||modalLayer.querySelector('[data-field=title]');
+    element?.focus({preventScroll:true});if(element?.matches('input:not([type=checkbox])'))element.select();if(element?.matches('.td-pick'))openPick(element);
+  }
+  async function afterTaskModal(id) {
+    await flushPending();const task=state.tasks.find(item=>item.id===id);
+    // 상태를 바꿨으면 그 분류로 따라간다(목록 편집기와 같다). 완료 기록·프로젝트 화면에서는 그대로.
+    if(task&&state.view==='tasks'&&!['done','projects'].includes(state.tab)&&task.kind!==taskModalKind)state.tab=task.kind;
+    taskModalKind=null;renderNav();renderMainView();if(state.view==='tasks')focusTask(id);
   }
   function dueModal(id) {
     const task=state.tasks.find(item=>item.id===id);if(!task)return;
@@ -584,7 +601,7 @@
   function hintContext() {
     if (state.shell !== 'dashboard' || helpOpen) return null;
     const active = document.activeElement;
-    if (!modalLayer.hidden) return active?.closest('.quick-event-form') ? 'quickEvent' : 'dialog';
+    if (!modalLayer.hidden) return active?.closest('.quick-event-form') ? 'quickEvent' : active?.closest('.task-form') ? 'taskEditor' : 'dialog';
     if (pick) return pick.options.some(option => option.num) ? 'pickNumbered' : 'pick';
     if (state.view === 'tasks') {
       if (active?.closest('[data-editor]')) return 'taskEditor';
@@ -991,6 +1008,8 @@
     return goSection(MENU_ORDER[((index < 0 ? -1 : index) + direction + MENU_ORDER.length) % MENU_ORDER.length]);
   }
   async function goSection(section) {
+    // 할 일 편집 대화상자는 자동 저장이라 화면을 옮기면 조용히 닫는다(저장은 아래 flushPending).
+    if(modalLayer.querySelector('.task-form')){modalLayer.hidden=true;modalLayer.innerHTML='';modalDirty=false;taskModalKind=null;}
     if(section==='settings'||section==='shortcuts')state.settingsTab=section==='shortcuts'?'shortcuts':'general';
     const route={settings:{settings:true,view:'settings'},shortcuts:{settings:true,view:'settings'},dashboard:{view:'dashboard'},work:{view:'tasks',tab:state.tab},todo:{view:'tasks',tab:'todo'},inbox:{view:'tasks',tab:'inbox'},waiting:{view:'tasks',tab:'waiting'},done:{view:'tasks',tab:'done'},notes:{view:'notes'},calendar:{view:'calendar'}}[section];
     if(!route)return;
@@ -1005,7 +1024,7 @@
     if(state.view==='tasks'&&state.tab==='projects'){projectModal();return;}
     root.querySelector('.td-quick input')?.focus();
   }
-  async function openTaskField(id,field='title') {await flushPending();if(!state.tasks.some(task=>task.id===id))return;state.selected=id;renderMainView();const element=body.querySelector(`[data-editor="${CSS.escape(id)}"] [data-field="${field}"]`);element?.focus({preventScroll:true});if(element?.matches('.td-pick'))openPick(element);}
+  async function openTaskField(id,field='title') {await flushPending();if(!state.tasks.some(task=>task.id===id))return;if(state.selected){state.selected=null;renderMainView();}taskModal(id,field);}
   async function collapseTaskEditor() {const id=state.selected;await flushPending();state.selected=null;renderMainView();focusTask(id);}
   async function taskKeyboardAction(id,action) {
     const task=visibleTasks().find(item=>item.id===id);if(!task)return;
@@ -1191,7 +1210,7 @@
     if (data.settingsTab) return setSettingsTab(data.settingsTab);
     if (data.tab) return switchWorkTab(data.tab,{focus:button.closest('.td-work-nav')?'tab':'list',clearProject:state.view!=='tasks'});
     if (button.classList.contains('td-drag-handle')) return;
-    if (data.task) { taskCursor=data.task; if(state.selected===data.task)await collapseTaskEditor();else await openTaskField(data.task);return; }
+    if (data.task) { taskCursor=data.task; await openTaskField(data.task);return; }
     if (data.reveal) return reveal(data.reveal);
     if (data.editDue) return dueModal(data.editDue);
     if (data.reviveTask) return reviveTask(data.reviveTask);
@@ -1206,7 +1225,7 @@
     if (data.event) return eventModal(data.event);
     if (data.result !== undefined) return executeCommand({ key:data.resultKey });
     if (data.commandAction && command.actions) return executeCommand({ item:command.actions.item, query:command.actions.query, actionId:data.commandAction });
-    if (data.deleteTask) return deleteTask(data.deleteTask);
+    if (data.deleteTask) { if (button.closest('.task-form')) { modalLayer.hidden = true; modalLayer.innerHTML = ''; taskModalKind = null; } return deleteTask(data.deleteTask); }
     if (data.nudge) return nudgeTask(data.nudge);
     if (data.subToggle || data.subSync || data.subDelete) { const id=Number(data.subToggle||data.subSync||data.subDelete); await mutate(data.subToggle?'subscription.toggle':data.subSync?'subscription.sync':'subscription.delete',{id}); return subscriptions(); }
     if (data.media) { await call('media.control',{action:data.media,appId:data.appId}); return; }
@@ -1251,7 +1270,7 @@
     if (element.matches('[data-field]') && ['title','note','waitingFor'].includes(element.dataset.field)) {
       const id=element.closest('[data-editor]').dataset.editor;
       queueTask(id,{[element.dataset.field]:element.value});
-      if(element.dataset.field==='title')element.closest('.td-task').querySelector('[data-check]').setAttribute('aria-label',element.value+' 완료');
+      if(element.dataset.field==='title')element.closest('.td-task')?.querySelector('[data-check]')?.setAttribute('aria-label',element.value+' 완료');
     }
   });
   root.addEventListener('change', event => safe(async()=>{
@@ -1274,12 +1293,15 @@
       const label=element.closest('.td-task')?.querySelector('.td-due'),badge=workRules.dueBadge(due);
       if(label){label.textContent=badge?.text||'마감 없음';label.title=due||'마감 없음';label.classList.toggle('today',badge?.cls==='today');label.classList.toggle('work-overdue',badge?.cls==='over');}
       rememberWorkUndo('마감일',()=>mutate('task.update',{id,due:previous}),due?`마감을 ${dueLabel(due)}로 정했어요.`:'마감을 해제했어요.');
+      if(element.closest('.task-form'))renderMainView();
       return;
     }
     if(element.matches('[data-field]') && ['kind','due','project_id'].includes(element.dataset.field)) {
       const id=element.closest('[data-editor]').dataset.editor;const field=element.dataset.field;const value=field==='project_id'?(element.value?Number(element.value):null):element.value;
       const activeAtRequest=document.activeElement,updated=await mutate('task.update',{id,[field]:value},{renderMain:false});
       if(field==='due') {const due=element.closest('.td-task')?.querySelector('.td-due'),badge=workRules.dueBadge(value);if(due){due.textContent=badge?.text||'마감 없음';due.title=value||'마감 없음';due.classList.toggle('today',badge?.cls==='today');due.classList.toggle('work-overdue',badge?.cls==='over');}return;}
+      // 대화상자에서 바꾸면 뒤의 목록도 바로 따라간다(분류 이동 포함). 포커스는 대화상자에 그대로 둔다.
+      if(element.closest('.task-form')){if(state.view==='tasks'&&!['done','projects'].includes(state.tab)&&(field==='kind'||field==='project_id')&&updated.kind!==state.tab){state.tab=updated.kind;taskModalKind=updated.kind;}if(field==='project_id'&&state.project&&state.project!==updated.project_id)state.project=null;renderNav();renderMainView();return;}
       if(state.view!=='tasks'||state.selected!==id||!element.isConnected)return;
       const activeAfterSave=document.activeElement,focus=captureFocus(),sameControl=activeAfterSave===activeAtRequest;
       if(field==='kind'||field==='project_id'&&updated.kind!==state.tab&&state.tab!=='done')state.tab=updated.kind;
@@ -1288,13 +1310,14 @@
     }
   }));
   root.addEventListener('submit',event=>{
-    if(!event.target.matches('.td-quick,.event-form,.project-form,.subscription-form,.preferences-form,.quick-event-form,.work-due-form,.work-waiting-form,.work-archive-form'))return;
+    if(!event.target.matches('.td-quick,.event-form,.project-form,.subscription-form,.preferences-form,.quick-event-form,.work-due-form,.work-waiting-form,.work-archive-form,.task-form'))return;
     event.preventDefault();
     const submittingForm=event.target;if(submittingForm.dataset.submitting==='true')return;
     submittingForm.dataset.submitting='true';const submitButton=submittingForm.querySelector('[type=submit]');if(submitButton)submitButton.disabled=true;
     safe(async()=>{
       const form=event.target;
       if(form.matches('.td-quick')){const input=form.querySelector('input');const title=input.value.trim();if(!title)return;input.disabled=true;let result;try{result=await addTask(title);input.value='';}finally{input.disabled=false;if(result?.followed)focusTask(result.id);else if(!result)input.focus();}return;}
+      if(form.matches('.task-form')){closeModal();return;}
       const values=Object.fromEntries(new FormData(form).entries());
       if(form.matches('.work-due-form')){
         const id=form.dataset.taskId,previous=state.tasks.find(task=>task.id===id)?.due||'';
@@ -1348,6 +1371,8 @@
   document.addEventListener('keydown',event=>{if(!['Control','Alt','Shift','Meta','Process'].includes(event.key))root.classList.remove('focus-quiet');},true);
   document.addEventListener('keydown',event=>{
     if(event.isComposing||event.keyCode===229||command.composing){deferCompositionKey(event);return;}
+    // 편집 대화상자의 한 줄 칸에서 Enter는 그 칸만 확정하고 대화상자는 그대로 둔다(목록 편집기와 같다). 양식 암묵 제출을 막는다.
+    if(!modalLayer.hidden&&event.key==='Enter'&&!event.ctrlKey&&!event.altKey&&!event.metaKey&&event.target.matches?.('.task-form input:not([type=checkbox])')){event.preventDefault();event.target.dispatchEvent(new Event('change',{bubbles:true}));return;}
     // 확정 직후 브라우저가 같은 키를 다시 보내면 미뤄 둔 처리는 버린다(두 번 움직이지 않게).
     if(command.deferredKey&&event.target===commandInput&&event.code===command.deferredCode){clearTimeout(command.deferredKey);command.deferredKey=null;command.deferredCode=null;}
     const section=K.section(event);
@@ -1355,10 +1380,12 @@
     if(event.target.matches('[data-shortcut]')&&!helpOpen&&!reservedFieldKey){recordShortcut(event);return;}
     if(K.is(event,'help.toggle')){event.preventDefault();if(!event.repeat)safe(()=>helpOpen?closeHelp():openHelp());return;}
     if(helpOpen){if(K.is(event,'back')){event.preventDefault();safe(closeHelp);}else if(K.is(event,'focus.cycle')){event.preventDefault();helpLayer.querySelector('button')?.focus();}return;}
-    if(section){event.preventDefault();if(!event.repeat&&modalLayer.hidden&&!command.running)safe(()=>goSection(section));return;}
-    if(K.is(event,'nav.next')||K.is(event,'nav.prev')){event.preventDefault();if(!event.repeat&&modalLayer.hidden&&!command.running&&state.shell==='dashboard')safe(()=>cycleMenu(K.is(event,'nav.next')?1:-1));return;}
-    if(K.is(event,'command.open')){event.preventDefault();if(!event.repeat&&modalLayer.hidden&&!command.running){cancelCommandActivation();safe(async()=>{const same=state.shell==='command'&&!command.capture;exitCapture();await flushPending();await shell('command');if(same)commandInput.select();});}return;}
-    if(!modalLayer.hidden&&K.is(event,'focus.cycle')){
+    if(section){event.preventDefault();if(!event.repeat&&(modalLayer.hidden||modalLayer.querySelector('.task-form'))&&!command.running)safe(()=>goSection(section));return;}
+    if(K.is(event,'nav.next')||K.is(event,'nav.prev')){event.preventDefault();if(!event.repeat&&(modalLayer.hidden||modalLayer.querySelector('.task-form'))&&!command.running&&state.shell==='dashboard')safe(()=>cycleMenu(K.is(event,'nav.next')?1:-1));return;}
+    if(K.is(event,'command.open')){event.preventDefault();if(!event.repeat&&(modalLayer.hidden||modalLayer.querySelector('.task-form'))&&!command.running){cancelCommandActivation();safe(async()=>{const same=state.shell==='command'&&!command.capture;exitCapture();await flushPending();await shell('command');if(same)commandInput.select();});}return;}
+    if(state.shell==='dashboard'&&!modalLayer.hidden&&K.is(event,'focus.cycle')){
+      // 할 일 편집 대화상자의 Tab은 입력 칸만 돈다(삭제·닫기 버튼에 멈추지 않는다. 닫기는 Esc·Ctrl+S).
+      if(modalLayer.querySelector('.task-form')){event.preventDefault();const fields=[...modalLayer.querySelectorAll('.task-form :is(input:not([type=checkbox]),textarea,.td-pick)')].filter(element=>!element.disabled&&element.getClientRects().length);const index=fields.indexOf(event.target);fields[index<0?0:(index+(event.shiftKey?fields.length-1:1))%fields.length]?.focus();return;}
       const focusable=[...modalLayer.querySelectorAll('button,input,select,textarea,[tabindex]')].filter(element=>!element.disabled&&element.tabIndex>=0&&element.getClientRects().length);
       const first=focusable[0],last=focusable.at(-1);
       if(!first){event.preventDefault();return;}

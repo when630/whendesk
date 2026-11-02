@@ -60,7 +60,7 @@
     A('work.undo','work','되돌리기',['KeyU']),
     A('project.new','work','프로젝트 추가',['Mod+Shift+KeyN']),
 
-    A('task.open','task','편집',['Enter']),
+    A('task.open','task','편집',['Mod+KeyE','Enter']),
     A('task.complete','task','완료',['Space']),
     A('task.collapse','task','상세 편집 접기',['Mod+Enter']),
     A('task.title','task','제목',['KeyE']),
@@ -242,7 +242,7 @@
    * Esc는 뜻이 달라지는 곳에서만 보인다. 전체 목록은 Ctrl+/ 안내에 있다. */
   const HINTS = Object.freeze({
     tasks:[['task.open','편집'],['task.complete','완료'],['task.assign','프로젝트'],['work.tab.cycle','분류','Tab']],
-    taskEditor:[['focus.cycle','필드','Tab'],['task.collapse','접기'],['back','목록']],
+    taskEditor:[['focus.cycle','필드','Tab'],[null,'칸 확정','Enter'],['app.save','저장 · 닫기'],['back','목록']],
     workSearch:[['work.search.leave','목록','Enter'],['back','검색 해제']],
     workQuick:[[null,'담기','Enter'],['back','목록']],
     projects:[['project.add','추가'],['project.rename','이름'],['project.moveUp','순서','Shift + ↑↓'],['project.trash','보관함']],

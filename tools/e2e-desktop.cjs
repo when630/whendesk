@@ -66,6 +66,7 @@ async function test(name,fn){await fn();results.push({name,ok:true});}
    await page.keyboard.press('Control+Comma');await page.locator('[data-look=skin]').selectOption('paper');await page.locator('[data-look=mode]').selectOption('dark');
    await page.locator('.td-nav > [data-action=work]').click();await page.locator('.td-main > .td-work-nav [data-tab=todo]').click();await page.locator('[data-task]').filter({hasText:'E2E 저장 확인'}).click();
    assert.equal(await note.inputValue(),'다시 실행해도 남는 실제 상세 내용');
+   await page.keyboard.press('Escape');await page.locator('.task-form').waitFor({state:'detached'});
   });
   let eventId;
   await test('실제 Calendar 생성·수정·삭제·복원',async()=>{

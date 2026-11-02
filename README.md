@@ -36,7 +36,7 @@ Command는 아이콘 바로 옆에 입력하는 한 줄 화면입니다. 연결�
 | 프로젝트 번호·목록 상자 | 1~9는 Projects 탭 순서의 앞 9개 프로젝트입니다. InBox·ToDo·Waiting 아래 번호 띠, ToDo 묶음 제목·행의 번호 칩(색 점), Projects 탭 행 번호로 늘 보입니다. 필터·정렬·기간·상태·프로젝트는 목록 상자로 Enter·Space·↓ 열기, ↑↓·J/K 고르기, Enter 확정, Esc 닫기, 프로젝트 목록은 숫자키로 바로 고릅니다. M은 프로젝트 목록을 바로 엽니다 |
 | 새 항목·저장 | Ctrl+N 현재 화면에서 작성, Ctrl+S 저장. 할 일 캡처는 Enter 저장 후 InBox의 새 행으로 이동하여 M·D 등으로 바로 분류. 입력에서 ↓·Esc로 목록 복귀 |
 | Work 분류 | 목록에서 Tab·Shift+Tab 순환하며 해당 분류의 마지막 행으로 복귀. 빈 탭을 거쳐도 다음 목록으로 바로 진입. 탭에서 ←→·Home/End 분류 선택, ↓ 목록 진입 |
-| 할 일 목록 | ↑↓·J/K·Home/End·PageUp/Down 선택, Enter 편집, Space 완료·해제, E 제목, D 마감, N 상세, M 프로젝트, W 대기 상대 지정, P·R 재촉 기록, Delete·X 삭제, 1~9 프로젝트 바로 지정(목록 순서), U·Ctrl+Z 연속 되돌리기(완료 포함) |
+| 할 일 목록 | ↑↓·J/K·Home/End·PageUp/Down 선택, Ctrl+E·Enter 편집 대화상자(자동 저장, Enter는 칸 확정, Ctrl+S·Esc 닫기, Tab은 입력 칸만), Space 완료·해제, E 제목, D 마감, N 상세, M 프로젝트, W 대기 상대 지정, P·R 재촉 기록, Delete·X 삭제, 1~9 프로젝트 바로 지정(목록 순서), U·Ctrl+Z 연속 되돌리기(완료 포함) |
 | 할 일 편집 | Tab·Shift+Tab으로 필드 이동, Ctrl+Enter 또는 Esc로 목록 복귀. 접힌 행의 Ctrl+Enter는 아무 동작도 하지 않음 |
 | Work 검색 | /·Ctrl+F 검색, Enter·↓ 목록 복귀, Tab으로 프로젝트 필터·정렬 이동, Esc 검색 해제. 목록에서 Tab은 검색을 유지하며 분류 순환. F는 ToDo 마감 필터, H는 완료 기록 |
 | 프로젝트 | Projects에서 Ctrl+N·N 추가, E 이름 수정, Shift+↑↓ 순서, Delete·X 보관, A 보관함 보기, 보관함 Enter 복원. 할 일에서는 M으로 지정하며 InBox 항목은 ToDo로 이동 |

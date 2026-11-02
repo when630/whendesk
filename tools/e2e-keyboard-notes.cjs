@@ -91,7 +91,8 @@ async function closeApp(){
    await waitUntil(async()=>(await state()).tasks.find(task=>task.id===taskId)?.project_id===projectId,'키보드 프로젝트 선택이 저장되지 않았습니다.');
    await tabTo('[data-field=note]');await text('키보드로 입력한 할 일 상세 내용');await press('Control+s');
    await waitUntil(async()=>{const task=(await state()).tasks.find(task=>task.id===taskId);return task?.title===editedTaskTitle&&task.note==='키보드로 입력한 할 일 상세 내용';},'할 일 편집 내용이 저장되지 않았습니다.');
-   await press('Control+Enter');await page.locator('[data-field=title]').waitFor({state:'hidden'});await waitFocus(`article[data-task-row="${taskId}"]`);
+   // 편집은 대화상자다. Ctrl+S가 저장하고 닫으며 포커스는 그 행으로 돌아온다.
+   await page.locator('.task-form').waitFor({state:'detached'});await waitFocus(`article[data-task-row="${taskId}"]`);
    await press('Space');await waitUntil(async()=>(await state()).tasks.find(task=>task.id===taskId)?.done===true,'완료되지 않았습니다.');
    await section('done');await waitFocus(`article[data-task-row="${taskId}"]`);await press('Space');
    await waitUntil(async()=>(await state()).tasks.find(task=>task.id===taskId)?.done===false,'완료 해제가 저장되지 않았습니다.');

@@ -159,12 +159,13 @@ function setOwnedFixtureDoneDates(entries){
       await waitUntil(async()=>{taskId=(await state()).tasks.find(item=>item.title===taskTitle)?.id;return !!taskId;},'새 할 일이 InBox에 저장되지 않았습니다.');
       await gotoTab('inbox');await focusTask(taskId);await press('m');await waitFocus('[data-field=project_id]');await page.locator('.td-pick-menu').waitFor();await screenshot('10-work-project-picker');
       assert.deepEqual(await page.locator('.work-legend .project-num').allTextContents(),(await page.locator('.td-pick-menu .project-num').allTextContents()),'번호 띠와 프로젝트 목록의 번호가 다릅니다.');assert.ok((await page.locator('.work-legend .project-num').count())>=2,'번호 띠에 프로젝트 번호가 없습니다.');
-      assert.equal(await page.locator('.td-pick-menu [role=option]').last().getAttribute('data-value'),String(secondProjectId));await press('End');await press('Enter');await press('Tab');
+      assert.equal(await page.locator('.td-pick-menu [role=option]').last().getAttribute('data-value'),String(secondProjectId));await press('End');await press('Enter');
       await waitUntil(async()=>{const item=await task(taskId);return item?.project_id===secondProjectId&&item.kind==='todo';},'프로젝트 지정이 InBox를 ToDo로 분류하지 않았습니다.');
-      await gotoTab('todo');await focusTask(taskId);await press('e');await waitFocus('[data-field=title]');await replaceText(editedTaskTitle);await press('Control+s');
-      await waitUntil(async()=>(await task(taskId))?.title===editedTaskTitle,'제목 편집이 저장되지 않았습니다.');
-      await press('Tab');assert.equal(await activeTab(),'todo');assert.equal(await focused('[data-field=title]'),false);assert.equal(await focusWithin('[data-editor]'),true,'편집중 Tab이 입력 필드 밖으로 Work 탭을 전환했습니다.');
-      await press('Control+Enter');await page.locator('[data-field=title]').waitFor({state:'hidden'});await waitWithin(`[data-task-row="${taskId}"]`);
+      await press('Escape');await page.locator('.task-form').waitFor({state:'detached'});
+      await gotoTab('todo');await focusTask(taskId);await press('e');await page.locator('.task-form').waitFor();await waitFocus('.task-form [data-field=title]');await replaceText(editedTaskTitle);
+      await press('Tab');assert.equal(await activeTab(),'todo');assert.equal(await focused('[data-field=title]'),false);assert.equal(await focusWithin('.task-form'),true,'편집중 Tab이 대화상자 밖으로 나갔습니다.');
+      await press('Control+s');await page.locator('.task-form').waitFor({state:'detached'});
+      await waitUntil(async()=>(await task(taskId))?.title===editedTaskTitle,'제목 편집이 저장되지 않았습니다.');await waitWithin(`[data-task-row="${taskId}"]`);
     });
 
     await test('D 마감 입력은 내일·+3·빈값 해제 규칙을 쓰고 CtrlS·Enter 저장 뒤 행 포커스를 복원',async()=>{
@@ -216,11 +217,12 @@ function setOwnedFixtureDoneDates(entries){
     });
 
     await test('편집 초안·도움말·Command 왕복은 저장 내용과 화면 상태를 보존하고 숫자 키는 프로젝트를 바로 지정하고 U로 되돌림',async()=>{
-      await focusTask(taskId);await press('n');await waitFocus('[data-field=note]');await text('Work 상세 초안 '+runId);await press('Control+s');await waitUntil(async()=>(await task(taskId))?.note==='Work 상세 초안 '+runId,'상세 초안이 저장되지 않았습니다.');
+      await focusTask(taskId);await press('n');await waitFocus('[data-field=note]');await text('Work 상세 초안 '+runId);await waitUntil(async()=>(await task(taskId))?.note==='Work 상세 초안 '+runId,'상세 초안이 저장되지 않았습니다.');
       await press('Home');await press('Shift+End');const selection=await page.locator('[data-field=note]').evaluate(element=>[element.selectionStart,element.selectionEnd]);
       await press('Control+Slash');await page.locator('.minimal-help-layer').waitFor();await press('Escape');await page.locator('.minimal-help-layer').waitFor({state:'hidden'});await waitFocus('[data-field=note]');assert.deepEqual(await page.locator('[data-field=note]').evaluate(element=>[element.selectionStart,element.selectionEnd]),selection);
+      // 편집 대화상자에서도 Ctrl+K로 Command에 갔다가 Tab으로 돌아오면 같은 칸·선택으로 돌아온다(자동 저장이라 잃을 것이 없다).
       await press('Control+k');await waitFocus('.td-command input');await press('Tab');await waitFocus('[data-field=note]');assert.equal(await page.locator('[data-field=note]').inputValue(),'Work 상세 초안 '+runId);assert.deepEqual(await page.locator('[data-field=note]').evaluate(element=>[element.selectionStart,element.selectionEnd]),selection);
-      await press('Control+Enter');await waitWithin(`[data-task-row="${taskId}"]`);const previous=(await task(taskId)).project_id;
+      await press('Escape');await page.locator('.task-form').waitFor({state:'detached'});await waitWithin(`[data-task-row="${taskId}"]`);const previous=(await task(taskId)).project_id;
       // 1~9는 활성 프로젝트 목록 순서로 바로 지정하고(원본 WHENWORK), U로 되돌린다.
       const projects=(await state()).projects,target=projects.findIndex(project=>project.id!==previous);assert.ok(target>=0&&target<9);
       await press(String(target+1));await waitUntil(async()=>(await task(taskId)).project_id===projects[target].id,'숫자 키가 프로젝트를 지정하지 않았습니다.');
@@ -248,9 +250,8 @@ function setOwnedFixtureDoneDates(entries){
       for(const entry of dates)assert.equal((await task(entry.id)).doneAt,entry.iso);
       await gotoTab('done');
       assert.deepEqual(JSON.parse(await page.locator('[data-work-range]').getAttribute('data-options')).map(option=>option.value),['7','30','']);
-      await focusTask(dates[0].id);await press('Enter');await waitFocus('[data-field=title]');
-      // 열린 첫 행의 제목 → 완료 체크박스 → toolbar 기간 순서로 거꾸로 이동한다.
-      await tabTo('[data-work-range]',{reverse:true,limit:12});
+      // 목록에서 Tab은 분류를 바꾸므로 기간 목록 상자에는 바로 포커스를 둔다.
+      await page.locator('[data-work-range]').focus();await waitFocus('[data-work-range]');
       const expectHistory=async(expected)=>{
         const expectedIds=expected.map(entry=>entry.id),expectedGroups=expected.map(entry=>entry.key);
         await waitUntil(async()=>JSON.stringify(await page.locator('[data-task-row]').evaluateAll(rows=>rows.map(row=>row.dataset.taskRow)))===JSON.stringify(expectedIds),'Done 기간에 맞는 완료 항목만 표시되지 않습니다.');
