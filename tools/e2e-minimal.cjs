@@ -268,14 +268,15 @@ function durableData(state) {
       assert.deepEqual(durableData(await call('state', {})), before);
       await screenshot('07-settings-ink-light');
 
+      await page.locator('[data-settings-tab=shortcuts]').click();
       await page.locator('[data-action=help]').click();
       await page.locator('.minimal-help-layer').waitFor();
       await page.keyboard.press('Escape');
       await page.locator('.minimal-help-layer').waitFor({ state: 'hidden' });
-      assert.equal(await skin.isVisible(), true, '설정의 도움말을 닫으면 설정 화면이 유지돼야 합니다.');
+      assert.equal(await page.locator('[data-shortcut=hotkey]').isVisible(), true, '설정의 도움말을 닫으면 설정 화면이 유지돼야 합니다.');
       // 화면 기본 자리가 아니면 Esc는 먼저 그 자리로 돌아오고, 기본 자리에서 한 번 더 누르면 Command로 간다.
       await page.keyboard.press('Escape');
-      await waitUntil(() => skin.evaluate(element => element === document.activeElement), 'Esc가 설정의 기본 자리로 돌아가지 않았습니다.');
+      await waitUntil(() => page.evaluate(() => document.activeElement?.matches('[data-settings-tab][aria-selected=true]')), 'Esc가 설정의 기본 자리로 돌아가지 않았습니다.');
       await page.keyboard.press('Escape');
       await commandRestored('123+456', [1, 4]);
       await page.locator('.td-command input').press('Tab');

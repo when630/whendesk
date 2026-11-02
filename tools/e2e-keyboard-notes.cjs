@@ -112,7 +112,7 @@ async function closeApp(){
    assert.deepEqual(await editor.evaluate(element=>[element.selectionStart,element.selectionEnd]),selection);
    await section('settings');await tabTo('[data-look=skin]');await press('End');await press('Tab');await waitFocus('[data-look=mode]');await press('End');await press('Tab');
    await waitUntil(async()=>{const prefs=await preferences();return prefs.skin==='paper'&&prefs.mode==='dark';},'키보드 외관 선택이 저장되지 않았습니다.');
-   await waitFocus('[data-shortcut=hotkey]');await section('notes');await waitFocus('[data-note-editor]');
+   await waitFocus('[data-pref]');await section('notes');await waitFocus('[data-note-editor]');
    assert.equal(await editor.evaluate(element=>element===document.querySelector('[data-note-editor]')),true);assert.equal(await editor.inputValue(),noteBody);assert.deepEqual(await editor.evaluate(element=>[element.selectionStart,element.selectionEnd]),selection);
    await screenshot('03-note-editor-keyboard');
   });

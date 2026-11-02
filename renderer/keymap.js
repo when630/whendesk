@@ -96,6 +96,8 @@
     A('agenda.today','agenda','오늘',['KeyT']),
     A('agenda.new','agenda','새 일정',['KeyN']),
     A('calendar.view','calview','오늘 · 주 · 월 보기 순환',['Tab','Shift+Tab']),
+    A('settings.prev','settings','이전 설정 분류',['ArrowLeft']),
+    A('settings.next','settings','다음 설정 분류',['ArrowRight']),
     A('quickEvent.detail','dialog','한 줄 입력에서 자세히 편집',['Mod+Enter']),
     A('agenda.first','agenda','첫 일정',['Home']),
     A('agenda.last','agenda','마지막 일정',['End']),
@@ -135,7 +137,7 @@
   /* 같은 묶음에서 같은 키를 쓰는 짝. 새로 생기면 여기 적고 이유를 남긴다. */
   const KNOWN_OVERLAPS = Object.freeze([]);
   /* 한 화면에서 동시에 키를 받는 범위 묶음. 묶음 안에서는 같은 키를 두 동작이 쓰면 안 된다. global은 모든 묶음과 함께 검사한다. */
-  const CONCURRENT = Object.freeze([['command'],['capture'],['output'],['dialog'],['work','worksearch'],['work','workquick'],['work','worktab'],['work','list','task'],['work','list','projects'],['calendar','calview'],['agenda','calview'],['notes'],['link']]);
+  const CONCURRENT = Object.freeze([['command'],['capture'],['output'],['dialog'],['work','worksearch'],['work','workquick'],['work','worktab'],['work','list','task'],['work','list','projects'],['calendar','calview'],['agenda','calview'],['notes'],['link'],['settings']]);
 
   const MODS = ['Mod','Alt','Shift'];
   function parse(spec) {
@@ -202,6 +204,9 @@
       ['Note / Calendar',['nav.notes','nav.calendar']],['왼쪽 메뉴 순환 (Dashboard · Work · Note · Calendar)',['nav.next','nav.prev']],[null,['nav.settings']],[null,['app.new']],[null,['app.save']],
       ['화면 안 분류 순환 (Work · 메모)',['work.tab.cycle']],['한 단계 뒤로 (편집 → 필터 → 화면 → Command)',['back']],
     ] },
+    { title:'Dashboard', rows:[
+      ['항목 이동 (할 일 → Work · Note · Calendar)',['list.up','list.down','list.first','list.last']],['할 일 완료 · 되돌리기',['task.complete','work.undo']],['열기',['task.open']],
+    ] },
     { title:'할 일 목록', rows:[
       ['항목 선택',['list.up','list.down','list.first','list.last']],['검색 · 마감 필터 · 완료 기록',['work.search','work.dueFilter','work.doneHistory']],
       ['편집 · 완료',['task.open','task.complete']],[null,['task.assign']],['제목 · 마감 · 상세 · 프로젝트',['task.title','task.due','task.note','task.project']],
@@ -221,6 +226,9 @@
       ['날짜 이동 · 달 이동',['date.prev','date.prevWeek','date.nextWeek','date.next','date.prevMonth','date.nextMonth']],
       [null,['calendar.view']],['오늘 · 새 일정 (한 줄 입력)',['date.today','event.new','app.new']],[null,['quickEvent.detail']],['날짜의 일정 목록 · 편집',['date.open','event.edit']],['선택 일정 삭제 · 되돌리기',['event.delete','agenda.undo']],
     ] },
+    { title:'설정', rows:[
+      ['설정 분류 (일반 · 단축키)',['settings.prev','settings.next']],[null,['nav.settings']],
+    ] },
   ]);
   for (const group of HELP) for (const [, ids] of group.rows) ids.forEach(entry);
 
@@ -236,6 +244,8 @@
     noteSearch:[['note.open','열기','Enter'],['note.down','목록'],['back','검색 지우기']],
     noteEditor:[['note.preview','보기'],['app.save','저장'],['back','목록']],
     notePreview:[['note.edit','편집'],['back','목록']],
+    settings:[['settings.next','분류','← →'],['help.toggle','단축키 전체']],
+    settingsShortcuts:[['settings.next','분류','← →'],['app.save','저장'],['help.toggle','단축키 전체']],
     calendarMonth:[['date.open','일정'],['event.new','새 일정'],['date.today','오늘'],['calendar.view','보기','Tab']],
     calendarList:[['agenda.new','새 일정'],['agenda.nextDay','이동','← →'],['agenda.today','오늘'],['calendar.view','보기','Tab']],
     event:[['event.edit','편집'],['event.delete','삭제'],['agenda.undo','되돌리기'],['calendar.view','보기','Tab']],

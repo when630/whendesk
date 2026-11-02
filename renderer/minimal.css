@@ -186,3 +186,23 @@
 #whendesk-command-first .td-sidebar{position:relative}
 #whendesk-command-first .sidebar-grip{top:6px;left:50%;transform:translateX(-50%);width:28px;height:12px}
 #whendesk-command-first .sidebar-grip svg{width:14px;height:14px}
+
+/* 단축키 안내: 묶음을 카드로 두 줄 배치(좁으면 한 줄). 지금 화면의 묶음이 맨 앞이고 왼쪽 막대로 표시한다. */
+#whendesk-command-first .minimal-help{max-width:980px}
+#whendesk-command-first .minimal-help-head{position:sticky;top:-26px;z-index:1;align-items:flex-start;margin:-26px -30px 18px;padding:22px 30px 14px;background:var(--td-surface);border-bottom:1px solid var(--td-line)}
+#whendesk-command-first .minimal-help-head p{margin:5px 0 0;font-size:11px;color:var(--td-muted)}
+#whendesk-command-first .minimal-help-actions{display:flex;align-items:center;gap:8px}
+#whendesk-command-first .minimal-help-actions .td-secondary{width:auto;height:28px;padding:0 10px;font-size:11px}
+#whendesk-command-first .help-grid{columns:2 360px;column-gap:20px}
+#whendesk-command-first .help-group{break-inside:avoid;margin:0 0 16px;padding:12px 16px 4px;border-radius:6px;background:color-mix(in srgb,var(--td-wash) 55%,var(--td-surface))}
+#whendesk-command-first .help-group.is-current{box-shadow:inset 2px 0 0 var(--td-accent)}
+#whendesk-command-first .minimal-help .help-group h3{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:0 0 4px;font-size:11px;color:var(--td-text);font-weight:600}
+#whendesk-command-first .help-group h3 small{font-size:10px;font-weight:400;color:var(--td-accent)}
+#whendesk-command-first .help-group dl>div{padding:7px 0}
+#whendesk-command-first .help-group dl>div:last-child{border-bottom:0}
+#whendesk-command-first .help-group dt{min-width:0;color:var(--td-muted);line-height:1.45}
+#whendesk-command-first .help-group dd{flex:0 0 auto;max-width:58%}
+#whendesk-command-first .help-group kbd{background:var(--td-surface)}
+/* 설정 분류 탭과 안내 문장 */
+#whendesk-command-first .settings-tabs{margin:-6px 0 22px;max-width:700px}
+#whendesk-command-first .settings-lead{margin:-4px 0 14px;font-size:11px;line-height:1.7;color:var(--td-muted)}

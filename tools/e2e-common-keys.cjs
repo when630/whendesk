@@ -213,6 +213,7 @@ async function closeApp(){
       await press('Space');
       await waitUntil(async()=>!(await page.locator('.cf-home-task [data-reveal]').evaluateAll(elements=>elements.map(element=>element.dataset.reveal))).includes(tasks[0]),'Space가 할 일을 완료하지 않았습니다.');
       assert.ok(/^(task|entry):/.test(await active()),'완료 뒤 포커스가 목록에 남지 않았습니다: '+await active());
+      await press('Control+Slash');await page.locator('.help-group.is-current').waitFor();assert.equal(await page.locator('.help-group').first().locator('h3').evaluate(element=>element.firstChild.textContent),'Dashboard','안내의 첫 묶음이 지금 화면이 아닙니다.');await screenshot('09-help-dashboard');await press('Escape');await page.locator('.minimal-help-layer').waitFor({state:'hidden'});
       await press('u');await waitUntil(async()=>(await page.locator('.cf-home-task [data-reveal]').evaluateAll(elements=>elements.map(element=>element.dataset.reveal))).includes(tasks[0]),'U가 완료를 되돌리지 않았습니다.');
     });
 

@@ -195,6 +195,8 @@ async function withDelayedTaskSelection(run){
         await changeLook(skin,mode);measurements.matrix.push({skin,mode});
         await probe('[data-look=skin]','스킨 선택',variant);
         await probe('[data-look=mode]','모드 선택',variant);
+        await page.locator('[data-settings-tab=general]').focus();await press('ArrowRight');await page.locator('[data-shortcut=hotkey]').waitFor();
+        await probe('[data-settings-tab=shortcuts]','설정 분류 탭',variant);
         await probe('[data-shortcut=hotkey]','단축키 입력',variant);
         await probe('.preferences-form [type=submit]','설정 저장 버튼',variant);
         await probe('.td-nav [data-action=work]','주 메뉴',variant);

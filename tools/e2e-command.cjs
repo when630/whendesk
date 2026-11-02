@@ -247,7 +247,7 @@ async function closeHarness() {
     });
 
     await test('단축키 직접 기록·정규화 저장·중복/예약/등록 실패에서 기존 설정 유지',async()=>{
-      await page.keyboard.press('Control+Comma');
+      await page.keyboard.press('Control+Comma');await page.locator('[data-settings-tab=general]').waitFor();await page.keyboard.press('ArrowRight');
       const hotkey=page.locator('[data-shortcut=hotkey]'),capture=page.locator('[data-shortcut=captureHotkey]');
       await hotkey.focus();assert.equal(await page.evaluate(()=>window.__whendeskRecordShortcut('Alt+Space')),true);assert.equal(await hotkey.inputValue(),'Alt+Space');
       await capture.focus();assert.equal(await page.evaluate(()=>window.__whendeskRecordShortcut('Control+Alt+Space')),true);assert.equal(await capture.inputValue(),'Control+Alt+Space');

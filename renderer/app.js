@@ -16,7 +16,7 @@
   const dateKey = (date = new Date()) => `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
   const today = dateKey();
   const tomorrow = dateKey(new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()+1));
-  const state = { shell:'command', view:'dashboard', tab:'todo', calView:'today', selected:null, project:null, dueOnly:false, year:new Date().getFullYear(), month:new Date().getMonth(), date:today, skin:'base', mode:'system', tasks:[], projects:[], events:[], calendars:[], info:{}, prefs:{}, media:{ sessions:[] } };
+  const state = { shell:'command', view:'dashboard', tab:'todo', calView:'today',settingsTab:'general', selected:null, project:null, dueOnly:false, year:new Date().getFullYear(), month:new Date().getMonth(), date:today, skin:'base', mode:'system', tasks:[], projects:[], events:[], calendars:[], info:{}, prefs:{}, media:{ sessions:[] } };
   const command = { seq:0, items:[], selected:0, pending:false, query:'', renderedQuery:null, request:null, running:false, activating:false, activation:0, composing:false, actions:null, more:null, waiters:new Set(), notice:'', start:0, end:0, timer:null };
   const pending = new Map();
   const workRules = window.VIEW;
@@ -123,14 +123,18 @@
     cancelCommandActivation();
     const row = (label, keys) => `<div><dt>${esc(label)}</dt><dd>${keys.map(key => `<kbd>${esc(key)}</kbd>`).join('')}</dd></div>`;
     const hotkey = key => String(key || '').replace(/CommandOrControl|Control/g, 'Ctrl');
-    const groups = K.HELP.map(group => {
-      const rows = group.rows.filter(([, , when]) => !when?.media || state.media.sessions?.length).map(([label, ids]) => row(label || K.find(ids[0]).label, ids.map(K.format))).join('');
-      return `${group.title ? `<h3>${esc(group.title)}</h3>` : ''}<dl>${rows}</dl>`;
-    }).join('');
-    helpLayer.innerHTML = `<section class="minimal-help" role="dialog" aria-modal="true" aria-label="단축키 안내"><div class="minimal-help-head"><h2>단축키</h2><button data-action="close-help" aria-label="단축키 안내 닫기">${icon('x')}</button></div>${groups}<h3>어디서나</h3><dl>${SHORTCUT_UI.filter(([field]) => state.prefs[field]).map(([field,label]) => row(field === 'hotkey' ? 'WHENDESK 열기 · 숨기기' : label, [hotkey(state.prefs[field])])).join('')}</dl><p class="minimal-help-note">마감일은 오늘·내일·모레·상대일 또는 날짜로 입력하며, 비우면 해제합니다. Work 검색에는 초성·본문·프로젝트와 마감순·마감지남·이번주 같은 원본 필터를 사용할 수 있습니다. 할 일을 캘린더 날짜로 끌어놓아도 마감을 바꿀 수 있습니다. 동작 목록과 열린 대화상자는 Esc로 먼저 닫습니다. 단축키 설정 필드에서는 조합을 눌러 기록하고, Delete로 해제하거나 Esc로 저장된 값을 불러옵니다.</p></section>`;
+    /* 묶음을 카드로 두 줄 배치한다. 지금 화면의 묶음을 맨 앞에, 그다음 화면 이동, 나머지는 정의 순서. */
+    const current = state.shell === 'command' ? 'WHENCOMMAND' : ({ dashboard:'Dashboard', tasks:state.tab === 'projects' ? 'Projects' : '할 일 목록', notes:'메모', calendar:'캘린더', settings:'설정' })[state.view];
+    const rowsOf = group => group.rows.filter(([, , when]) => !when?.media || state.media.sessions?.length).map(([label, ids]) => row(label || K.find(ids[0]).label, ids.map(K.format))).join('');
+    const card = (title, rows) => `<section class="help-group${title === current ? ' is-current' : ''}"><h3>${esc(title)}${title === current ? '<small>지금 화면</small>' : ''}</h3><dl>${rows}</dl></section>`;
+    const titled = K.HELP.filter(group => group.title), rank = group => group.title === current ? 0 : group.title === '화면 이동' ? 1 : 2;
+    const ordered = titled.map((group, index) => ({ group, index })).sort((x, y) => rank(x.group) - rank(y.group) || x.index - y.index).map(({ group }) => card(group.title, rowsOf(group)));
+    const everywhere = rowsOf(K.HELP.find(group => !group.title)) + SHORTCUT_UI.filter(([field]) => state.prefs[field]).map(([field,label]) => row(field === 'hotkey' ? 'WHENDESK 열기 · 숨기기 (전역)' : label + ' (전역)', [hotkey(state.prefs[field])])).join('');
+    ordered.splice(current === '화면 이동' ? 1 : current ? 2 : 1, 0, card('어디서나', everywhere));
+    helpLayer.innerHTML = `<section class="minimal-help" role="dialog" aria-modal="true" aria-label="단축키 안내"><div class="minimal-help-head"><div><h2>단축키</h2><p>${current ? esc(current) + ' 화면에서 연 안내입니다 · ' : ''}Esc · ?로 닫기</p></div><div class="minimal-help-actions"><button class="td-secondary" data-action="help-shortcuts">전역 단축키 바꾸기</button><button data-action="close-help" aria-label="단축키 안내 닫기">${icon('x')}</button></div></div><div class="help-grid">${ordered.join('')}</div><p class="minimal-help-note">마감일은 오늘·내일·모레·상대일 또는 날짜로 입력하며, 비우면 해제합니다. Work 검색에는 초성·본문·프로젝트와 마감순·마감지남·이번주 같은 원본 필터를 사용할 수 있습니다. 할 일을 캘린더 날짜로 끌어놓아도 마감을 바꿀 수 있습니다. 동작 목록과 열린 대화상자는 Esc로 먼저 닫습니다.</p></section>`;
     helpLayer.hidden = false;
     [...app.children].filter(child => child !== helpLayer).forEach(child => { child.inert = true; });
-    icons(); helpLayer.querySelector('button').focus({ preventScroll:true });
+    icons(); quietFocus(); helpLayer.querySelector('[data-action=close-help]').focus({ preventScroll:true });
     if (state.shell === 'command') await call('shell', { mode:'command', height:560 });
   }
   async function closeHelp() {
@@ -503,6 +507,7 @@
       return 'notes';
     }
     if (state.view === 'calendar') return active?.closest('[data-event]') ? 'event' : state.calView === 'month' ? 'calendarMonth' : 'calendarList';
+    if (state.view === 'settings') return state.settingsTab === 'shortcuts' ? 'settingsShortcuts' : 'settings';
     return 'home';
   }
   let hintsFrame = 0, hintsShown = '';
@@ -533,10 +538,14 @@
     const before = stops.filter(element => from.compareDocumentPosition(element) & Node.DOCUMENT_POSITION_PRECEDING);
     return backwards ? before.at(-1) || stops.at(-1) : after[0] || stops[0];
   }
+  const SETTINGS_TABS=[['general','일반'],['shortcuts','단축키']];
+  function setSettingsTab(value) { if (!SETTINGS_TABS.some(([tab]) => tab === value)) return; state.settingsTab = value; renderMainView(); body.querySelector(`[data-settings-tab="${value}"]`)?.focus({preventScroll:true}); syncHints(); }
+  /* 설정은 두 분류다: 일반(모양·시작과 알림·Command·업데이트·데이터)과 단축키(전역 단축키). ←→로 분류를 바꾼다. */
   function settingsView() {
-    const shortcutFields = SHORTCUT_UI;
-    return `<section class="settings-section"><h2>모양</h2><div class="minimal-appearance"><label class="td-field">스킨<select data-look="skin" aria-label="스킨">${[['base','기본'],['ink','잉크'],['paper','페이퍼']].map(([value,label]) => `<option value="${value}" ${state.skin === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label><label class="td-field">모드<select data-look="mode" aria-label="화면 모드">${[['system','시스템'],['light','라이트'],['dark','다크']].map(([value,label]) => `<option value="${value}" ${state.mode === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label></div></section>
-    <form class="preferences-form"><section class="settings-section"><h2>단축키</h2>${shortcutFields.map(([field,label,aria,fallback]) => `<label class="td-field">${label}<input name="${field}" data-shortcut="${field}" aria-label="${aria}" aria-describedby="shortcut-error-${field}" aria-invalid="${!!state.info.shortcutErrors?.[field]}" value="${esc(state.prefs[field] ?? fallback)}" placeholder="사용 안 함" autocomplete="off" spellcheck="false"><span id="shortcut-error-${field}" class="settings-warning" data-shortcut-error="${field}" ${state.info.shortcutErrors?.[field] ? '' : 'hidden'}>${esc(state.info.shortcutErrors?.[field])}</span></label>`).join('')}<div class="settings-actions"><button class="td-primary" type="submit">단축키 저장</button><button class="td-secondary" type="button" data-action="help">단축키 안내</button></div></section></form>
+    const shortcutFields = SHORTCUT_UI, tab = state.settingsTab;
+    const tabs = `<div class="cal-views settings-tabs" role="tablist" aria-label="설정 분류">${SETTINGS_TABS.map(([value,label]) => `<button role="tab" data-settings-tab="${value}" aria-selected="${tab === value}" tabindex="${tab === value ? 0 : -1}">${label}</button>`).join('')}</div>`;
+    if (tab === 'shortcuts') return tabs + `<form class="preferences-form"><section class="settings-section"><h2>어디서나 쓰는 단축키</h2><p class="settings-lead">다른 앱을 쓰는 중에도 바로 부르는 전역 단축키입니다. 칸을 고른 뒤 조합을 누르면 기록되고, Delete는 해제, Esc는 저장된 값으로 되돌립니다.</p>${shortcutFields.map(([field,label,aria,fallback]) => `<label class="td-field">${label}<input name="${field}" data-shortcut="${field}" aria-label="${aria}" aria-describedby="shortcut-error-${field}" aria-invalid="${!!state.info.shortcutErrors?.[field]}" value="${esc(state.prefs[field] ?? fallback)}" placeholder="사용 안 함" autocomplete="off" spellcheck="false"><span id="shortcut-error-${field}" class="settings-warning" data-shortcut-error="${field}" ${state.info.shortcutErrors?.[field] ? '' : 'hidden'}>${esc(state.info.shortcutErrors?.[field])}</span></label>`).join('')}<div class="settings-actions"><button class="td-primary" type="submit">단축키 저장</button><button class="td-secondary" type="button" data-action="help">앱 안 단축키 보기 (?)</button></div></section></form>`;
+    return tabs + `<section class="settings-section"><h2>모양</h2><div class="minimal-appearance"><label class="td-field">스킨<select data-look="skin" aria-label="스킨">${[['base','기본'],['ink','잉크'],['paper','페이퍼']].map(([value,label]) => `<option value="${value}" ${state.skin === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label><label class="td-field">모드<select data-look="mode" aria-label="화면 모드">${[['system','시스템'],['light','라이트'],['dark','다크']].map(([value,label]) => `<option value="${value}" ${state.mode === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label></div></section>
     <section class="settings-section"><h2>시작과 알림</h2><label class="settings-check"><input type="checkbox" data-pref="launchAtLogin" ${state.prefs.launchAtLogin ? 'checked' : ''} ${state.info.launchAtLoginSupported ? '' : 'disabled'}>로그인할 때 트레이에 숨겨 실행</label>${state.info.launchAtLoginSupported ? '' : '<small class="settings-path">배포본에서만 설정할 수 있습니다.</small>'}<label class="settings-check"><input type="checkbox" data-pref="briefEnabled" ${state.prefs.briefEnabled !== false ? 'checked' : ''}>아침 브리핑 알림</label><label class="td-field settings-time">브리핑 시각<input type="time" data-pref="briefAt" aria-label="아침 브리핑 시각" value="${esc(state.prefs.briefAt || '09:00')}"></label><small class="settings-path">하루 한 번, 정한 시각부터 3시간 안에 켜져 있으면 오늘 마감·지연·일정·대기·인박스를 알립니다.</small></section>
     <section class="settings-section"><h2>업데이트</h2><p class="settings-update" data-update-line role="status">${esc(state.update?.line || '')}</p><div class="settings-actions"><button class="td-secondary" type="button" data-action="update-check" ${state.update?.supported ? '' : 'disabled'}>지금 확인</button><button class="td-secondary" type="button" data-action="update-install" ${state.update?.status === 'ready' ? '' : 'disabled'}>재시작해 설치</button></div></section>
     <section class="settings-section"><h2>데이터</h2><div class="settings-actions"><button class="td-secondary" data-data="importLegacy">기존 데이터 복사해 가져오기</button><button class="td-secondary" data-data="export">백업 내보내기</button><button class="td-secondary" data-data="restore">백업 복원</button><button class="td-secondary" data-data="openFolder">저장 폴더 열기</button></div><small class="settings-path">${esc(state.info.dataDir)}</small></section><section class="settings-section"><h2>WHENCOMMAND</h2><label class="settings-check"><input type="checkbox" data-pref="clipboardRow" ${state.prefs.clipboardRow !== false ? 'checked' : ''}>빈 입력에 클립보드로 할 수 있는 것 보이기</label><button class="td-secondary" data-action="refresh-command">검색 목록 새로고침</button></section><section class="settings-section"><h2>WHENDESK ${esc(state.info.version || '')}</h2><button class="td-secondary" data-action="quit">앱 종료</button></section>`;
@@ -855,7 +864,7 @@
     if(state.view==='notes'){notes?.focus();return;}
     if(state.view==='tasks'){if(state.tab==='projects'){focusWorkProject();return;}syncTaskCursor();if(taskCursor)focusTask();else root.querySelector('.td-work-nav [aria-selected=true]')?.focus({preventScroll:true});return;}
     if(state.view==='calendar'){if(state.calView==='month'){body.querySelector(`[data-date="${state.date}"]`)?.focus({preventScroll:true});return;}(body.querySelector(`[data-cal-day="${state.date}"] [data-event]`)||body.querySelector('[data-cal-home]'))?.focus({preventScroll:true});return;}
-    if(state.view==='settings'){body.querySelector('[data-look]')?.focus({preventScroll:true});return;}
+    if(state.view==='settings'){body.querySelector('.settings-tabs [aria-selected=true]')?.focus({preventScroll:true});return;}
     (dashboardItems()[0]||body.querySelector('button'))?.focus({preventScroll:true});
   }
   /* 화면 안의 필터·하위 화면을 하나 푼다. 푼 것이 있으면 true. */
@@ -890,7 +899,8 @@
     return goSection(MENU_ORDER[((index < 0 ? -1 : index) + direction + MENU_ORDER.length) % MENU_ORDER.length]);
   }
   async function goSection(section) {
-    const route={settings:{settings:true,view:'settings'},dashboard:{view:'dashboard'},work:{view:'tasks',tab:state.tab},todo:{view:'tasks',tab:'todo'},inbox:{view:'tasks',tab:'inbox'},waiting:{view:'tasks',tab:'waiting'},done:{view:'tasks',tab:'done'},notes:{view:'notes'},calendar:{view:'calendar'}}[section];
+    if(section==='settings'||section==='shortcuts')state.settingsTab=section==='shortcuts'?'shortcuts':'general';
+    const route={settings:{settings:true,view:'settings'},shortcuts:{settings:true,view:'settings'},dashboard:{view:'dashboard'},work:{view:'tasks',tab:state.tab},todo:{view:'tasks',tab:'todo'},inbox:{view:'tasks',tab:'inbox'},waiting:{view:'tasks',tab:'waiting'},done:{view:'tasks',tab:'done'},notes:{view:'notes'},calendar:{view:'calendar'}}[section];
     if(!route)return;
     // 캘린더는 오늘 보기가 기본이다. 오늘 보기로 들어갈 때는 날짜도 오늘에 맞춘다.
     if(section==='calendar'&&state.calView==='today')route.date=dateKey();
@@ -1032,6 +1042,7 @@
     if(K.is(event,'app.save')){event.preventDefault();if(state.view==='settings')body.querySelector('.preferences-form')?.requestSubmit();else safe(flushPending);return true;}
     if(K.is(event,'app.undo')&&!editingTarget(target)){event.preventDefault();safe(undoLastAction);return true;}
     if(state.view==='dashboard'&&!editingTarget(target)&&body.contains(target)&&dashboardKeys(event))return true;
+    if(state.view==='settings'&&target.closest('.settings-tabs')){const order=SETTINGS_TABS.map(([tab])=>tab),index=order.indexOf(state.settingsTab),to=K.is(event,'settings.next')?index+1:K.is(event,'settings.prev')?index-1:null;if(to!==null){event.preventDefault();setSettingsTab(order[(to+order.length)%order.length]);return true;}}
     if(workKeys(event))return true;
     if(state.view==='calendar'&&!editingTarget(target)&&target.closest('.td-full-calendar')&&K.is(event,'calendar.view')){event.preventDefault();if(!event.repeat){const order=CAL_VIEWS.map(([view])=>view);safe(()=>setCalView(order[(order.indexOf(state.calView)+(event.shiftKey?order.length-1:1))%order.length]));}return true;}
     if(state.view==='calendar'&&state.calView!=='month'&&!editingTarget(target)&&target.closest('.cal-list')){
@@ -1081,7 +1092,9 @@
     const button = event.target.closest('button'); if (!button) { if (event.target === modalLayer) closeModal(); return; }
     const data = button.dataset;
     if (data.action === 'close-help') return closeHelp();
+    if (data.action === 'help-shortcuts') { await closeHelp(); return goSection('shortcuts'); }
     if (data.calView) return setCalView(data.calView);
+    if (data.settingsTab) return setSettingsTab(data.settingsTab);
     if (data.tab) return switchWorkTab(data.tab,{focus:button.closest('.td-work-nav')?'tab':'list',clearProject:state.view!=='tasks'});
     if (button.classList.contains('td-drag-handle')) return;
     if (data.task) { taskCursor=data.task; if(state.selected===data.task)await collapseTaskEditor();else await openTaskField(data.task);return; }

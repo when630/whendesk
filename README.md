@@ -32,6 +32,7 @@ Command는 아이콘 바로 옆에 입력하는 한 줄 화면입니다. 연결�
 | 공통 키 | 목록에서 화면과 관계없이 같은 뜻: ↑↓·J/K 이동, Enter 열기, E 편집, N 새로, X·Delete 삭제, U·Ctrl+Z 되돌리기, / 검색, Tab 화면 안 분류 순환. 되돌리기는 화면을 넘나들어 가장 최근 작업부터 되돌립니다 |
 | 화면 이동 | Alt+H Dashboard, Alt+T Work/ToDo, Alt+I Work/InBox, Alt+W Work/Waiting, Alt+D Work/Done, Alt+N Note, Alt+C Calendar, Ctrl+, Settings. Ctrl+Tab·Ctrl+Shift+Tab 왼쪽 메뉴(Dashboard·Work·Note·Calendar) 순환 |
 | Dashboard | ↑↓·J/K·Home/End 할 일과 Work·Note·Calendar 입구 사이 이동, Space 할 일 완료, U·Ctrl+Z 되돌리기, Enter 열기. 화면에 들어온 직후에는 선택 표시가 없고 키를 누르면 보입니다 |
+| 설정 | Ctrl+, 로 열면 **일반**(모양·시작과 알림·Command·업데이트·데이터), ←→로 **단축키**(전역 단축키 기록) 분류로 바꿉니다. 단축키 안내(Ctrl+/)는 지금 화면의 묶음을 맨 앞에 두고, 거기서 전역 단축키 설정으로 바로 갑니다 |
 | 새 항목·저장 | Ctrl+N 현재 화면에서 작성, Ctrl+S 저장. 할 일 캡처는 Enter 저장 후 InBox의 새 행으로 이동하여 M·D 등으로 바로 분류. 입력에서 ↓·Esc로 목록 복귀 |
 | Work 분류 | 목록에서 Tab·Shift+Tab 순환하며 해당 분류의 마지막 행으로 복귀. 빈 탭을 거쳐도 다음 목록으로 바로 진입. 탭에서 ←→·Home/End 분류 선택, ↓ 목록 진입 |
 | 할 일 목록 | ↑↓·J/K·Home/End·PageUp/Down 선택, Enter 편집, Space 완료·해제, E 제목, D 마감, N 상세, M 프로젝트, W 대기 상대 지정, P·R 재촉 기록, Delete·X 삭제, 1~9 프로젝트 바로 지정(목록 순서), U·Ctrl+Z 연속 되돌리기(완료 포함) |
