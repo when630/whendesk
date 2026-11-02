@@ -146,6 +146,24 @@ async function closeApp(){
       await screenshot('04-settings-startup');
     });
 
+    await test('스크롤바는 보이지 않고, 목록만 스크롤되며 제목·탭은 위에, 힌트는 맨 아래에 뒤가 비치지 않게 붙는다',async()=>{
+      for(let index=1;index<=30;index++)await call('mutate',{type:'task.create',payload:{title:`스크롤 ${index} ${runId}`}});
+      await press('Alt+i');await waitWithin('.td-main');await page.waitForTimeout(300);
+      const layout=await page.evaluate(()=>{
+        const main=document.querySelector('.td-main'),scroller=document.querySelector('.td-main>.td-body'),head=document.querySelector('.td-main-head'),hints=document.querySelector('.td-hints');
+        const headBefore=head.getBoundingClientRect().top;scroller.scrollTop=scroller.scrollHeight;
+        const bars=[...document.querySelectorAll('#whendesk-command-first *')].filter(el=>el.scrollHeight>el.clientHeight+1&&['auto','scroll'].includes(getComputedStyle(el).overflowY)&&el.offsetWidth-el.clientWidth>0).map(el=>el.className);
+        const mainBox=main.getBoundingClientRect(),hintsBox=hints.getBoundingClientRect();
+        return {scrolled:scroller.scrollTop,headMoved:Math.round(head.getBoundingClientRect().top-headBefore),gapBelowHints:Math.round(mainBox.bottom-hintsBox.bottom),hintsOpaque:getComputedStyle(hints).backgroundColor!=='rgba(0, 0, 0, 0)',bars};
+      });
+      measurements.scrollLayout=layout;
+      assert.ok(layout.scrolled>0,'목록이 스크롤되지 않았습니다.');
+      assert.equal(layout.headMoved,0,'스크롤하면 제목이 밀려 올라갑니다.');
+      assert.equal(layout.gapBelowHints,0,'힌트 아래로 목록이 비쳐 보입니다.');
+      assert.ok(layout.hintsOpaque,'힌트 줄 배경이 투명합니다.');
+      assert.deepEqual(layout.bars,[],'보이는 스크롤바가 있습니다.');
+    });
+
     await test('하단 힌트는 포커스 자리에 맞는 키를 보여 준다',async()=>{
       const hints=()=>page.locator('.td-hints').innerText();
       await press('Alt+i');await waitWithin('.td-main');for(let step=0;step<4;step++)await press('Tab');

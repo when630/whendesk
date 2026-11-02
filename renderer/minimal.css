@@ -162,3 +162,18 @@
 #whendesk-command-first .command-output pre{margin:0;max-height:220px;overflow:auto;font:12px Consolas,"D2Coding",monospace;white-space:pre-wrap}
 #whendesk-command-first .command-output-where{color:var(--td-muted)}
 #whendesk-command-first .command-output-keys{margin:8px 0 0;font-size:11px;color:var(--td-muted)}
+/* 스크롤바는 그리지 않는다(스크롤은 그대로 된다). */
+#whendesk-command-first,#whendesk-command-first *{scrollbar-width:none!important}
+#whendesk-command-first ::-webkit-scrollbar{display:none;width:0;height:0}
+/* 대시보드 본문: 제목·Work 탭·담기 줄은 위에 고정하고 그 아래 내용만 스크롤한다.
+ * 하단 힌트는 스크롤 영역 밖 맨 아래에 붙어 뒤가 비치지 않는다. 행의 좌우 -10px 여백이 잘리지 않게 스크롤 영역을 그만큼 넓힌다. */
+#whendesk-command-first .td-main{overflow:hidden;padding-bottom:0}
+#whendesk-command-first .td-main>.td-main-head,#whendesk-command-first .td-main>.td-work-nav,#whendesk-command-first .td-main>.td-quick{flex:0 0 auto}
+#whendesk-command-first .td-main>.td-body{flex:1 1 auto;min-height:0;overflow-x:hidden;overflow-y:auto;margin:0 -12px;padding:0 12px 18px}
+#whendesk-command-first .td-main>.td-body>.desk-notes{height:100%;min-height:0}
+#whendesk-command-first .td-body .work-toolbar{position:sticky;top:0;z-index:3;background:var(--td-surface)}
+#whendesk-command-first .td-hints{position:static;flex:0 0 auto;margin-top:0;padding:10px 0 14px}
+@media(max-width:850px){
+  #whendesk-command-first .td-main{overflow:visible}
+  #whendesk-command-first .td-main>.td-body{overflow:visible;flex:0 0 auto}
+}
