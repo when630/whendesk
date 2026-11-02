@@ -8,6 +8,7 @@ import { match } from '../modules/command/main/search.mjs';
 import { rank } from '../modules/command/main/rank.mjs';
 import { DEFAULT_ALIASES, aliasesFor, loadUserAliases, mergeAliases, matchWithAliases } from '../modules/command/main/aliases.mjs';
 import { candidates as hintCandidates, saves as hintSaves } from '../modules/command/main/hint.mjs';
+import { classifyClipboard, brief } from '../modules/command/main/clip.mjs';
 import { calc, convert } from '../modules/command/main/sources/calc.mjs';
 import { createStore } from '../modules/command/main/store.mjs';
 import { parseHeader, lineCount } from '../modules/command/main/scripts.mjs';
@@ -45,6 +46,17 @@ function eventWhen(parsed) {
   if (!Number.isFinite(start.getTime())) return '';
   const day = new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' }).format(start);
   return parsed.allDay ? day : `${day} ${new Intl.DateTimeFormat('ko-KR', { hour: 'numeric', minute: '2-digit' }).format(start)}`;
+}
+
+/* 문장에서 짚은 의도를 WHENDESK 안의 받을 곳으로 잇는다(원본 WHENCOMMAND SRCH-10·D-35). */
+const INTENT_CAPTURE = {
+  todo:{ source:'tasks', title:'할 일 추가', icon:'circle-plus', type:'capture-task' },
+  schedule:{ source:'events', title:'일정 추가', icon:'calendar-plus', type:'capture-event' },
+  note:{ source:'notes', title:'메모 추가', icon:'notebook-pen', type:'capture-note' },
+};
+function intentItem(intent, text, extra = {}) {
+  const target = INTENT_CAPTURE[intent];
+  return { key:`intent:${intent}`, source:target.source, title:target.title, subtitle:text, icon:target.icon, base:.6, ...extra, action:{ type:target.type, text } };
 }
 
 function localDate(value) {
@@ -260,11 +272,7 @@ export function createCommand({ dataDir, domain, onMore, onLaunch, platform: pro
     if (note) out.push({ key:'capture:note', source:'notes', title:note[1] ? `메모 추가: ${note[1]}` : '새 메모', subtitle:'메모에 저장', icon:'notebook-pen', base:1.5,
       action:{ type:'capture-note', text:note[1] || '' } });
     if (!todo && !schedule && !note) {
-      for (const intent of detectIntents(q).filter(x => ['todo', 'schedule'].includes(x.intent)).slice(0, 1)) {
-        out.push({ key: `intent:${intent.intent}`, source: intent.intent === 'todo' ? 'tasks' : 'events',
-          title: intent.intent === 'todo' ? '할 일 추가' : '일정 추가', subtitle: q, icon: intent.intent === 'todo' ? 'circle-plus' : 'calendar-plus', base: .6,
-          action: { type: intent.intent === 'todo' ? 'capture-task' : 'capture-event', text: q } });
-      }
+      for (const intent of detectIntents(q).filter(x => INTENT_CAPTURE[x.intent]).slice(0, 2)) out.push(intentItem(intent.intent, q, { base:.6 }));
     }
     return out;
   }
@@ -333,6 +341,19 @@ export function createCommand({ dataDir, domain, onMore, onLaunch, platform: pro
   }
   /* 지름길 힌트(원본 WHENCOMMAND SRCH-11·D-36): 방금 고른 것을 더 짧게 부르는 입력 중 실제로 첫 줄에 오는 가장 짧은 것. 항목마다 한 번. */
   const hinted = new Set();
+  let clipItems = [], lastClip = '';
+  function setClipboard(raw, exists = file => fs.existsSync(file)) {
+    const clip = classifyClipboard(raw, exists);
+    if (!clip || clip.value === lastClip) { clipItems = []; return clipItems; }
+    lastClip = clip.value;
+    const items = [];
+    if (clip.kind === 'url') items.push({ key:'clip:url', source:'clip', title:'링크 열기', subtitle:brief(clip.value), icon:'external-link', action:{ type:'open-url', url:clip.value } });
+    else if (clip.kind === 'path') items.push({ key:'clip:path', source:'clip', title:'열기', subtitle:brief(clip.value), icon:'folder-open', path:clip.value, action:{ type:'open-path', path:clip.value } });
+    const routed = detectIntents(clip.value).filter(x => INTENT_CAPTURE[x.intent]).slice(0, 2).map(x => x.intent);
+    for (const intent of routed.length ? routed : clip.kind === 'text' ? ['note'] : []) items.push(intentItem(intent, clip.value, { key:`clip:${intent}`, subtitle:`“${brief(clip.value, 40)}”` }));
+    clipItems = items.slice(0, 3);
+    return clipItems;
+  }
   function hintFor(item, typed) {
     if (!item || !typed || hinted.has(item.key) || item.fallback || !['apps', 'system', 'builtin'].includes(item.source)) return null;
     const aliases = item.source === 'apps' ? apps.find(app => `apps:${app.path}` === item.key)?.aliases || [] : [];
@@ -350,8 +371,8 @@ export function createCommand({ dataDir, domain, onMore, onLaunch, platform: pro
     const token = ++generation;
     cancelPending();
     cache = new Map();
-    if (!q) return { seq, query: q, items: [], empty: true, pending: false, appCount: apps.length,
-      notice: appError || (!readyPromise ? '앱 목록을 준비하고 있습니다.' : null) };
+    if (!q) { cache = new Map(clipItems.map(item => [item.key, item])); const shown = clipItems; clipItems = []; return { seq, query: q, items: shown.map(publicItem), empty: true, clip: shown.length > 0, pending: false, appCount: apps.length,
+      notice: appError || (!readyPromise ? '앱 목록을 준비하고 있습니다.' : null) }; }
     const found = [];
     const result = convert(q) || calc(q);
     if (result) found.push({ key: `calc:${result.kind}`, source: 'calc', title: result.display, subtitle: result.expr,
@@ -453,6 +474,8 @@ export function createCommand({ dataDir, domain, onMore, onLaunch, platform: pro
       onLaunch?.();
       if (!await platform.openApp(action.path)) throw new Error('앱을 열지 못했습니다.');
       result.hide = true;
+    } else if (action.type === 'open-url') {
+      onLaunch?.(); await effects.shell.openExternal(action.url); result.hide = true;
     } else if (action.type === 'open-path') {
       onLaunch?.();
       const error = await effects.shell.openPath(action.path);
@@ -500,5 +523,5 @@ export function createCommand({ dataDir, domain, onMore, onLaunch, platform: pro
     store.close();
   }
 
-  return { ready, query, run, refresh, close, status, scriptsDir, get lastQuery() { return queryText; } };
+  return { ready, query, run, refresh, close, status, scriptsDir, setClipboard, appPaths:() => apps.map(app => app.path), get lastQuery() { return queryText; } };
 }

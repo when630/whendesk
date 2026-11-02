@@ -132,7 +132,7 @@ async function closeApp(){
 
   await test('Command 검색에서 메모를 찾아 Enter로 보기, E로 편집',async()=>{
    await press('Control+k');await waitFocus('.td-command input');await replaceText(noteTitle);
-   await page.locator('.td-command-result').filter({hasText:noteTitle}).waitFor();
+   await page.locator('.td-command-result[data-result-key="notes:'+noteId+'"]').waitFor();
    const keys=await page.locator('.td-command-result').evaluateAll(elements=>elements.map(element=>element.dataset.resultKey));const index=keys.indexOf('notes:'+noteId);assert.ok(index>=0,'Command 메모 결과가 없습니다.');
    for(let step=0;step<index;step++)await press('ArrowDown');await press('Enter');
    // 검색 결과로 연 메모는 보기 모드로 열리고, E로 편집한다(원본 WHENNOTE).
@@ -147,7 +147,7 @@ async function closeApp(){
    await waitUntil(async()=>(await state()).notes.find(note=>note.id===trashNoteId)?.deleted===true,'메모 B가 휴지통으로 이동하지 않았습니다.');
    await press('Control+Shift+t');await page.locator(`[data-note-row="${trashNoteId}"]`).waitFor();await waitFocus(`[data-note-row="${trashNoteId}"]`);await press('Enter');await waitFocus('[data-note-preview]');
    assert.equal(await page.locator('[data-note-scope]').inputValue(),'trash');assert.ok((await page.locator('[data-note-preview]').textContent()).includes(trashNoteTitle));
-   await press('Control+k');await waitFocus('.td-command input');await replaceText(noteTitle);await page.locator('.td-command-result').filter({hasText:noteTitle}).waitFor();
+   await press('Control+k');await waitFocus('.td-command input');await replaceText(noteTitle);await page.locator('.td-command-result[data-result-key="notes:'+noteId+'"]').waitFor();
    const keys=await page.locator('.td-command-result').evaluateAll(elements=>elements.map(element=>element.dataset.resultKey));const index=keys.indexOf('notes:'+noteId);assert.ok(index>=0,'활성 메모 A의 Command 결과가 없습니다.');
    for(let step=0;step<index;step++)await press('ArrowDown');await press('Enter');await waitFocus('[data-note-preview]');await press('e');await waitFocus('[data-note-editor]');
    assert.equal(await page.locator('[data-note-scope]').inputValue(),'active');assert.equal(await page.locator('[data-note-list] [aria-selected=true]').getAttribute('data-note-row'),noteId);assert.equal(await page.locator('[data-note-editor]').inputValue(),noteBody);assert.equal(await page.locator('[data-note-editor]').getAttribute('readonly'),null);

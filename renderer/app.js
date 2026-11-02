@@ -525,7 +525,7 @@
     <form class="preferences-form"><section class="settings-section"><h2>단축키</h2>${shortcutFields.map(([field,label,aria,fallback]) => `<label class="td-field">${label}<input name="${field}" data-shortcut="${field}" aria-label="${aria}" aria-describedby="shortcut-error-${field}" aria-invalid="${!!state.info.shortcutErrors?.[field]}" value="${esc(state.prefs[field] ?? fallback)}" placeholder="사용 안 함" autocomplete="off" spellcheck="false"><span id="shortcut-error-${field}" class="settings-warning" data-shortcut-error="${field}" ${state.info.shortcutErrors?.[field] ? '' : 'hidden'}>${esc(state.info.shortcutErrors?.[field])}</span></label>`).join('')}<div class="settings-actions"><button class="td-primary" type="submit">단축키 저장</button><button class="td-secondary" type="button" data-action="help">단축키 안내</button></div></section></form>
     <section class="settings-section"><h2>시작과 알림</h2><label class="settings-check"><input type="checkbox" data-pref="launchAtLogin" ${state.prefs.launchAtLogin ? 'checked' : ''} ${state.info.launchAtLoginSupported ? '' : 'disabled'}>로그인할 때 트레이에 숨겨 실행</label>${state.info.launchAtLoginSupported ? '' : '<small class="settings-path">배포본에서만 설정할 수 있습니다.</small>'}<label class="settings-check"><input type="checkbox" data-pref="briefEnabled" ${state.prefs.briefEnabled !== false ? 'checked' : ''}>아침 브리핑 알림</label><label class="td-field settings-time">브리핑 시각<input type="time" data-pref="briefAt" aria-label="아침 브리핑 시각" value="${esc(state.prefs.briefAt || '09:00')}"></label><small class="settings-path">하루 한 번, 정한 시각부터 3시간 안에 켜져 있으면 오늘 마감·지연·일정·대기·인박스를 알립니다.</small></section>
     <section class="settings-section"><h2>업데이트</h2><p class="settings-update" data-update-line role="status">${esc(state.update?.line || '')}</p><div class="settings-actions"><button class="td-secondary" type="button" data-action="update-check" ${state.update?.supported ? '' : 'disabled'}>지금 확인</button><button class="td-secondary" type="button" data-action="update-install" ${state.update?.status === 'ready' ? '' : 'disabled'}>재시작해 설치</button></div></section>
-    <section class="settings-section"><h2>데이터</h2><div class="settings-actions"><button class="td-secondary" data-data="importLegacy">기존 데이터 복사해 가져오기</button><button class="td-secondary" data-data="export">백업 내보내기</button><button class="td-secondary" data-data="restore">백업 복원</button><button class="td-secondary" data-data="openFolder">저장 폴더 열기</button></div><small class="settings-path">${esc(state.info.dataDir)}</small></section><section class="settings-section"><h2>WHENCOMMAND</h2><button class="td-secondary" data-action="refresh-command">검색 목록 새로고침</button></section><section class="settings-section"><h2>WHENDESK ${esc(state.info.version || '')}</h2><button class="td-secondary" data-action="quit">앱 종료</button></section>`;
+    <section class="settings-section"><h2>데이터</h2><div class="settings-actions"><button class="td-secondary" data-data="importLegacy">기존 데이터 복사해 가져오기</button><button class="td-secondary" data-data="export">백업 내보내기</button><button class="td-secondary" data-data="restore">백업 복원</button><button class="td-secondary" data-data="openFolder">저장 폴더 열기</button></div><small class="settings-path">${esc(state.info.dataDir)}</small></section><section class="settings-section"><h2>WHENCOMMAND</h2><label class="settings-check"><input type="checkbox" data-pref="clipboardRow" ${state.prefs.clipboardRow !== false ? 'checked' : ''}>빈 입력에 클립보드로 할 수 있는 것 보이기</label><button class="td-secondary" data-action="refresh-command">검색 목록 새로고침</button></section><section class="settings-section"><h2>WHENDESK ${esc(state.info.version || '')}</h2><button class="td-secondary" data-action="quit">앱 종료</button></section>`;
   }
   function shortcutErrors(fields = {}) {
     root.querySelectorAll('[data-shortcut]').forEach(input => {
@@ -559,16 +559,38 @@
     for (let index = 0; index < title.length; index++) out += marks.has(index) ? `<em>${esc(title[index])}</em>` : esc(title[index]);
     return out;
   }
+  const iconImages = new Map();
+  function commandIconPath(item) { return ['apps', 'files'].includes(item.source) || item.key === 'clip:path' ? item.path || null : null; }
+  function commandAvatar(item) {
+    const file = commandIconPath(item), image = file && iconImages.get(file);
+    if (image) return `<span class="command-icon is-image"><img src="${esc(image)}" alt=""></span>`;
+    if (item.source !== 'apps') return icon(commandIcon(item));
+    let hash = 0; for (const ch of item.title) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+    const hue = hash % 360, letter = item.title.trim()[0]?.toUpperCase() || '?';
+    return `<span class="command-icon is-letter" style="background:linear-gradient(140deg,hsl(${hue} 55% 58%),hsl(${(hue + 30) % 360} 50% 42%))">${esc(letter)}</span>`;
+  }
+  // 그려진 줄 중 아이콘을 아직 모르는 것만 묻고, 도착하면 그 줄의 상자만 바꾼다(목록을 다시 그리지 않는다).
+  async function fetchCommandIcons() {
+    const want = [...new Set(command.items.map(commandIconPath).filter(file => file && !iconImages.has(file)))];
+    if (!want.length) return;
+    want.forEach(file => iconImages.set(file, null));
+    const got = await call('command.icons', { paths:want }).catch(() => ({}));
+    for (const [file, url] of Object.entries(got || {})) iconImages.set(file, url || null);
+    commandBox.querySelectorAll('[data-result]').forEach(row => {
+      const item = command.items[Number(row.dataset.result)], file = item && commandIconPath(item);
+      if (file && iconImages.get(file)) row.querySelector('.command-icon,svg,i')?.replaceWith(Object.assign(document.createElement('span'), { innerHTML:commandAvatar(item) }).firstElementChild);
+    });
+  }
   function renderCommand() {
     command.selected = Math.max(0, Math.min(command.selected, Math.max(0, command.items.length-1)));
     const scrollTop = root.querySelector('#cf-command-panel').scrollTop;
-    commandBox.innerHTML = `${command.items.map((item,index) => `<button id="command-option-${index}" class="td-command-result ${index === command.selected ? 'selected' : ''}" data-result="${index}" data-result-key="${esc(item.key)}" role="option" aria-selected="${index === command.selected}" tabindex="-1" ${command.running ? 'disabled' : ''}>${icon(commandIcon(item))}<span class="command-result-text"><span class="command-result-title">${highlightTitle(item.title, item.positions)}</span>${item.subtitle ? `<small class="command-subtitle">${esc(item.subtitle)}</small>` : ''}</span><small>${esc(({apps:'앱',files:'파일',calc:'계산',tasks:'할 일',work:'할 일',events:'일정',calendar:'일정',notes:'메모',scripts:'명령',system:'시스템',builtin:'명령'})[item.source] || '')}</small></button>`).join('')}${command.items.length || !command.query.trim() && !command.pending ? '' : `<div class="command-empty" role="status">${command.pending ? '검색 중…' : '결과 없음'}</div>`}`;
+    commandBox.innerHTML = `${command.items.map((item,index) => `<button id="command-option-${index}" class="td-command-result ${index === command.selected ? 'selected' : ''}" data-result="${index}" data-result-key="${esc(item.key)}" role="option" aria-selected="${index === command.selected}" tabindex="-1" ${command.running ? 'disabled' : ''}>${commandAvatar(item)}<span class="command-result-text"><span class="command-result-title">${highlightTitle(item.title, item.positions)}</span>${item.subtitle ? `<small class="command-subtitle">${esc(item.subtitle)}</small>` : ''}</span><small>${esc(({apps:'앱',files:'파일',calc:'계산',tasks:'할 일',work:'할 일',events:'일정',calendar:'일정',notes:'메모',scripts:'명령',system:'시스템',builtin:'명령',clip:'클립보드'})[item.source] || (item.key?.startsWith('clip:') ? '클립보드' : ''))}</small></button>`).join('')}${command.items.length || !command.query.trim() && !command.pending ? '' : `<div class="command-empty" role="status">${command.pending ? '검색 중…' : '결과 없음'}</div>`}`;
     if(command.notice&&command.query.trim())commandBox.insertAdjacentHTML('beforeend','<div class="command-notice" role="status">'+esc(command.notice)+'</div>');
     commandBox.hidden = !!command.actions || !command.items.length && !command.query.trim() && !command.pending;
     if (command.actions) renderCommandActions();
     syncCommandSelection();
     root.querySelector('#cf-command-panel').scrollTop = scrollTop;
-    icons(); resizeCommand();
+    icons(); resizeCommand(); safe(fetchCommandIcons);
   }
   function syncCommandSelection(visible = false) {
     const actions = command.actions;

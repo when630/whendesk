@@ -1,5 +1,5 @@
 const {contextBridge,ipcRenderer}=require('electron');
-const methods=new Set(['state','mutate','command.query','command.run','command.refresh','shell','preferences.get','preferences.set','app.info','data.export','data.exportIcs','data.restore','data.importLegacy','data.openFolder','note.attachFile','note.openAttachment','note.openExternal','note.export','media.state','media.control','update.state','update.check','update.install','window.minimize','window.close','window.painted','app.quit']);
+const methods=new Set(['state','mutate','command.query','command.run','command.refresh','command.icons','shell','preferences.get','preferences.set','app.info','data.export','data.exportIcs','data.restore','data.importLegacy','data.openFolder','note.attachFile','note.openAttachment','note.openExternal','note.export','media.state','media.control','update.state','update.check','update.install','window.minimize','window.close','window.painted','app.quit']);
 const events=new Set(['command.more','navigate','media.changed','state.changed','shell.changed','update.changed']);
 async function request(method,payload){if(!methods.has(method))throw new Error('허용하지 않는 요청입니다.');return ipcRenderer.invoke('desk:call',method,payload);}
 contextBridge.exposeInMainWorld('desk',Object.freeze({

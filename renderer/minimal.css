@@ -150,3 +150,7 @@
 #whendesk-command-first .settings-time{max-width:160px}
 #whendesk-command-first .settings-update{font-size:12px;color:var(--td-muted);margin:0 0 10px}
 #whendesk-command-first .command-result-title em{font-style:normal;color:var(--td-accent);font-weight:600}
+
+/* Command 결과 아이콘: OS 아이콘, 없으면 첫 글자 상자(원본 WHENCOMMAND) */
+#whendesk-command-first .command-icon{display:inline-grid;place-items:center;flex:0 0 auto;width:18px;height:18px;border-radius:4px;overflow:hidden;font-size:10px;font-weight:600;color:#fff}
+#whendesk-command-first .command-icon.is-image img{width:18px;height:18px;object-fit:contain}

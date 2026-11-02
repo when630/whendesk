@@ -420,3 +420,37 @@ test('영문 메뉴와 기존 한국어 이름으로 같은 화면을 열고 Wor
     assert.deepEqual(f.opened,[],'화면 이름 검색으로 외부 앱을 실행하지 않습니다.');
   } finally { f.cleanup(); }
 });
+
+test('클립보드 행은 빈 입력에 한 번만 보이고 링크·경로·글의 의도에 맞는 동작을 고른다', async () => {
+  const f = fixture();
+  try {
+    await f.command.ready();
+    f.command.setClipboard('https://example.com/docs');
+    const link = await f.command.query('');
+    assert.deepEqual(link.items.map(item => item.key), ['clip:url']);
+    assert.equal(link.items[0].title, '링크 열기');
+    assert.deepEqual((await f.command.query('')).items, [], '한 번 보인 클립보드 행은 다음 빈 입력에 다시 나오지 않는다');
+    f.command.setClipboard('https://example.com/docs');
+    assert.deepEqual((await f.command.query('')).items, [], '같은 내용은 다시 제안하지 않는다');
+    f.command.setClipboard('내일 3시 치과 예약');
+    assert.deepEqual((await f.command.query('')).items.map(item => item.key), ['clip:schedule']);
+    f.command.setClipboard('그냥 적어 둔 문장');
+    const note = await f.command.query('');
+    assert.deepEqual(note.items.map(item => item.key), ['clip:note'], '의도가 없는 글은 메모로 담기를 제안한다');
+    assert.equal(note.items[0].title, '메모 추가');
+    f.command.setClipboard('C:/fixture/doc.txt', () => true);
+    const opened = await f.command.query('');
+    assert.equal(opened.items[0].key, 'clip:path');
+    const result = await f.command.run('clip:path');
+    assert.equal(result.hide, true);assert.deepEqual(f.opened.at(-1), 'C:/fixture/doc.txt');
+  } finally { f.cleanup(); }
+});
+
+test('문장의 의도는 할 일·일정에 더해 메모로도 이어진다', async () => {
+  const f = fixture();
+  try {
+    await f.command.ready();
+    const items = (await f.command.query('회의록 정리 메모')).items;
+    assert.ok(items.some(item => item.key === 'intent:note' && item.title === '메모 추가'), JSON.stringify(items.map(item => item.key)));
+  } finally { f.cleanup(); }
+});

@@ -1,4 +1,4 @@
-import {app,BrowserWindow,ipcMain,Menu,Tray,nativeImage,globalShortcut,screen,dialog,shell,nativeTheme,Notification} from 'electron';
+import {app,BrowserWindow,ipcMain,Menu,Tray,nativeImage,globalShortcut,screen,dialog,shell,nativeTheme,Notification,clipboard} from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath,pathToFileURL} from 'node:url';
@@ -30,7 +30,8 @@ async function bootstrap(){
  let domain,command,win,tray,mediaControl,mediaTimer;
  let quitting=false,shellMode='command',dataBusy=false;
  let commandReady=false,commandFailure=null,mutationTail=Promise.resolve();
- let updater=null,toast=null;const updateState=createUpdateState();
+ let updater=null,toast=null,icons=null;const updateState=createUpdateState();
+ const iconCache=async()=>{if(!icons){const {createIconCache}=await import('../modules/command/main/icons.mjs');icons=createIconCache();}return icons;};
  const updateView=()=>({...updateState,line:updateLine(updateState,{current:app.getVersion()}),supported:!!updater?.supported});
  let media={available:false,sessions:[],failure:null};const positions=createPositionTracker();
  let dashboardBounds=null,commandHeight=54;
@@ -47,7 +48,7 @@ async function bootstrap(){
   domain=createDomain({dataDir});
   command=createCommand({dataDir,domain,onMore:payload=>send('command.more',payload),onLaunch:()=>hideWindow()});
   commandReady=false;commandFailure=null;
-  Promise.resolve(command.ready()).then(()=>{commandReady=true;send('command.more',{ready:true});}).catch(error=>{commandFailure=error.message;console.error('Command 준비 실패:',error.message);send('command.more',{error:error.message});});
+  Promise.resolve(command.ready()).then(()=>{commandReady=true;send('command.more',{ready:true});if(!testMode)iconCache().then(cache=>cache.warm(command.appPaths())).catch(error=>console.error('아이콘:',error.message));}).catch(error=>{commandFailure=error.message;console.error('Command 준비 실패:',error.message);send('command.more',{error:error.message});});
  }
  function stopServices(){command?.close?.();domain?.close?.();}
  startServices();
@@ -64,6 +65,7 @@ async function bootstrap(){
  function summon(payload){
   if(!win||win.isDestroyed())return;
   const fresh=!win.isVisible()||win.isMinimized();
+  if(fresh&&!payload.capture&&command){try{command.setClipboard(preferences.get().clipboardRow!==false&&!testMode?clipboard.readText():'');}catch{command.setClipboard('');}}
   if(fresh){
    if(!testMode)win.setOpacity(0);
    if(win.isMinimized())win.restore();
@@ -189,6 +191,7 @@ async function bootstrap(){
   mutate:async payload=>{if(dataBusy)throw new Error('데이터 가져오기를 마친 후 다시 시도해 주세요.');const value=await enqueueMutation(()=>domain.mutate(payload?.type,payload?.payload||{}));if(!/^(?:note\.(?:get|open|search|tags|attachments?|export)|work\.(?:history|archive))$/.test(payload?.type||''))changed();return value;},
   'command.query':async payload=>{if(dataBusy)return {items:[],notice:'데이터를 가져오는 중입니다.'};const result=await command.query(payload?.q||'',payload?.seq||0);if(!commandReady&&!result.notice)result.notice=commandFailure||'앱 목록을 준비하고 있습니다.';return result;},
   'command.run':async payload=>{if(dataBusy)throw new Error('데이터 작업 중입니다.');const result=await enqueueMutation(()=>command.run(payload?.key,payload?.actionId,{query:payload?.query}));if(result?.route)changed();if(result?.toast&&!testMode)(toast??=createToast()).show(result.toast);return result;},
+  'command.icons':async payload=>(await iconCache()).get(Array.isArray(payload?.paths)?payload.paths.filter(item=>typeof item==='string').slice(0,16):[]),
   'command.refresh':()=>command.refresh(),
   shell:payload=>setShell(payload?.mode,payload?.height),
   'preferences.get':()=>preferences.get(),
