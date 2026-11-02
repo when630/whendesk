@@ -16,7 +16,7 @@
   const dateKey = (date = new Date()) => `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
   const today = dateKey();
   const tomorrow = dateKey(new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()+1));
-  const state = { shell:'command', view:'dashboard', tab:'todo', calView:'month', selected:null, project:null, dueOnly:false, year:new Date().getFullYear(), month:new Date().getMonth(), date:today, skin:'base', mode:'system', tasks:[], projects:[], events:[], calendars:[], info:{}, prefs:{}, media:{ sessions:[] } };
+  const state = { shell:'command', view:'dashboard', tab:'todo', calView:'today', selected:null, project:null, dueOnly:false, year:new Date().getFullYear(), month:new Date().getMonth(), date:today, skin:'base', mode:'system', tasks:[], projects:[], events:[], calendars:[], info:{}, prefs:{}, media:{ sessions:[] } };
   const command = { seq:0, items:[], selected:0, pending:false, query:'', renderedQuery:null, request:null, running:false, activating:false, activation:0, composing:false, actions:null, more:null, waiters:new Set(), notice:'', start:0, end:0, timer:null };
   const pending = new Map();
   const workRules = window.VIEW;
@@ -869,7 +869,10 @@
   }
   async function goSection(section) {
     const route={settings:{settings:true,view:'settings'},dashboard:{view:'dashboard'},todo:{view:'tasks',tab:'todo'},inbox:{view:'tasks',tab:'inbox'},waiting:{view:'tasks',tab:'waiting'},done:{view:'tasks',tab:'done'},notes:{view:'notes'},calendar:{view:'calendar'}}[section];
-    if(!route)return;await flushPending();state.project=null;state.selected=null;dashboardReturn=null;dashboardFocus=null;await navigate(route);focusView();
+    if(!route)return;
+    // 캘린더는 오늘 보기가 기본이다. 오늘 보기로 들어갈 때는 날짜도 오늘에 맞춘다.
+    if(section==='calendar'&&state.calView==='today')route.date=dateKey();
+    await flushPending();state.project=null;state.selected=null;dashboardReturn=null;dashboardFocus=null;await navigate(route);focusView();
   }
   async function newInContext() {
     if(state.shell==='command'||state.view==='dashboard'||state.view==='settings')await goSection('inbox');

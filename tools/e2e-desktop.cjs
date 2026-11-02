@@ -60,7 +60,7 @@ async function test(name,fn){await fn();results.push({name,ok:true});}
    await note.press('Control+k');await page.locator('.td-command input').press('Tab');
    assert.equal(await note.evaluate(el=>el===window.__editor),true);assert.deepEqual(await note.evaluate(el=>[el.selectionStart,el.selectionEnd]),[2,7]);
    await page.locator('[data-field=title]').focus();await page.keyboard.press('Tab');assert.equal(await page.locator('#cf-dashboard-panel').isVisible(),true);
-   await page.keyboard.press('Alt+s');await page.locator('[data-look=skin]').selectOption('paper');await page.locator('[data-look=mode]').selectOption('dark');
+   await page.keyboard.press('Control+Comma');await page.locator('[data-look=skin]').selectOption('paper');await page.locator('[data-look=mode]').selectOption('dark');
    await page.locator('.td-nav > [data-action=work]').click();await page.locator('.td-main > .td-work-nav [data-tab=todo]').click();await page.locator('[data-task]').filter({hasText:'E2E 저장 확인'}).click();
    assert.equal(await note.inputValue(),'다시 실행해도 남는 실제 상세 내용');
   });

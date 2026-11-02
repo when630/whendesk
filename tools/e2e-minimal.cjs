@@ -239,7 +239,7 @@ function durableData(state) {
       assert.equal(savedTask.project_id, projectId);
       assert.equal(savedTask.due, today);
 
-      await page.keyboard.press('Alt+s');
+      await page.keyboard.press('Control+Comma');
       const skin = page.locator('[data-look=skin]');
       const mode = page.locator('[data-look=mode]');
       await skin.waitFor();

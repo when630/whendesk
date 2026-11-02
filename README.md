@@ -30,7 +30,7 @@ Command는 아이콘 바로 옆에 입력하는 한 줄 화면입니다. 연결�
 | 범위 | 조작 |
 | --- | --- |
 | 공통 키 | 목록에서 화면과 관계없이 같은 뜻: ↑↓·J/K 이동, Enter 열기, E 편집, N 새로, X·Delete 삭제, U·Ctrl+Z 되돌리기, / 검색, Tab 화면 안 분류 순환. 되돌리기는 화면을 넘나들어 가장 최근 작업부터 되돌립니다 |
-| 화면 이동 | Alt+H Dashboard, Alt+T Work/ToDo, Alt+I Work/InBox, Alt+W Work/Waiting, Alt+D Work/Done, Alt+N Note, Alt+C Calendar, Alt+S Settings |
+| 화면 이동 | Alt+H Dashboard, Alt+T Work/ToDo, Alt+I Work/InBox, Alt+W Work/Waiting, Alt+D Work/Done, Alt+N Note, Alt+C Calendar, Ctrl+, Settings |
 | 새 항목·저장 | Ctrl+N 현재 화면에서 작성, Ctrl+S 저장. 할 일 캡처는 Enter 저장 후 InBox의 새 행으로 이동하여 M·D 등으로 바로 분류. 입력에서 ↓·Esc로 목록 복귀 |
 | Work 분류 | 목록에서 Tab·Shift+Tab 순환하며 해당 분류의 마지막 행으로 복귀. 빈 탭을 거쳐도 다음 목록으로 바로 진입. 탭에서 ←→·Home/End 분류 선택, ↓ 목록 진입 |
 | 할 일 목록 | ↑↓·J/K·Home/End·PageUp/Down 선택, Enter 편집, Space 완료·해제, E 제목, D 마감, N 상세, M 프로젝트, W 대기 상대 지정, P·R 재촉 기록, Delete·X 삭제, 1~9 프로젝트 바로 지정(목록 순서), U·Ctrl+Z 연속 되돌리기(완료 포함) |
@@ -40,7 +40,7 @@ Command는 아이콘 바로 옆에 입력하는 한 줄 화면입니다. 연결�
 | 메모 | Ctrl+N 새 메모, Ctrl+F 검색, Ctrl+S 저장, Ctrl+E 미리보기, Ctrl+P 고정, Ctrl+Shift+A 보관·해제 |
 | 메모 목록 | 검색에서 ↓로 목록 진입. ↑↓·J/K 선택하면 오른쪽에 바로 보기, Enter 보기, E 편집(보기에서도 E), N 새 메모, / 검색, Tab·Shift+Tab 또는 Ctrl+Shift+M/B/T로 메모·보관함·휴지통, X·Delete 삭제, U 되돌리기, Ctrl+Shift+Z 휴지통에서 복원 |
 | 메모 파일 | Ctrl+Shift+I 이미지 선택, Ctrl+Shift+E Markdown 내보내기. 이미지 붙여넣기도 지원 |
-| 캘린더 | Tab·Shift+Tab 오늘·주·월 보기 순환. 월: 날짜 ←→ 하루·↑↓ 일주일, PageUp/Down 월 이동, Enter 날짜의 일정 목록. 오늘·주: ↑↓·J/K 일정 이동, ←→ 하루·한 주 이동. T 오늘, N·Ctrl+N 한 줄 입력(쓰는 동안 해석 미리보기, Enter 추가, Ctrl+Enter 자세히 편집), E 편집, X·Delete 삭제(반복 일정은 범위 선택), U 되돌리기 |
+| 캘린더 | 오늘 보기로 열림. Tab·Shift+Tab 오늘·주·월 보기 순환. 월: 날짜 ←→ 하루·↑↓ 일주일, PageUp/Down 월 이동, Enter 날짜의 일정 목록. 오늘·주: ↑↓·J/K 일정 이동, ←→ 하루·한 주 이동. T 오늘, N·Ctrl+N 한 줄 입력(쓰는 동안 해석 미리보기, Enter 추가, Ctrl+Enter 자세히 편집), E 편집, X·Delete 삭제(반복 일정은 범위 선택), U 되돌리기 |
 | 대화상자 | Tab·Shift+Tab은 내부 순환, Ctrl+S 저장, Esc 닫기 |
 | 돌아가기 | Esc는 한 단계씩: 편집 → 검색·필터·보관함/휴지통 → 화면 기본 자리 → Command. Ctrl+K는 Command로 이동하며 일정 대화상자 초안은 닫지 않음 |
 
@@ -70,7 +70,7 @@ npm run build:installer   # 설치 파일 + 자동 업데이트용 latest.yml(di
 
 설정 → 시작과 알림에서 **로그인할 때 트레이에 숨겨 실행**(배포본만)과 **아침 브리핑 알림**을 켭니다. 브리핑은 원본 WHENWORK 규칙대로 하루 한 번, 정한 시각(기본 09:00)부터 3시간 안에 켜져 있으면 지연·오늘 마감·오늘 일정·오래 기다린 대기·인박스 건수를 Windows 알림으로 알리고, 그 시간을 놓친 날은 조용히 넘깁니다. 알림을 누르면 대시보드가 열립니다.
 
-빈 Command에서 Esc를 누르거나 시스템에서 창을 닫으면 트레이로 숨깁니다. Alt+S로 여는 설정의 **앱 종료** 또는 트레이의 **종료**로 완전히 종료합니다. 종료 전에 편집 내용을 저장합니다. 기존 WHENCOMMAND가 Alt+Space를 사용 중이면 설정에서 WHENDESK 단축키를 변경하세요.
+빈 Command에서 Esc를 누르거나 시스템에서 창을 닫으면 트레이로 숨깁니다. Ctrl+,로 여는 설정의 **앱 종료** 또는 트레이의 **종료**로 완전히 종료합니다. 종료 전에 편집 내용을 저장합니다. 기존 WHENCOMMAND가 Alt+Space를 사용 중이면 설정에서 WHENDESK 단축키를 변경하세요.
 
 단축키 설정 필드에 원하는 키 조합을 누르면 기록됩니다. Delete/Backspace는 해제, Esc는 저장된 값으로 복귀하며, 조합 문자열을 붙여넣을 수도 있습니다. 중복·잘못된 조합·앱 내부 예약키를 확인하고, 등록이나 저장에 실패하면 이전 단축키를 유지합니다. 일정·프로젝트 대화상자 안에서는 Ctrl+K로 초안을 닫지 않고 Tab도 대화상자 내부에서 이동합니다.
 

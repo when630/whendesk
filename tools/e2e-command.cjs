@@ -246,7 +246,7 @@ async function closeHarness() {
     });
 
     await test('단축키 직접 기록·정규화 저장·중복/예약/등록 실패에서 기존 설정 유지',async()=>{
-      await page.keyboard.press('Alt+s');
+      await page.keyboard.press('Control+Comma');
       const hotkey=page.locator('[data-shortcut=hotkey]'),capture=page.locator('[data-shortcut=captureHotkey]');
       await hotkey.focus();assert.equal(await page.evaluate(()=>window.__whendeskRecordShortcut('Alt+Space')),true);assert.equal(await hotkey.inputValue(),'Alt+Space');
       await capture.focus();assert.equal(await page.evaluate(()=>window.__whendeskRecordShortcut('Control+Alt+Space')),true);assert.equal(await capture.inputValue(),'Control+Alt+Space');
@@ -279,7 +279,7 @@ async function closeHarness() {
       assert.equal((await call('state',{})).events.length,0);await screenshot('04-modal-draft');
       await page.keyboard.press('Escape');assert.equal(await page.locator('.event-form').isVisible(),true,'입력한 초안을 Esc 한 번에 버렸습니다.');await page.keyboard.press('Escape');await page.locator('.event-form').waitFor({state:'hidden'});
       // 대화상자를 연 버튼에서 Esc는 먼저 화면의 기본 자리(선택 날짜)로, 한 번 더 누르면 Command로 간다.
-      await page.keyboard.press('Escape');await waitUntil(()=>page.evaluate(()=>!!document.activeElement?.matches('.td-main [data-date]')),'Esc가 캘린더 기본 자리로 돌아가지 않았습니다.');assert.equal(await page.locator('#cf-dashboard-panel').isVisible(),true);
+      await page.keyboard.press('Escape');await waitUntil(()=>page.evaluate(()=>!!document.activeElement?.closest('.td-main [data-date],.td-main .cal-list')),'Esc가 캘린더 기본 자리로 돌아가지 않았습니다.');assert.equal(await page.locator('#cf-dashboard-panel').isVisible(),true);
       await page.keyboard.press('Escape');await page.locator('#cf-command-panel').waitFor();
     });
 

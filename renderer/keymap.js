@@ -15,7 +15,7 @@
     A('nav.done','global','Work · Done',['Alt+KeyD'],{section:'done'}),
     A('nav.notes','global','Note',['Alt+KeyN'],{section:'notes'}),
     A('nav.calendar','global','Calendar',['Alt+KeyC'],{section:'calendar'}),
-    A('nav.settings','global','Settings',['Alt+KeyS'],{section:'settings'}),
+    A('nav.settings','global','Settings',['Mod+Comma'],{section:'settings'}),
     A('app.new','global','현재 화면에서 새 항목',['Mod+KeyN']),
     A('app.save','global','저장 · 대화상자 저장',['Mod+KeyS']),
     A('app.undo','global','되돌리기',['Mod+KeyZ']),
@@ -179,7 +179,7 @@
   }
   function find(id) { return entry(id).action; }
 
-  const KEY_NAMES = { ArrowUp:'↑', ArrowDown:'↓', ArrowLeft:'←', ArrowRight:'→', Escape:'Esc', Slash:'/', PageUp:'Page Up', PageDown:'Page Down' };
+  const KEY_NAMES = { ArrowUp:'↑', ArrowDown:'↓', ArrowLeft:'←', ArrowRight:'→', Escape:'Esc', Slash:'/', Comma:',', PageUp:'Page Up', PageDown:'Page Down' };
   function formatSpec({ mods, key }) {
     const names = MODS.filter(name => mods[name] === true).map(name => name === 'Mod' ? 'Ctrl' : name);
     const keyName = /^Key[A-Z]$/.test(key) ? key.slice(3) : /^Digit\d$/.test(key) ? key.slice(5) : KEY_NAMES[key] || (key.length === 1 ? key.toUpperCase() : key);

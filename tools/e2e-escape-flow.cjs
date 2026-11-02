@@ -129,7 +129,7 @@ async function closeApp(){
 
     await test('입력한 대화상자는 Esc 한 번에 버리지 않고, 입력이 없으면 한 번에 닫는다',async()=>{
       await press('Tab');await page.locator('#cf-dashboard-panel').waitFor();
-      await press('Alt+c');await waitUntil(()=>focused('.td-main [data-date]'),'캘린더 날짜에 포커스가 없습니다.');
+      await press('Alt+c');await page.locator('.cal-views').waitFor();for(let step=0;step<3&&await page.locator('.cal-views [aria-selected=true]').getAttribute('data-cal-view')!=='month';step++)await page.keyboard.press('Tab');await waitUntil(()=>focused('.td-main [data-date]'),'캘린더 날짜에 포커스가 없습니다.');
       await press('n');await page.locator('.quick-event-form').waitFor();
       await press('Escape');await page.locator('.quick-event-form').waitFor({state:'hidden'});
       await waitUntil(()=>focused('.td-main [data-date]'),'빈 대화상자를 닫은 뒤 날짜로 돌아가지 않았습니다.');

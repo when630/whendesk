@@ -136,7 +136,7 @@ async function closeApp(){
     });
 
     await test('설정의 시작과 알림: 아침 브리핑을 키보드로 끄고 켜며, 개발 실행에서는 자동 시작을 막는다',async()=>{
-      await press('Alt+s');await page.locator('[data-pref=briefEnabled]').waitFor();
+      await press('Control+Comma');await page.locator('[data-pref=briefEnabled]').waitFor();
       for(let step=0;step<30&&!await focused('[data-pref=briefEnabled]');step++)await press('Tab');
       await waitFocus('[data-pref=briefEnabled]');
       assert.equal((await call('preferences.get')).briefEnabled,true);

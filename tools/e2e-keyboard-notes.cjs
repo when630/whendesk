@@ -38,7 +38,7 @@ async function tabTo(selector,{reverse=false,limit=100}={}){
  assert.fail('Tab으로 도착할 수 없습니다: '+selector+' / '+JSON.stringify(actual));
 }
 const sections={home:{key:'h',title:'Dashboard'},todo:{key:'t',title:'Work · ToDo'},inbox:{key:'i',title:'Work · InBox'},waiting:{key:'w',title:'Work · Waiting'},done:{key:'d',title:'Work · Done'},notes:{key:'n',title:'Note'},calendar:{key:'c',title:'Calendar'},settings:{key:'s',title:'Settings'}};
-async function section(name){const target=sections[name];assert.ok(target,'알 수 없는 화면: '+name);await press('Alt+'+target.key);await page.locator('.td-main h1').filter({hasText:target.title}).waitFor();await page.locator('#cf-dashboard-panel').waitFor();}
+async function section(name){const target=sections[name];assert.ok(target,'알 수 없는 화면: '+name);await press(target.key==='s'?'Control+Comma':'Alt+'+target.key);if(name==='calendar'){await page.locator('.cal-views').waitFor();for(let step=0;step<3&&await page.locator('.cal-views [aria-selected=true]').getAttribute('data-cal-view')!=='month';step++)await page.keyboard.press('Tab');}await page.locator('.td-main h1').filter({hasText:target.title}).waitFor();await page.locator('#cf-dashboard-panel').waitFor();}
 async function screenshot(name){await page.screenshot({path:path.join(shots,name+'.png')});}
 async function test(name,action){const started=Date.now();try{await action();results.push({name,ok:true,durationMs:Date.now()-started});}catch(error){results.push({name,ok:false,durationMs:Date.now()-started,error:error.message});throw error;}}
 function normalize(value){return String(value).replace(/\\"/g,'"').replace(/"/g,'').replace(/\\/g,'/').toLowerCase();}

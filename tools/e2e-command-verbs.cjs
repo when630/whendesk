@@ -129,7 +129,9 @@ async function closeApp(){
     await test('캘린더는 Tab으로 오늘·주·월을 순환하고, N 한 줄 입력은 해석을 미리 보여 주며 Enter로 추가·Ctrl+Enter로 자세히 편집한다',async()=>{
       const view=()=>page.locator('.cal-views [aria-selected=true]').getAttribute('data-cal-view');
       await press('Control+k');await page.locator('#cf-command-panel').waitFor();await press('Tab');await page.locator('#cf-dashboard-panel').waitFor();
-      await press('Alt+c');await waitFocus('.td-main [data-date]');assert.equal(await view(),'month');
+      // 캘린더는 오늘 보기로 열린다. Shift+Tab으로 월 보기에 간 뒤 순환을 확인한다.
+      await press('Alt+c');await waitUntil(async()=>await view()==='today','캘린더가 오늘 보기로 열리지 않았습니다.');await waitUntil(()=>within('.cal-list'),'오늘 보기에 포커스가 없습니다.');
+      await press('Shift+Tab');await waitFocus('.td-main [data-date]');assert.equal(await view(),'month');
       await press('Tab');await waitUntil(async()=>await view()==='today','Tab이 오늘 보기로 가지 않았습니다.');
       await waitUntil(()=>within('.cal-list'),'오늘 보기의 기본 자리에 포커스가 없습니다.');
       // 앞 시나리오에서 모레 일정을 열어 선택 날짜가 옮겨져 있다. T로 오늘에 맞춘다.
