@@ -94,11 +94,28 @@ test('잘못된 단축키 설정은 기존 JSON을 변경하지 않고 유효한
  const temp=path.join(path.dirname(fileURLToPath(import.meta.url)),'.tmp');fs.mkdirSync(temp,{recursive:true});
  const dir=fs.mkdtempSync(path.join(temp,'shortcuts-'));
  try{
-  const file=path.join(dir,'preferences.json'),prefs=createPreferences(file);prefs.set({skin:'paper'});
+  const file=path.join(dir,'preferences.json'),prefs=createPreferences(file);prefs.set({theme:'kraft'});
   const before=fs.readFileSync(file,'utf8');
   assert.throws(()=>prefs.set({hotkey:'Alt+Space',captureHotkey:'Alt+Space'}));
-  assert.equal(fs.readFileSync(file,'utf8'),before);assert.equal(prefs.get().skin,'paper');
+  assert.equal(fs.readFileSync(file,'utf8'),before);assert.equal(prefs.get().theme,'kraft');
   prefs.set({hotkey:'ctrl+alt+f2',captureHotkey:''});
   const restarted=createPreferences(file);assert.equal(restarted.get().hotkey,'Control+Alt+F2');assert.equal(restarted.get().captureHotkey,'');
+ }finally{fs.rmSync(dir,{recursive:true,force:true});}
+});
+
+test('테마가 화면 모드를 정하고 옛 스킨·모드 설정은 테마로 옮긴다',()=>{
+ const temp=path.join(path.dirname(fileURLToPath(import.meta.url)),'.tmp');fs.mkdirSync(temp,{recursive:true});
+ const dir=fs.mkdtempSync(path.join(temp,'theme-'));
+ try{
+  const file=path.join(dir,'preferences.json');
+  assert.equal(createPreferences(file).get().theme,'sage');
+  fs.writeFileSync(file,JSON.stringify({skin:'paper',mode:'dark'}));
+  const legacy=createPreferences(file).get();assert.equal(legacy.theme,'ink');assert.equal(legacy.mode,'dark');assert.equal('skin' in legacy,false);
+  fs.writeFileSync(file,JSON.stringify({skin:'ink',mode:'system'}));
+  assert.equal(createPreferences(file).get().theme,'sage');
+  const prefs=createPreferences(file);
+  assert.equal(prefs.set({theme:'dim'}).mode,'dark');assert.equal(prefs.set({theme:'snow'}).mode,'light');
+  assert.equal(prefs.set({theme:'nope',mode:'dark'}).theme,'snow');assert.equal(prefs.get().mode,'light');
+  prefs.replace({skin:'base',mode:'dark'});assert.equal(prefs.get().theme,'ink');
  }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });

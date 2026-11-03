@@ -10,7 +10,7 @@
 #whendesk-command-first .work-group{display:flex;align-items:center;gap:8px;margin:22px 0 0;padding:8px 0;color:var(--td-muted);font-size:11px}
 #whendesk-command-first .work-group:first-child{margin-top:9px}
 #whendesk-command-first .work-group small{font-size:10px;opacity:.7}
-#whendesk-command-first .work-overdue{color:light-dark(#ae5550,#db9690)!important}
+#whendesk-command-first .work-overdue{color:var(--td-signal)!important}
 #whendesk-command-first .work-muted{font-size:11px;color:var(--td-muted)}
 #whendesk-command-first .work-archived .td-task-open>span{color:var(--td-muted)}
 #whendesk-command-first .work-project-row{display:flex;align-items:center;gap:8px;padding:13px 10px;margin:0 -10px;background-image:linear-gradient(var(--td-line),var(--td-line));background-size:calc(100% - 20px) 1px;background-position:10px 100%;background-repeat:no-repeat}

@@ -16,7 +16,7 @@
   const dateKey = (date = new Date()) => `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
   const today = dateKey();
   const tomorrow = dateKey(new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()+1));
-  const state = { shell:'command', view:'dashboard', tab:'todo', calView:'today',settingsTab:'general', selected:null, project:null, dueOnly:false, year:new Date().getFullYear(), month:new Date().getMonth(), date:today, skin:'base', mode:'system', tasks:[], projects:[], events:[], calendars:[], info:{}, prefs:{}, media:{ sessions:[] } };
+  const state = { shell:'command', view:'dashboard', tab:'todo', calView:'today',settingsTab:'general', selected:null, project:null, dueOnly:false, year:new Date().getFullYear(), month:new Date().getMonth(), date:today, theme:'sage', tasks:[], projects:[], events:[], calendars:[], info:{}, prefs:{}, media:{ sessions:[] } };
   const command = { seq:0, items:[], selected:0, pending:false, query:'', renderedQuery:null, request:null, running:false, activating:false, activation:0, composing:false, actions:null, more:null, waiters:new Set(), notice:'', start:0, end:0, timer:null };
   const pending = new Map();
   const workRules = window.VIEW;
@@ -56,9 +56,8 @@
     feedbackTimer = setTimeout(() => { element.hidden = true; undoAction = null; }, error ? 15000 : 7000); icons();
   }
   function look() {
-    app.dataset.skin = state.skin; app.style.colorScheme = state.mode === 'system' ? 'light dark' : state.mode;
-    root.querySelectorAll('[data-look=skin]').forEach(element => { element.value = state.skin; });
-    root.querySelectorAll('[data-look=mode]').forEach(element => { element.value = state.mode; });
+    app.dataset.theme = state.theme;
+    root.querySelectorAll('[data-theme-pick]').forEach(card => { const on = card.dataset.themePick === state.theme; card.classList.toggle('on', on); card.setAttribute('aria-checked', String(on)); card.tabIndex = on ? 0 : -1; card.querySelector('.theme-on')?.toggleAttribute('hidden', !on); });
     resizeCommand();
   }
   function resizeCommand() {
@@ -648,13 +647,32 @@
     return backwards ? before.at(-1) || stops.at(-1) : after[0] || stops[0];
   }
   const SETTINGS_TABS=[['general','일반'],['shortcuts','단축키']];
+  // WHENTERMINAL zen 테마와 같은 목록. colors는 [바탕, 글자, 신호색] (카드 견본)
+  const THEMES=[
+    ['sage','SAGE','옅은 초록빛 회색, 차분함',['#e8ece4','#273029','#b6533c']],
+    ['paper','PAPER','미색 종이',['#f7f4ee','#2e2a25','#c4553a']],
+    ['ink','INK','먹빛 어두운 바탕',['#191a1c','#d6d3cc','#e07a5f']],
+    ['stone','STONE','차가운 회색, 미색이 누렇게 느껴질 때',['#eeeff0','#1f2326','#b8432c']],
+    ['snow','SNOW','거의 흰 바탕, 대비가 가장 커요',['#fbfbfa','#111111','#d0402a']],
+    ['kraft','KRAFT','짙은 베이지, 종이 질감',['#e9e0d0','#2b241b','#b1442c']],
+    ['night','NIGHT','푸른 먹색, 밤에 오래 볼 때',['#15181c','#cdd3da','#e8806a']],
+    ['moss','MOSS','짙은 초록, SAGE의 어두운 짝',['#171c18','#d3dccf','#e07f62']],
+    ['dim','DIM','대비를 낮춘 따뜻한 검정, 오래 봐도 눈이 편해요',['#1f1d1a','#c4bba9','#d98b6c']],
+  ];
+  function themeCards(){
+    return `<div class="theme-grid" role="radiogroup" aria-label="색 테마">${THEMES.map(([id,name,note,[bg,fg,signal]]) => { const on = state.theme === id; return `<button type="button" role="radio" class="theme-card ${on ? 'on' : ''}" data-theme-pick="${id}" aria-checked="${on}" tabindex="${on ? 0 : -1}"><span class="theme-swatch" style="background:${bg};color:${fg}" aria-hidden="true"><span class="sw-key">A</span><span class="sw-lines"><i style="background:${fg}"></i><i style="background:${fg};opacity:.5"></i><i style="background:${signal};width:45%"></i></span><span class="sw-band" style="background:${signal}"></span></span><span class="theme-name">${name}<span class="theme-on" ${on ? '' : 'hidden'}>in use</span></span><span class="theme-note">${esc(note)}</span></button>`; }).join('')}</div>`;
+  }
+  async function pickTheme(id){
+    if(id===state.theme||!THEMES.some(([value])=>value===id))return;
+    state.theme=id; look(); state.prefs=await call('preferences.set',{theme:id});
+  }
   function setSettingsTab(value) { if (!SETTINGS_TABS.some(([tab]) => tab === value)) return; state.settingsTab = value; renderMainView(); body.querySelector(`[data-settings-tab="${value}"]`)?.focus({preventScroll:true}); syncHints(); }
   /* 설정은 두 분류다: 일반(모양·시작과 알림·Command·업데이트·데이터)과 단축키(전역 단축키). ←→로 분류를 바꾼다. */
   function settingsView() {
     const shortcutFields = SHORTCUT_UI, tab = state.settingsTab;
     const tabs = `<div class="cal-views settings-tabs" role="tablist" aria-label="설정 분류">${SETTINGS_TABS.map(([value,label]) => `<button role="tab" data-settings-tab="${value}" aria-selected="${tab === value}" tabindex="${tab === value ? 0 : -1}">${label}</button>`).join('')}</div>`;
     if (tab === 'shortcuts') return tabs + `<form class="preferences-form"><section class="settings-section"><h2>어디서나 쓰는 단축키</h2><p class="settings-lead">다른 앱을 쓰는 중에도 바로 부르는 전역 단축키입니다. 칸을 고른 뒤 조합을 누르면 기록되고, Delete는 해제, Esc는 저장된 값으로 되돌립니다.</p>${shortcutFields.map(([field,label,aria,fallback]) => `<label class="td-field">${label}<input name="${field}" data-shortcut="${field}" aria-label="${aria}" aria-describedby="shortcut-error-${field}" aria-invalid="${!!state.info.shortcutErrors?.[field]}" value="${esc(state.prefs[field] ?? fallback)}" placeholder="사용 안 함" autocomplete="off" spellcheck="false"><span id="shortcut-error-${field}" class="settings-warning" data-shortcut-error="${field}" ${state.info.shortcutErrors?.[field] ? '' : 'hidden'}>${esc(state.info.shortcutErrors?.[field])}</span></label>`).join('')}<div class="settings-actions"><button class="td-primary" type="submit">단축키 저장</button><button class="td-secondary" type="button" data-action="help">앱 안 단축키 보기 (?)</button></div></section></form>`;
-    return tabs + `<section class="settings-section"><h2>모양</h2><div class="minimal-appearance"><label class="td-field">스킨<select data-look="skin" aria-label="스킨">${[['base','기본'],['ink','잉크'],['paper','페이퍼']].map(([value,label]) => `<option value="${value}" ${state.skin === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label><label class="td-field">모드<select data-look="mode" aria-label="화면 모드">${[['system','시스템'],['light','라이트'],['dark','다크']].map(([value,label]) => `<option value="${value}" ${state.mode === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label></div></section>
+    return tabs + `<section class="settings-section theme-section"><h2>테마</h2>${themeCards()}</section>
     <section class="settings-section"><h2>시작과 알림</h2><label class="settings-check"><input type="checkbox" data-pref="launchAtLogin" ${state.prefs.launchAtLogin ? 'checked' : ''} ${state.info.launchAtLoginSupported ? '' : 'disabled'}>로그인할 때 트레이에 숨겨 실행</label>${state.info.launchAtLoginSupported ? '' : '<small class="settings-path">배포본에서만 설정할 수 있습니다.</small>'}<label class="settings-check"><input type="checkbox" data-pref="briefEnabled" ${state.prefs.briefEnabled !== false ? 'checked' : ''}>아침 브리핑 알림</label><label class="td-field settings-time">브리핑 시각<input type="time" data-pref="briefAt" aria-label="아침 브리핑 시각" value="${esc(state.prefs.briefAt || '09:00')}"></label><small class="settings-path">하루 한 번, 정한 시각부터 3시간 안에 켜져 있으면 오늘 마감·지연·일정·대기·인박스를 알립니다.</small></section>
     <section class="settings-section"><h2>업데이트</h2><p class="settings-update" data-update-line role="status">${esc(state.update?.line || '')}</p><div class="settings-actions"><button class="td-secondary" type="button" data-action="update-check" ${state.update?.supported ? '' : 'disabled'}>지금 확인</button><button class="td-secondary" type="button" data-action="update-install" ${state.update?.status === 'ready' ? '' : 'disabled'}>재시작해 설치</button></div></section>
     <section class="settings-section"><h2>데이터</h2><div class="settings-actions"><button class="td-secondary" data-data="importLegacy">기존 데이터 복사해 가져오기</button><button class="td-secondary" data-data="export">백업 내보내기</button><button class="td-secondary" data-data="restore">백업 복원</button><button class="td-secondary" data-data="openFolder">저장 폴더 열기</button></div><small class="settings-path">${esc(state.info.dataDir)}</small></section><section class="settings-section"><h2>WHENCOMMAND</h2><label class="settings-check"><input type="checkbox" data-pref="clipboardRow" ${state.prefs.clipboardRow !== false ? 'checked' : ''}>빈 입력에 클립보드로 할 수 있는 것 보이기</label><button class="td-secondary" data-action="refresh-command">검색 목록 새로고침</button></section><section class="settings-section"><h2>WHENDESK ${esc(state.info.version || '')}</h2><button class="td-secondary" data-action="quit">앱 종료</button></section>`;
@@ -1154,6 +1172,11 @@
     if(K.is(event,'app.undo')&&!editingTarget(target)){event.preventDefault();safe(undoLastAction);return true;}
     if(state.view==='dashboard'&&!editingTarget(target)&&body.contains(target)&&dashboardKeys(event))return true;
     if(state.view==='settings'&&target.closest('.settings-tabs')){const order=SETTINGS_TABS.map(([tab])=>tab),index=order.indexOf(state.settingsTab),to=K.is(event,'settings.next')?index+1:K.is(event,'settings.prev')?index-1:null;if(to!==null){event.preventDefault();setSettingsTab(order[(to+order.length)%order.length]);return true;}}
+    if(state.view==='settings'&&target.matches('[data-theme-pick]')&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(event.key)&&!event.ctrlKey&&!event.altKey&&!event.metaKey){
+      event.preventDefault();const cards=[...body.querySelectorAll('[data-theme-pick]')],index=cards.indexOf(target),columns=Math.max(1,cards.filter(card=>card.offsetTop===cards[0].offsetTop).length);
+      const to={ArrowLeft:index-1,ArrowRight:index+1,ArrowUp:index-columns,ArrowDown:index+columns,Home:0,End:cards.length-1}[event.key];
+      const next=cards[Math.min(cards.length-1,Math.max(0,to))];if(next&&next!==target){next.focus({preventScroll:false});safe(()=>pickTheme(next.dataset.themePick));}return true;
+    }
     if(workKeys(event))return true;
     if(state.view==='calendar'&&!editingTarget(target)&&target.closest('.td-full-calendar')&&K.is(event,'calendar.view')){event.preventDefault();if(!event.repeat){const order=CAL_VIEWS.map(([view])=>view);safe(()=>setCalView(order[(order.indexOf(state.calView)+(event.shiftKey?order.length-1:1))%order.length]));}return true;}
     if(state.view==='calendar'&&state.calView!=='month'&&!editingTarget(target)&&target.closest('.cal-list')){
@@ -1208,6 +1231,7 @@
     if (data.action === 'help-shortcuts') { await closeHelp(); return goSection('shortcuts'); }
     if (data.calView) return setCalView(data.calView);
     if (data.settingsTab) return setSettingsTab(data.settingsTab);
+    if (data.themePick) return pickTheme(data.themePick);
     if (data.tab) return switchWorkTab(data.tab,{focus:button.closest('.td-work-nav')?'tab':'list',clearProject:state.view!=='tasks'});
     if (button.classList.contains('td-drag-handle')) return;
     if (data.task) { taskCursor=data.task; await openTaskField(data.task);return; }
@@ -1229,7 +1253,7 @@
     if (data.nudge) return nudgeTask(data.nudge);
     if (data.subToggle || data.subSync || data.subDelete) { const id=Number(data.subToggle||data.subSync||data.subDelete); await mutate(data.subToggle?'subscription.toggle':data.subSync?'subscription.sync':'subscription.delete',{id}); return subscriptions(); }
     if (data.media) { await call('media.control',{action:data.media,appId:data.appId}); return; }
-    if (data.data) { await flushPending(); const result=await call('data.'+data.data); if(result?.ok===false)throw new Error(result.error||'데이터 작업을 완료하지 못했습니다.'); if (!result?.cancelled) { if(result?.preferences){state.prefs=result.preferences;state.skin=result.preferences.skin;state.mode=result.preferences.mode;look();state.info=await call('app.info');} await loadState(); if(['restore','importLegacy'].includes(data.data)){workUndo.length=0;projectMoves.clear();state.workQuery='';state.workTrash=false;state.selected=null;taskCursor=null;projectCursor=null;await notes?.refresh({reset:true});renderMainView();} if (result?.message) feedback(result.message); } return; }
+    if (data.data) { await flushPending(); const result=await call('data.'+data.data); if(result?.ok===false)throw new Error(result.error||'데이터 작업을 완료하지 못했습니다.'); if (!result?.cancelled) { if(result?.preferences){state.prefs=result.preferences;state.theme=result.preferences.theme;look();state.info=await call('app.info');} await loadState(); if(['restore','importLegacy'].includes(data.data)){workUndo.length=0;projectMoves.clear();state.workQuery='';state.workTrash=false;state.selected=null;taskCursor=null;projectCursor=null;await notes?.refresh({reset:true});renderMainView();} if (result?.message) feedback(result.message); } return; }
     switch(data.action) {
       case 'switch-shell': await flushPending(); return shell(state.shell==='command'?'dashboard':'command');
       case 'home': await flushPending(); state.view='dashboard'; renderNav(); renderMainView(); await shell('dashboard',false);focusView();break;
@@ -1275,7 +1299,6 @@
   });
   root.addEventListener('change', event => safe(async()=>{
     const element=event.target;
-    if(element.dataset.look){state[element.dataset.look]=element.value;look();await call('preferences.set',{[element.dataset.look]:element.value});return;}
     if(element.dataset.pref){const value=element.type==='checkbox'?element.checked:element.value;if(element.dataset.pref==='briefAt'&&!value)return;state.prefs=await call('preferences.set',{[element.dataset.pref]:value});feedback('설정을 저장했어요.');return;}
     if(element.dataset.check){await mutate('task.complete',{id:element.dataset.check,done:element.checked});return;}
     if(element.matches('[data-work-project-filter]')){await flushPending();state.project=element.value==='unassigned'?'unassigned':Number(element.value)||null;state.selected=null;taskCursor=null;renderMainView();return;}
@@ -1431,7 +1454,7 @@
   async function init(){
     try{
       const results=await Promise.allSettled([call('preferences.get'),call('app.info'),call('media.state')]);
-      if(results[0].status==='fulfilled'){state.prefs=results[0].value||{};state.skin=state.prefs.skin||'base';state.mode=state.prefs.mode||'system';}
+      if(results[0].status==='fulfilled'){state.prefs=results[0].value||{};state.theme=state.prefs.theme||'sage';}
       if(results[1].status==='fulfilled')state.info=results[1].value||{};
       document.title = state.info.isPackaged === false ? 'WHENDESK 개발본' : 'WHENDESK';
       look();await loadState();if(results[2].status==='fulfilled')renderMedia(results[2].value);else renderMedia({sessions:[],failure:true});

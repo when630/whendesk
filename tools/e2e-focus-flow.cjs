@@ -78,12 +78,11 @@ async function probe(selector,label,variant){
   }
   measurements.checks.push({variant,label,selector,focusVisible:await locator.evaluate(element=>element.matches(':focus-visible')),backgroundChanged:after[0].background!==before[0].background});
 }
-async function changeLook(skin,mode){
-  await section('s','[data-look=skin]');
-  await page.locator('[data-look=skin]').selectOption(skin);
-  await page.locator('[data-look=mode]').selectOption(mode);
-  await waitUntil(async()=>{const preferences=await call('preferences.get');return preferences.skin===skin&&preferences.mode===mode;},'외관 설정 저장 실패');
-  await page.waitForFunction(({skin,mode})=>{const app=document.querySelector('.td-app');return app.dataset.skin===skin&&app.style.colorScheme===mode;},{skin,mode});
+async function changeLook(theme,mode){
+  await section('s','[data-theme-pick]');
+  await page.locator(`[data-theme-pick=${theme}]`).click();
+  await waitUntil(async()=>{const preferences=await call('preferences.get');return preferences.theme===theme&&preferences.mode===mode;},'테마 설정 저장 실패');
+  await page.waitForFunction(({theme,mode})=>{const app=document.querySelector('.td-app');return app.dataset.theme===theme&&getComputedStyle(app).colorScheme===mode;},{theme,mode});
 }
 async function sendMockMedia(active){
   await app.evaluate(({BrowserWindow},active)=>{
@@ -190,12 +189,11 @@ async function withDelayedTaskSelection(run){
       measurements.selectionSaveFocus={delayMs:450,projectNextField:'note',kindNextField:'due',restoredSelection:false};
     });
 
-    for(const skin of ['base','ink','paper'])for(const mode of ['light','dark']){
-      const variant=skin+'/'+mode;
+    for(const [theme,mode] of [['sage','light'],['snow','light'],['ink','dark'],['dim','dark']]){
+      const variant=theme+'/'+mode;
       await test(variant+' 전 화면 키보드 포커스 표시·배치 유지',async()=>{
-        await changeLook(skin,mode);measurements.matrix.push({skin,mode});
-        await probe('[data-look=skin]','스킨 선택',variant);
-        await probe('[data-look=mode]','모드 선택',variant);
+        await changeLook(theme,mode);measurements.matrix.push({theme,mode});
+        await probe('[data-theme-pick][aria-checked=true]','테마 선택',variant);
         await page.locator('[data-settings-tab=general]').focus();await press('ArrowRight');await page.locator('[data-shortcut=hotkey]').waitFor();
         await probe('[data-settings-tab=shortcuts]','설정 분류 탭',variant);
         await probe('[data-shortcut=hotkey]','단축키 입력',variant);
@@ -251,7 +249,7 @@ async function withDelayedTaskSelection(run){
 
         await section('t','.td-work-nav');await waitTab('todo');
         await page.locator(`[data-task-row="${fixture.todo.id}"]`).focus();
-        await screenshot('focus-'+skin+'-'+mode);
+        await screenshot('focus-'+theme);
       });
     }
     assert.deepEqual(errors,[]);

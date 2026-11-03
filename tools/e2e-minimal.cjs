@@ -240,33 +240,32 @@ function durableData(state) {
       assert.equal(savedTask.due, today);
 
       await page.keyboard.press('Control+Comma');
-      const skin = page.locator('[data-look=skin]');
-      const mode = page.locator('[data-look=mode]');
-      await skin.waitFor();
-      await mode.waitFor();
+      const cards = page.locator('[data-theme-pick]');
+      await cards.first().waitFor();
+      assert.equal(await cards.count(), 9, '테마 카드는 WHENTERMINAL zen 테마 9개여야 합니다.');
       assert.equal(await page.locator('#cf-dashboard-panel').isVisible(), true);
-      assert.equal(await page.locator('.td-chrome [data-look]').count(), 0);
-      const originalMode = (await call('preferences.get')).mode;
-      await skin.selectOption('paper');
-      await waitUntil(async () => (await call('preferences.get')).skin === 'paper', '스킨 변경이 저장되지 않았습니다.');
-      assert.equal((await call('preferences.get')).mode, originalMode, '스킨 변경이 모드까지 바꿨습니다.');
-      await mode.selectOption('dark');
-      await waitUntil(async () => (await call('preferences.get')).mode === 'dark', '다크 모드 변경이 저장되지 않았습니다.');
-      assert.equal((await call('preferences.get')).skin, 'paper');
+      assert.equal(await page.locator('[data-look]').count(), 0, '옛 스킨·모드 선택이 남아 있습니다.');
+      assert.equal(await page.locator('[data-theme-pick][aria-checked=true]').count(), 1);
+      await page.locator('[data-theme-pick=dim]').click();
+      await waitUntil(async () => (await call('preferences.get')).theme === 'dim', '테마 변경이 저장되지 않았습니다.');
+      assert.equal((await call('preferences.get')).mode, 'dark', '어두운 테마가 화면 모드를 바꾸지 않았습니다.');
       assert.deepEqual(durableData(await call('state', {})), before);
-      assert.equal(await page.locator('.td-app').getAttribute('data-skin'), 'paper');
-      assert.equal(await page.locator('.td-app').evaluate(element => element.style.colorScheme), 'dark');
-      await noPersistentKeycaps('설정 다크 모드');
-      await screenshot('06-settings-paper-dark');
+      assert.equal(await page.locator('.td-app').getAttribute('data-theme'), 'dim');
+      assert.equal(await page.locator('.td-app').evaluate(element => getComputedStyle(element).colorScheme), 'dark');
+      assert.equal(await page.locator('[data-theme-pick=dim]').getAttribute('aria-checked'), 'true');
+      await noPersistentKeycaps('설정 테마');
+      await screenshot('06-settings-dim');
 
-      await skin.selectOption('ink');
-      await waitUntil(async () => (await call('preferences.get')).skin === 'ink', '잉크 스킨 변경이 저장되지 않았습니다.');
-      assert.equal((await call('preferences.get')).mode, 'dark');
-      await mode.selectOption('light');
-      await waitUntil(async () => (await call('preferences.get')).mode === 'light', '라이트 모드 변경이 저장되지 않았습니다.');
-      assert.equal((await call('preferences.get')).skin, 'ink');
+      // 라디오 묶음: 화살표로 옆 테마를 바로 고른다
+      await page.locator('[data-theme-pick=dim]').focus();
+      await page.keyboard.press('Home');
+      await waitUntil(async () => (await call('preferences.get')).theme === 'sage', 'Home으로 첫 테마가 골라지지 않았습니다.');
+      await page.keyboard.press('ArrowRight');
+      await waitUntil(async () => (await call('preferences.get')).theme === 'paper', '→로 다음 테마가 골라지지 않았습니다.');
+      assert.equal(await page.evaluate(() => document.activeElement?.dataset.themePick), 'paper');
+      assert.equal((await call('preferences.get')).mode, 'light');
       assert.deepEqual(durableData(await call('state', {})), before);
-      await screenshot('07-settings-ink-light');
+      await screenshot('07-settings-paper');
 
       await page.locator('[data-settings-tab=shortcuts]').click();
       await page.locator('[data-action=help]').click();
