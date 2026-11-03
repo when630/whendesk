@@ -1,4 +1,4 @@
-// 앱 아이콘 렌더링: build/icons/*.svg → build/icons/png/<이름>.png (1024, 투명 배경) + 미리보기 시트 build/icons/preview.png
+// 앱 아이콘 렌더링: build/icons/*.svg → assets/icons/<이름>.png (1024, 투명 배경) + 미리보기 시트 build/icons/preview.png
 // 글자가 들어간 아이콘은 Archivo 900으로 그려야 해서 브라우저(Electron 오프스크린 창)로 렌더링한다. WHENTERMINAL scripts/render-icons.cjs와 같은 방식.
 // 실행: npx electron tools/render-icons.cjs
 const { app, BrowserWindow } = require('electron');
@@ -9,7 +9,7 @@ const { pathToFileURL } = require('node:url');
 const root = join(__dirname, '..');
 const font = pathToFileURL(join(root, 'renderer/fonts/archivo-latin-900-normal.woff2')).href;
 const iconDir = join(root, 'build/icons');
-const outDir = join(iconDir, 'png');
+const outDir = join(root, 'assets/icons');
 const LABEL = { wordmark: '01 WD_', brand: '02 w.', command: '03 Command 막대', desk: '04 대시보드 3단', check: '05 체크', list: '06 할 일 목록' };
 
 app.disableHardwareAcceleration();
