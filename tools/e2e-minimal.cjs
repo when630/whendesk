@@ -288,6 +288,17 @@ function durableData(state) {
         await page.keyboard.press('Alt+h');
         await page.locator('.td-main h1').filter({ hasText: 'Dashboard' }).waitFor();
         await screenshot('07-skin-' + skin + '-dashboard');
+        await page.keyboard.press('Control+k');
+        await page.waitForFunction(() => document.activeElement === document.querySelector('.td-command input'));
+        const kept = await page.locator('.td-command input').inputValue();
+        const keptRange = await page.locator('.td-command input').evaluate(element => [element.selectionStart, element.selectionEnd]);
+        await page.keyboard.press('Control+a'); await page.keyboard.insertText('스킨');
+        await page.locator('.td-command-result').first().waitFor();
+        await page.waitForFunction(() => innerHeight > 60, null, { timeout: 3000 }).catch(() => {});
+        await screenshot('07-skin-' + skin + '-command');
+        await page.keyboard.press('Control+a');
+        if (kept) await page.keyboard.insertText(kept); else await page.keyboard.press('Backspace');
+        await page.locator('.td-command input').evaluate((element, [start, end]) => element.setSelectionRange(start, end), keptRange);
         await page.keyboard.press('Control+Comma');
         await page.locator('[data-skin-pick]').first().waitFor();
       }
