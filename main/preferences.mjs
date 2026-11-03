@@ -1,22 +1,42 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import vm from 'node:vm';
 import {normalizeShortcutValues,SHORTCUT_FIELDS} from './shortcuts.mjs';
-/** 색 테마. 테마가 밝기를 정하므로 mode(nativeTheme)는 테마에서 파생한다. */
-export const THEMES=Object.freeze({sage:'light',paper:'light',ink:'dark',stone:'light',snow:'light',kraft:'light',night:'dark',moss:'dark',dim:'dark'});
-/** 테마 없는 옛 설정(skin·mode)은 다크면 INK, 아니면 SAGE로 옮긴다. */
-function withTheme(base,data){const {skin,...rest}={...base,...data};const theme=Object.hasOwn(THEMES,data?.theme)?data.theme:data?.mode==='dark'?'ink':base.theme;return {...rest,theme,mode:THEMES[theme]};}
-export const DEFAULTS=Object.freeze({theme:'sage',mode:'light',hotkey:'Alt+Space',captureHotkey:'Control+Alt+Space',noteCaptureHotkey:'Control+Alt+M',mediaPlayHotkey:'Control+Alt+P',mediaRewindHotkey:'Control+Alt+Left',mediaForwardHotkey:'Control+Alt+Right',media:true,launchAtLogin:false,briefEnabled:true,briefAt:'09:00',lastBriefing:null,commandPosition:null,dashboardBounds:null,clipboardRow:true});
+// 스킨·테마 목록은 렌더러와 같은 파일(renderer/themes.js)을 읽는다.
+const themeContext={};
+vm.runInNewContext(fs.readFileSync(new URL('../renderer/themes.js',import.meta.url),'utf8'),themeContext);
+const {SKINS,THEMES:THEME_LIST}=themeContext.WhendeskThemes;
+const THEMES=new Map(THEME_LIST.map(theme=>[theme.id,theme]));
+const firstTheme=skin=>THEME_LIST.find(theme=>theme.skin===skin)?.id;
+/** 0.3.13의 ZEN 테마 id(sage·ink…)는 zen- 접두를 붙여 옮기고, 그보다 옛 설정(skin·mode)은 다크면 INK, 아니면 SAGE로 옮긴다. */
+function legacyTheme(data){
+ if(THEMES.has(data?.theme))return data.theme;
+ if(THEMES.has('zen-'+data?.theme))return 'zen-'+data.theme;
+ return data?.mode==='dark'?'zen-ink':null;
+}
+/** 테마가 스킨과 밝기를 정한다: skin은 테마의 스킨, mode(nativeTheme)는 테마의 밝기. skinThemes는 스킨마다 마지막으로 고른 테마. */
+function withTheme(next,theme){
+ const value=THEMES.get(theme);
+ return {...next,theme,skin:value.skin,mode:value.dark?'dark':'light',skinThemes:{...next.skinThemes,[value.skin]:theme}};
+}
+function normalize(base,data){
+ const merged={...base,...data};
+ merged.skinThemes=Object.fromEntries(Object.entries(merged.skinThemes&&typeof merged.skinThemes==='object'?merged.skinThemes:{}).filter(([skin,theme])=>THEMES.get(theme)?.skin===skin));
+ return withTheme(merged,legacyTheme(data)||base.theme);
+}
+export const DEFAULTS=Object.freeze({skin:'zen',theme:'zen-sage',mode:'light',skinThemes:{},hotkey:'Alt+Space',captureHotkey:'Control+Alt+Space',noteCaptureHotkey:'Control+Alt+M',mediaPlayHotkey:'Control+Alt+P',mediaRewindHotkey:'Control+Alt+Left',mediaForwardHotkey:'Control+Alt+Right',media:true,launchAtLogin:false,briefEnabled:true,briefAt:'09:00',lastBriefing:null,commandPosition:null,dashboardBounds:null,clipboardRow:true});
 export function createPreferences(file){
  let values={...DEFAULTS};
  if(fs.existsSync(file)){
-  try{values=withTheme(values,JSON.parse(fs.readFileSync(file,'utf8')));}
+  try{values=normalize(values,JSON.parse(fs.readFileSync(file,'utf8')));}
   catch(error){const copy=file+'.unreadable-'+Date.now();fs.copyFileSync(file,copy);throw new Error('설정 파일을 읽을 수 없습니다. 원본 사본을 보존했습니다. '+error.message);}
  }
  function write(next){fs.mkdirSync(path.dirname(file),{recursive:true});const tmp=file+'.tmp';fs.writeFileSync(tmp,JSON.stringify(next,null,2));fs.renameSync(tmp,file);values=next;}
  function prepare(patch={}){
    const next={...values};
    for(const [key,value] of Object.entries(patch||{})){
-    if(key==='theme'&&Object.hasOwn(THEMES,value)){next.theme=value;next.mode=THEMES[value];}
+    if(key==='theme'&&THEMES.has(value))Object.assign(next,withTheme(next,value));
+    else if(key==='skin'&&SKINS.some(skin=>skin.id===value)&&!THEMES.has(patch.theme))Object.assign(next,withTheme(next,next.skinThemes?.[value]||firstTheme(value)));
     else if(SHORTCUT_FIELDS.includes(key))next[key]=value;
     else if(['media','launchAtLogin','briefEnabled'].includes(key)&&typeof value==='boolean')next[key]=value;
     else if(key==='briefAt'&&typeof value==='string'&&/^([01]?\d|2[0-3]):[0-5]\d$/.test(value))next.briefAt=value.padStart(5,'0');
@@ -34,6 +54,6 @@ export function createPreferences(file){
   set(patch){
    write(prepare(patch));return {...values};
   },
-  replace(data){write(withTheme(DEFAULTS,data));},
+  replace(data){write(normalize(DEFAULTS,data));},
  };
 }

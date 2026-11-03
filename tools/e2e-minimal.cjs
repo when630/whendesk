@@ -246,26 +246,54 @@ function durableData(state) {
       assert.equal(await page.locator('#cf-dashboard-panel').isVisible(), true);
       assert.equal(await page.locator('[data-look]').count(), 0, '옛 스킨·모드 선택이 남아 있습니다.');
       assert.equal(await page.locator('[data-theme-pick][aria-checked=true]').count(), 1);
-      await page.locator('[data-theme-pick=dim]').click();
-      await waitUntil(async () => (await call('preferences.get')).theme === 'dim', '테마 변경이 저장되지 않았습니다.');
+      await page.locator('[data-theme-pick=zen-dim]').click();
+      await waitUntil(async () => (await call('preferences.get')).theme === 'zen-dim', '테마 변경이 저장되지 않았습니다.');
       assert.equal((await call('preferences.get')).mode, 'dark', '어두운 테마가 화면 모드를 바꾸지 않았습니다.');
       assert.deepEqual(durableData(await call('state', {})), before);
-      assert.equal(await page.locator('.td-app').getAttribute('data-theme'), 'dim');
+      assert.equal(await page.locator('.td-app').getAttribute('data-theme'), 'zen-dim');
       assert.equal(await page.locator('.td-app').evaluate(element => getComputedStyle(element).colorScheme), 'dark');
-      assert.equal(await page.locator('[data-theme-pick=dim]').getAttribute('aria-checked'), 'true');
+      assert.equal(await page.locator('[data-theme-pick=zen-dim]').getAttribute('aria-checked'), 'true');
       await noPersistentKeycaps('설정 테마');
       await screenshot('06-settings-dim');
 
       // 라디오 묶음: 화살표로 옆 테마를 바로 고른다
-      await page.locator('[data-theme-pick=dim]').focus();
+      await page.locator('[data-theme-pick=zen-dim]').focus();
       await page.keyboard.press('Home');
-      await waitUntil(async () => (await call('preferences.get')).theme === 'sage', 'Home으로 첫 테마가 골라지지 않았습니다.');
+      await waitUntil(async () => (await call('preferences.get')).theme === 'zen-sage', 'Home으로 첫 테마가 골라지지 않았습니다.');
       await page.keyboard.press('ArrowRight');
-      await waitUntil(async () => (await call('preferences.get')).theme === 'paper', '→로 다음 테마가 골라지지 않았습니다.');
-      assert.equal(await page.evaluate(() => document.activeElement?.dataset.themePick), 'paper');
+      await waitUntil(async () => (await call('preferences.get')).theme === 'zen-paper', '→로 다음 테마가 골라지지 않았습니다.');
+      assert.equal(await page.evaluate(() => document.activeElement?.dataset.themePick), 'zen-paper');
       assert.equal((await call('preferences.get')).mode, 'light');
       assert.deepEqual(durableData(await call('state', {})), before);
       await screenshot('07-settings-paper');
+
+      // 스킨: 처음 고르면 그 스킨의 첫 테마, 다른 스킨에 갔다 돌아오면 마지막 테마를 되살린다
+      await page.locator('[data-skin-pick=tui]').click();
+      await waitUntil(async () => (await call('preferences.get')).theme === 'tui-night', 'TUI 스킨의 첫 테마로 바뀌지 않았습니다.');
+      assert.equal(await page.locator('.td-app').getAttribute('data-skin'), 'tui');
+      assert.equal(await page.locator('[data-theme-pick]').count(), 4, 'TUI 스킨의 테마 4개가 보여야 합니다.');
+      assert.equal((await call('preferences.get')).mode, 'dark');
+      await page.locator('[data-theme-pick=tui-paper]').click();
+      await waitUntil(async () => (await call('preferences.get')).theme === 'tui-paper', 'TUI 테마 변경이 저장되지 않았습니다.');
+      await page.locator('[data-skin-pick=zen]').focus();
+      await page.keyboard.press('ArrowRight');
+      await waitUntil(async () => (await call('preferences.get')).skin === 'poster', '→로 다음 스킨이 골라지지 않았습니다.');
+      assert.equal((await call('preferences.get')).theme, 'poster-white');
+      await page.locator('[data-skin-pick=tui]').click();
+      await waitUntil(async () => (await call('preferences.get')).theme === 'tui-paper', '돌아온 스킨의 마지막 테마를 되살리지 않았습니다.');
+      for (const skin of ['soft', 'glass', 'ide', 'sketch', 'poster', 'tui']) {
+        await page.locator(`[data-skin-pick=${skin}]`).click();
+        await waitUntil(async () => (await call('preferences.get')).skin === skin, skin + ' 스킨 변경이 저장되지 않았습니다.');
+        await screenshot('07-skin-' + skin);
+        await page.keyboard.press('Alt+h');
+        await page.locator('.td-main h1').filter({ hasText: 'Dashboard' }).waitFor();
+        await screenshot('07-skin-' + skin + '-dashboard');
+        await page.keyboard.press('Control+Comma');
+        await page.locator('[data-skin-pick]').first().waitFor();
+      }
+      await page.locator('[data-skin-pick=zen]').click();
+      await waitUntil(async () => (await call('preferences.get')).theme === 'zen-paper', 'ZEN의 마지막 테마를 되살리지 않았습니다.');
+      assert.deepEqual(durableData(await call('state', {})), before);
 
       await page.locator('[data-settings-tab=shortcuts]').click();
       await page.locator('[data-action=help]').click();

@@ -94,28 +94,33 @@ test('잘못된 단축키 설정은 기존 JSON을 변경하지 않고 유효한
  const temp=path.join(path.dirname(fileURLToPath(import.meta.url)),'.tmp');fs.mkdirSync(temp,{recursive:true});
  const dir=fs.mkdtempSync(path.join(temp,'shortcuts-'));
  try{
-  const file=path.join(dir,'preferences.json'),prefs=createPreferences(file);prefs.set({theme:'kraft'});
+  const file=path.join(dir,'preferences.json'),prefs=createPreferences(file);prefs.set({theme:'zen-kraft'});
   const before=fs.readFileSync(file,'utf8');
   assert.throws(()=>prefs.set({hotkey:'Alt+Space',captureHotkey:'Alt+Space'}));
-  assert.equal(fs.readFileSync(file,'utf8'),before);assert.equal(prefs.get().theme,'kraft');
+  assert.equal(fs.readFileSync(file,'utf8'),before);assert.equal(prefs.get().theme,'zen-kraft');
   prefs.set({hotkey:'ctrl+alt+f2',captureHotkey:''});
   const restarted=createPreferences(file);assert.equal(restarted.get().hotkey,'Control+Alt+F2');assert.equal(restarted.get().captureHotkey,'');
  }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
 
-test('테마가 화면 모드를 정하고 옛 스킨·모드 설정은 테마로 옮긴다',()=>{
+test('테마가 스킨과 화면 모드를 정하고 옛 설정은 ZEN 테마로 옮긴다',()=>{
  const temp=path.join(path.dirname(fileURLToPath(import.meta.url)),'.tmp');fs.mkdirSync(temp,{recursive:true});
  const dir=fs.mkdtempSync(path.join(temp,'theme-'));
  try{
   const file=path.join(dir,'preferences.json');
-  assert.equal(createPreferences(file).get().theme,'sage');
+  const fresh=createPreferences(file).get();assert.equal(fresh.theme,'zen-sage');assert.equal(fresh.skin,'zen');
   fs.writeFileSync(file,JSON.stringify({skin:'paper',mode:'dark'}));
-  const legacy=createPreferences(file).get();assert.equal(legacy.theme,'ink');assert.equal(legacy.mode,'dark');assert.equal('skin' in legacy,false);
+  const legacy=createPreferences(file).get();assert.equal(legacy.theme,'zen-ink');assert.equal(legacy.skin,'zen');assert.equal(legacy.mode,'dark');
   fs.writeFileSync(file,JSON.stringify({skin:'ink',mode:'system'}));
-  assert.equal(createPreferences(file).get().theme,'sage');
+  assert.equal(createPreferences(file).get().theme,'zen-sage');
+  fs.writeFileSync(file,JSON.stringify({theme:'dim',mode:'dark'}));
+  assert.equal(createPreferences(file).get().theme,'zen-dim','0.3.13 테마 id는 zen- 접두로 옮겨야 합니다.');
   const prefs=createPreferences(file);
-  assert.equal(prefs.set({theme:'dim'}).mode,'dark');assert.equal(prefs.set({theme:'snow'}).mode,'light');
-  assert.equal(prefs.set({theme:'nope',mode:'dark'}).theme,'snow');assert.equal(prefs.get().mode,'light');
-  prefs.replace({skin:'base',mode:'dark'});assert.equal(prefs.get().theme,'ink');
+  let value=prefs.set({theme:'tui-amber'});assert.equal(value.skin,'tui');assert.equal(value.mode,'dark');
+  value=prefs.set({skin:'soft'});assert.equal(value.theme,'soft-light','처음 고른 스킨은 첫 테마로 시작합니다.');assert.equal(value.mode,'light');
+  value=prefs.set({theme:'soft-dark'});value=prefs.set({skin:'tui'});assert.equal(value.theme,'tui-amber','스킨으로 돌아오면 마지막 테마를 되살립니다.');
+  value=prefs.set({skin:'soft'});assert.equal(value.theme,'soft-dark');
+  assert.equal(prefs.set({theme:'nope',skin:'nope'}).theme,'soft-dark');
+  prefs.replace({skin:'base',mode:'dark',skinThemes:{tui:'zen-sage'}});assert.equal(prefs.get().theme,'zen-ink');assert.deepEqual(prefs.get().skinThemes,{zen:'zen-ink'});
  }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });

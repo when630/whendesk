@@ -10,4 +10,4 @@
 
 기존 프로젝트 코드는 각 원본의 MIT 라이선스 안내를 따릅니다. 원본 경로는 개발 PC의 `D:\when630\whenwork`, `whencalendar`, `whencommand`, `whenmusic`입니다. 배포 실행은 이 경로에 의존하지 않습니다.
 
-Pretendard 글꼴은 `renderer/fonts/PretendardOFL.txt`의 SIL Open Font License 1.1을 따릅니다. Lucide는 ISC 라이선스입니다. ical.js 2.2.1은 MPL-2.0 라이선스이며 번들된 패키지의 LICENSE를 참고하세요. Electron과 Chromium의 라이선스 문서는 배포 폴더에 포함됩니다. Windows SMTC 네이티브 애드온 출처·버전·MIT 라이선스 안내는 `vendor/README.md`에 있습니다.
+Pretendard 글꼴은 `renderer/fonts/PretendardOFL.txt`, POSTER 스킨의 Archivo는 `renderer/fonts/ArchivoOFL.txt`, SKETCH 스킨의 Gaegu는 `renderer/fonts/gaegu/GaeguOFL.txt`의 SIL Open Font License 1.1을 따릅니다. Lucide는 ISC 라이선스입니다. ical.js 2.2.1은 MPL-2.0 라이선스이며 번들된 패키지의 LICENSE를 참고하세요. Electron과 Chromium의 라이선스 문서는 배포 폴더에 포함됩니다. Windows SMTC 네이티브 애드온 출처·버전·MIT 라이선스 안내는 `vendor/README.md`에 있습니다.

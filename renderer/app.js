@@ -16,7 +16,10 @@
   const dateKey = (date = new Date()) => `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
   const today = dateKey();
   const tomorrow = dateKey(new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()+1));
-  const state = { shell:'command', view:'dashboard', tab:'todo', calView:'today',settingsTab:'general', selected:null, project:null, dueOnly:false, year:new Date().getFullYear(), month:new Date().getMonth(), date:today, theme:'sage', tasks:[], projects:[], events:[], calendars:[], info:{}, prefs:{}, media:{ sessions:[] } };
+  const state = { shell:'command', view:'dashboard', tab:'todo', calView:'today',settingsTab:'general', selected:null, project:null, dueOnly:false, year:new Date().getFullYear(), month:new Date().getMonth(), date:today, theme:'zen-sage', tasks:[], projects:[], events:[], calendars:[], info:{}, prefs:{}, media:{ sessions:[] } };
+  // 스킨·테마 목록은 themes.js(WHENTERMINAL과 같은 목록). 스킨은 모양, 테마는 그 스킨의 색
+  const { SKINS, THEMES, themesOf } = window.WhendeskThemes;
+  const themeById = id => THEMES.find(theme => theme.id === id) || THEMES[0];
   const command = { seq:0, items:[], selected:0, pending:false, query:'', renderedQuery:null, request:null, running:false, activating:false, activation:0, composing:false, actions:null, more:null, waiters:new Set(), notice:'', start:0, end:0, timer:null };
   const pending = new Map();
   const workRules = window.VIEW;
@@ -56,8 +59,8 @@
     feedbackTimer = setTimeout(() => { element.hidden = true; undoAction = null; }, error ? 15000 : 7000); icons();
   }
   function look() {
-    app.dataset.theme = state.theme;
-    root.querySelectorAll('[data-theme-pick]').forEach(card => { const on = card.dataset.themePick === state.theme; card.classList.toggle('on', on); card.setAttribute('aria-checked', String(on)); card.tabIndex = on ? 0 : -1; card.querySelector('.theme-on')?.toggleAttribute('hidden', !on); });
+    const theme = themeById(state.theme); app.dataset.theme = theme.id; app.dataset.skin = theme.skin;
+    root.querySelectorAll('[data-theme-pick],[data-skin-pick]').forEach(card => { const on = card.dataset.themePick ? card.dataset.themePick === theme.id : card.dataset.skinPick === theme.skin; card.classList.toggle('on', on); card.setAttribute('aria-checked', String(on)); card.tabIndex = on ? 0 : -1; card.querySelector('.theme-on')?.toggleAttribute('hidden', !on); });
     resizeCommand();
   }
   function resizeCommand() {
@@ -647,32 +650,38 @@
     return backwards ? before.at(-1) || stops.at(-1) : after[0] || stops[0];
   }
   const SETTINGS_TABS=[['general','일반'],['shortcuts','단축키']];
-  // WHENTERMINAL zen 테마와 같은 목록. colors는 [바탕, 글자, 신호색] (카드 견본)
-  const THEMES=[
-    ['sage','SAGE','옅은 초록빛 회색, 차분함',['#e8ece4','#273029','#b6533c']],
-    ['paper','PAPER','미색 종이',['#f7f4ee','#2e2a25','#c4553a']],
-    ['ink','INK','먹빛 어두운 바탕',['#191a1c','#d6d3cc','#e07a5f']],
-    ['stone','STONE','차가운 회색, 미색이 누렇게 느껴질 때',['#eeeff0','#1f2326','#b8432c']],
-    ['snow','SNOW','거의 흰 바탕, 대비가 가장 커요',['#fbfbfa','#111111','#d0402a']],
-    ['kraft','KRAFT','짙은 베이지, 종이 질감',['#e9e0d0','#2b241b','#b1442c']],
-    ['night','NIGHT','푸른 먹색, 밤에 오래 볼 때',['#15181c','#cdd3da','#e8806a']],
-    ['moss','MOSS','짙은 초록, SAGE의 어두운 짝',['#171c18','#d3dccf','#e07f62']],
-    ['dim','DIM','대비를 낮춘 따뜻한 검정, 오래 봐도 눈이 편해요',['#1f1d1a','#c4bba9','#d98b6c']],
-  ];
+  function swatch([bg,fg,signal],skin){
+    return `<span class="theme-swatch sw-${skin}" style="background:${bg};color:${fg}" aria-hidden="true"><span class="sw-key">A</span><span class="sw-lines"><i style="background:${fg}"></i><i style="background:${fg};opacity:.5"></i><i style="background:${signal};width:45%"></i></span><span class="sw-band" style="background:${signal}"></span></span>`;
+  }
+  function lookCard(kind,id,name,note,colors,skin,on){
+    return `<button type="button" role="radio" class="theme-card ${on ? 'on' : ''}" data-${kind}-pick="${id}" aria-checked="${on}" tabindex="${on ? 0 : -1}">${swatch(colors,skin)}<span class="theme-name">${esc(name)}<span class="theme-on" ${on ? '' : 'hidden'}>in use</span></span><span class="theme-note">${esc(note)}</span></button>`;
+  }
   function themeCards(){
-    return `<div class="theme-grid" role="radiogroup" aria-label="색 테마">${THEMES.map(([id,name,note,[bg,fg,signal]]) => { const on = state.theme === id; return `<button type="button" role="radio" class="theme-card ${on ? 'on' : ''}" data-theme-pick="${id}" aria-checked="${on}" tabindex="${on ? 0 : -1}"><span class="theme-swatch" style="background:${bg};color:${fg}" aria-hidden="true"><span class="sw-key">A</span><span class="sw-lines"><i style="background:${fg}"></i><i style="background:${fg};opacity:.5"></i><i style="background:${signal};width:45%"></i></span><span class="sw-band" style="background:${signal}"></span></span><span class="theme-name">${name}<span class="theme-on" ${on ? '' : 'hidden'}>in use</span></span><span class="theme-note">${esc(note)}</span></button>`; }).join('')}</div>`;
+    const current = themeById(state.theme);
+    return `<h3>스킨</h3><div class="theme-grid" role="radiogroup" aria-label="스킨">${SKINS.map(skin => lookCard('skin',skin.id,skin.name,skin.note,themesOf(skin.id)[0].colors,skin.id,skin.id === current.skin)).join('')}</div>
+      <h3>테마</h3><div class="theme-grid" role="radiogroup" aria-label="색 테마" data-theme-grid>${themesOf(current.skin).map(theme => lookCard('theme',theme.id,theme.name,theme.note,theme.colors,theme.skin,theme.id === current.id)).join('')}</div>`;
   }
   async function pickTheme(id){
-    if(id===state.theme||!THEMES.some(([value])=>value===id))return;
+    if(id===state.theme||!THEMES.some(theme=>theme.id===id))return;
     state.theme=id; look(); state.prefs=await call('preferences.set',{theme:id});
   }
+  // 스킨을 고르면 그 스킨에서 마지막으로 고른 테마(없으면 첫 테마)로 바꾸고 테마 목록을 그 스킨 것으로 다시 그린다
+  async function pickSkin(skin){
+    if(skin===themeById(state.theme).skin||!SKINS.some(value=>value.id===skin))return;
+    const remembered=state.prefs.skinThemes?.[skin];
+    state.theme=themesOf(skin).some(theme=>theme.id===remembered)?remembered:themesOf(skin)[0].id;
+    const grid=body.querySelector('[data-theme-grid]');
+    if(grid)grid.innerHTML=themesOf(skin).map(theme=>lookCard('theme',theme.id,theme.name,theme.note,theme.colors,theme.skin,theme.id===state.theme)).join('');
+    look(); state.prefs=await call('preferences.set',{skin});
+  }
+
   function setSettingsTab(value) { if (!SETTINGS_TABS.some(([tab]) => tab === value)) return; state.settingsTab = value; renderMainView(); body.querySelector(`[data-settings-tab="${value}"]`)?.focus({preventScroll:true}); syncHints(); }
   /* 설정은 두 분류다: 일반(모양·시작과 알림·Command·업데이트·데이터)과 단축키(전역 단축키). ←→로 분류를 바꾼다. */
   function settingsView() {
     const shortcutFields = SHORTCUT_UI, tab = state.settingsTab;
     const tabs = `<div class="cal-views settings-tabs" role="tablist" aria-label="설정 분류">${SETTINGS_TABS.map(([value,label]) => `<button role="tab" data-settings-tab="${value}" aria-selected="${tab === value}" tabindex="${tab === value ? 0 : -1}">${label}</button>`).join('')}</div>`;
     if (tab === 'shortcuts') return tabs + `<form class="preferences-form"><section class="settings-section"><h2>어디서나 쓰는 단축키</h2><p class="settings-lead">다른 앱을 쓰는 중에도 바로 부르는 전역 단축키입니다. 칸을 고른 뒤 조합을 누르면 기록되고, Delete는 해제, Esc는 저장된 값으로 되돌립니다.</p>${shortcutFields.map(([field,label,aria,fallback]) => `<label class="td-field">${label}<input name="${field}" data-shortcut="${field}" aria-label="${aria}" aria-describedby="shortcut-error-${field}" aria-invalid="${!!state.info.shortcutErrors?.[field]}" value="${esc(state.prefs[field] ?? fallback)}" placeholder="사용 안 함" autocomplete="off" spellcheck="false"><span id="shortcut-error-${field}" class="settings-warning" data-shortcut-error="${field}" ${state.info.shortcutErrors?.[field] ? '' : 'hidden'}>${esc(state.info.shortcutErrors?.[field])}</span></label>`).join('')}<div class="settings-actions"><button class="td-primary" type="submit">단축키 저장</button><button class="td-secondary" type="button" data-action="help">앱 안 단축키 보기 (?)</button></div></section></form>`;
-    return tabs + `<section class="settings-section theme-section"><h2>테마</h2>${themeCards()}</section>
+    return tabs + `<section class="settings-section theme-section"><h2>모양</h2>${themeCards()}</section>
     <section class="settings-section"><h2>시작과 알림</h2><label class="settings-check"><input type="checkbox" data-pref="launchAtLogin" ${state.prefs.launchAtLogin ? 'checked' : ''} ${state.info.launchAtLoginSupported ? '' : 'disabled'}>로그인할 때 트레이에 숨겨 실행</label>${state.info.launchAtLoginSupported ? '' : '<small class="settings-path">배포본에서만 설정할 수 있습니다.</small>'}<label class="settings-check"><input type="checkbox" data-pref="briefEnabled" ${state.prefs.briefEnabled !== false ? 'checked' : ''}>아침 브리핑 알림</label><label class="td-field settings-time">브리핑 시각<input type="time" data-pref="briefAt" aria-label="아침 브리핑 시각" value="${esc(state.prefs.briefAt || '09:00')}"></label><small class="settings-path">하루 한 번, 정한 시각부터 3시간 안에 켜져 있으면 오늘 마감·지연·일정·대기·인박스를 알립니다.</small></section>
     <section class="settings-section"><h2>업데이트</h2><p class="settings-update" data-update-line role="status">${esc(state.update?.line || '')}</p><div class="settings-actions"><button class="td-secondary" type="button" data-action="update-check" ${state.update?.supported ? '' : 'disabled'}>지금 확인</button><button class="td-secondary" type="button" data-action="update-install" ${state.update?.status === 'ready' ? '' : 'disabled'}>재시작해 설치</button></div></section>
     <section class="settings-section"><h2>데이터</h2><div class="settings-actions"><button class="td-secondary" data-data="importLegacy">기존 데이터 복사해 가져오기</button><button class="td-secondary" data-data="export">백업 내보내기</button><button class="td-secondary" data-data="restore">백업 복원</button><button class="td-secondary" data-data="openFolder">저장 폴더 열기</button></div><small class="settings-path">${esc(state.info.dataDir)}</small></section><section class="settings-section"><h2>WHENCOMMAND</h2><label class="settings-check"><input type="checkbox" data-pref="clipboardRow" ${state.prefs.clipboardRow !== false ? 'checked' : ''}>빈 입력에 클립보드로 할 수 있는 것 보이기</label><button class="td-secondary" data-action="refresh-command">검색 목록 새로고침</button></section><section class="settings-section"><h2>WHENDESK ${esc(state.info.version || '')}</h2><button class="td-secondary" data-action="quit">앱 종료</button></section>`;
@@ -1172,10 +1181,10 @@
     if(K.is(event,'app.undo')&&!editingTarget(target)){event.preventDefault();safe(undoLastAction);return true;}
     if(state.view==='dashboard'&&!editingTarget(target)&&body.contains(target)&&dashboardKeys(event))return true;
     if(state.view==='settings'&&target.closest('.settings-tabs')){const order=SETTINGS_TABS.map(([tab])=>tab),index=order.indexOf(state.settingsTab),to=K.is(event,'settings.next')?index+1:K.is(event,'settings.prev')?index-1:null;if(to!==null){event.preventDefault();setSettingsTab(order[(to+order.length)%order.length]);return true;}}
-    if(state.view==='settings'&&target.matches('[data-theme-pick]')&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(event.key)&&!event.ctrlKey&&!event.altKey&&!event.metaKey){
-      event.preventDefault();const cards=[...body.querySelectorAll('[data-theme-pick]')],index=cards.indexOf(target),columns=Math.max(1,cards.filter(card=>card.offsetTop===cards[0].offsetTop).length);
+    if(state.view==='settings'&&target.matches('[data-theme-pick],[data-skin-pick]')&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(event.key)&&!event.ctrlKey&&!event.altKey&&!event.metaKey){
+      event.preventDefault();const cards=[...target.closest('.theme-grid').querySelectorAll('.theme-card')],index=cards.indexOf(target),columns=Math.max(1,cards.filter(card=>card.offsetTop===cards[0].offsetTop).length);
       const to={ArrowLeft:index-1,ArrowRight:index+1,ArrowUp:index-columns,ArrowDown:index+columns,Home:0,End:cards.length-1}[event.key];
-      const next=cards[Math.min(cards.length-1,Math.max(0,to))];if(next&&next!==target){next.focus({preventScroll:false});safe(()=>pickTheme(next.dataset.themePick));}return true;
+      const next=cards[Math.min(cards.length-1,Math.max(0,to))];if(next&&next!==target){next.focus({preventScroll:false});safe(()=>next.dataset.skinPick?pickSkin(next.dataset.skinPick):pickTheme(next.dataset.themePick));}return true;
     }
     if(workKeys(event))return true;
     if(state.view==='calendar'&&!editingTarget(target)&&target.closest('.td-full-calendar')&&K.is(event,'calendar.view')){event.preventDefault();if(!event.repeat){const order=CAL_VIEWS.map(([view])=>view);safe(()=>setCalView(order[(order.indexOf(state.calView)+(event.shiftKey?order.length-1:1))%order.length]));}return true;}
@@ -1232,6 +1241,7 @@
     if (data.calView) return setCalView(data.calView);
     if (data.settingsTab) return setSettingsTab(data.settingsTab);
     if (data.themePick) return pickTheme(data.themePick);
+    if (data.skinPick) return pickSkin(data.skinPick);
     if (data.tab) return switchWorkTab(data.tab,{focus:button.closest('.td-work-nav')?'tab':'list',clearProject:state.view!=='tasks'});
     if (button.classList.contains('td-drag-handle')) return;
     if (data.task) { taskCursor=data.task; await openTaskField(data.task);return; }
@@ -1454,7 +1464,7 @@
   async function init(){
     try{
       const results=await Promise.allSettled([call('preferences.get'),call('app.info'),call('media.state')]);
-      if(results[0].status==='fulfilled'){state.prefs=results[0].value||{};state.theme=state.prefs.theme||'sage';}
+      if(results[0].status==='fulfilled'){state.prefs=results[0].value||{};state.theme=state.prefs.theme||'zen-sage';}
       if(results[1].status==='fulfilled')state.info=results[1].value||{};
       document.title = state.info.isPackaged === false ? 'WHENDESK 개발본' : 'WHENDESK';
       look();await loadState();if(results[2].status==='fulfilled')renderMedia(results[2].value);else renderMedia({sessions:[],failure:true});

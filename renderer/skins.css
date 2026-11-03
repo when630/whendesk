@@ -1,0 +1,122 @@
+/* 스킨: 모양(선·모서리·글꼴·면·선택 표시)만 바꾼다. 배치·키 동작은 모든 스킨이 같다. 색은 renderer/themes.css의 테마 토큰.
+   WHENTERMINAL 스킨(src/renderer/src/skins/*.css)의 성격을 WHENDESK 화면(사이드바·본문·캘린더)에 옮겼다. ZEN은 기본 규칙 그대로. */
+@import url('fonts/gaegu/gaegu-700.css');
+@font-face{font-family:'WD Display';src:url('fonts/archivo-latin-900-normal.woff2') format('woff2');font-weight:400;font-style:normal;font-display:block;unicode-range:U+0000-00FF,U+2000-206F,U+2191,U+2193}
+
+/* ── POSTER: 굵은 검은 선, 큰 라틴 글자, 반전 선택. 모서리 없음 ── */
+#whendesk-command-first .td-app[data-skin=poster]{--td-radius:0;--td-display:'WD Display',Pretendard,'Malgun Gothic',sans-serif;border:3px solid var(--td-text);border-radius:0}
+#whendesk-command-first .td-app[data-skin=poster] .td-sidebar{border-right:3px solid var(--td-line)}
+#whendesk-command-first .td-app[data-skin=poster] .td-calendar-side{border-left:3px solid var(--td-line)}
+#whendesk-command-first .td-app[data-skin=poster] .td-main-head h1{font:400 44px/.9 var(--td-display);letter-spacing:-2px;text-transform:uppercase}
+#whendesk-command-first .td-app[data-skin=poster] :is(h2,.td-cal-head h2){font-weight:900;letter-spacing:.6px;text-transform:uppercase}
+#whendesk-command-first .td-app[data-skin=poster] :is(.td-nav,.td-sidebar-bottom) button{border-radius:0;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--td-text)}
+#whendesk-command-first .td-app[data-skin=poster] .td-nav button.active{background:var(--td-inv-bg);color:var(--td-inv-fg)}
+#whendesk-command-first .td-app[data-skin=poster] .td-main>.td-work-nav{border-bottom:3px solid var(--td-line)}
+#whendesk-command-first .td-app[data-skin=poster] .td-work-nav button{font-weight:800;text-transform:uppercase}
+#whendesk-command-first .td-app[data-skin=poster] :is(.td-quick,.td-hints){border-color:var(--td-line);border-width:3px}
+#whendesk-command-first .td-app[data-skin=poster] :is(.td-task,.cf-home-task){border-bottom:1px solid var(--td-line)}
+#whendesk-command-first .td-app[data-skin=poster] .td-task-open>span{font-weight:700}
+#whendesk-command-first .td-app[data-skin=poster] :is([data-task-row],[data-work-project-row],.desk-note-row,[data-event]):focus-visible{box-shadow:inset 6px 0 0 var(--td-text)!important}
+#whendesk-command-first .td-app[data-skin=poster] .td-day.today>span:first-child{border:0;padding:0 4px;background:var(--td-text);color:var(--td-bg);font-weight:900}
+#whendesk-command-first .td-app[data-skin=poster] :is(.td-primary,.td-secondary){border-radius:0;font-weight:800;text-transform:uppercase}
+#whendesk-command-first .td-app[data-skin=poster] .td-secondary{border:2px solid var(--td-line)!important}
+#whendesk-command-first .td-app[data-skin=poster] .td-modal{border:3px solid var(--td-line);border-radius:0}
+
+/* ── SOFT: 회색 사이드바 + 둥근 흰 본문 카드, 강조색 선택, 얕은 그림자 ── */
+#whendesk-command-first .td-app[data-skin=soft]{--td-radius:8px;background:var(--td-side)}
+#whendesk-command-first .td-app[data-skin=soft] .td-sidebar{border-right:0;background:var(--td-side)}
+#whendesk-command-first .td-app[data-skin=soft] .td-layout{background:var(--td-side)}
+#whendesk-command-first .td-app[data-skin=soft] .td-main{margin:8px 0;border-radius:12px 0 0 12px;box-shadow:0 0 0 1px var(--td-shadow-c),0 2px 12px var(--td-shadow-c)}
+#whendesk-command-first .td-app[data-skin=soft] .td-calendar-side{margin:8px 8px 8px 0;border-left:1px solid var(--td-fill);border-radius:0 12px 12px 0;box-shadow:0 0 0 1px var(--td-shadow-c)}
+#whendesk-command-first .td-app[data-skin=soft].is-calendar .td-main{margin-right:8px;border-radius:12px}
+#whendesk-command-first .td-app[data-skin=soft] .td-main-head h1{font-weight:700;letter-spacing:-.4px}
+#whendesk-command-first .td-app[data-skin=soft] .td-nav button{border-radius:7px;color:var(--td-text)}
+#whendesk-command-first .td-app[data-skin=soft] .td-nav button.active{background:var(--td-inv-bg);color:var(--td-inv-fg)}
+#whendesk-command-first .td-app[data-skin=soft] .td-quick{padding:9px 12px;border:0;border-radius:9px;background:var(--td-fill)}
+#whendesk-command-first .td-app[data-skin=soft] .cf-home-section{padding:10px 16px 4px;border-radius:12px;background:var(--td-card);box-shadow:0 0 0 1px var(--td-shadow-c),0 1px 3px var(--td-shadow-c)}
+#whendesk-command-first .td-app[data-skin=soft] .cf-home-task:last-child{border-bottom:0}
+#whendesk-command-first .td-app[data-skin=soft] :is([data-task-row],[data-work-project-row],.desk-note-row,[data-event]):focus-visible{background:var(--td-fill);border-radius:8px;box-shadow:none!important}
+#whendesk-command-first .td-app[data-skin=soft] .td-day.today>span:first-child{display:inline-grid;place-items:center;min-width:22px;height:22px;border:0;border-radius:50%;background:var(--td-inv-bg);color:var(--td-inv-fg)}
+#whendesk-command-first .td-app[data-skin=soft] :is(.td-primary,.td-secondary){border-radius:8px}
+#whendesk-command-first .td-app[data-skin=soft] .td-primary{background:var(--td-inv-bg)!important;color:var(--td-inv-fg)!important}
+#whendesk-command-first .td-app[data-skin=soft] .td-modal{border:0;border-radius:14px;box-shadow:0 0 0 1px var(--td-shadow-c),0 18px 50px var(--td-shadow-c)}
+
+/* ── TUI: 고정폭 글자, 모서리 없음, 선택은 반전 면, 메뉴는 [번호] ── */
+#whendesk-command-first .td-app[data-skin=tui]{--td-radius:0;--td-font:'Cascadia Mono','Cascadia Code',Consolas,D2Coding,'Malgun Gothic',monospace;border-radius:0}
+#whendesk-command-first .td-app[data-skin=tui] :is(h1,h2,h3,input,textarea,button,kbd,small){font-family:var(--td-font)}
+#whendesk-command-first .td-app[data-skin=tui] .td-main-head h1{font-size:18px;font-weight:700;letter-spacing:0;text-transform:uppercase}
+#whendesk-command-first .td-app[data-skin=tui] .td-main-head h1::before{content:'# ';color:var(--td-muted)}
+#whendesk-command-first .td-app[data-skin=tui] h2{text-transform:uppercase;font-weight:700}
+#whendesk-command-first .td-app[data-skin=tui] .td-nav{counter-reset:tui-nav}
+#whendesk-command-first .td-app[data-skin=tui] .td-nav button{border-radius:0;color:var(--td-text)}
+#whendesk-command-first .td-app[data-skin=tui] :is(.td-nav,.td-sidebar-bottom) button svg{display:none}
+#whendesk-command-first .td-app[data-skin=tui] .td-nav button::before{counter-increment:tui-nav;content:'[' counter(tui-nav) ']';color:var(--td-muted)}
+#whendesk-command-first .td-app[data-skin=tui] .td-nav button.active{background:var(--td-inv-bg);color:var(--td-inv-fg)}
+#whendesk-command-first .td-app[data-skin=tui] .td-nav button.active::before{color:inherit}
+#whendesk-command-first .td-app[data-skin=tui] .td-work-nav button[aria-selected=true]{background:var(--td-inv-bg);color:var(--td-inv-fg);padding-inline:6px}
+#whendesk-command-first .td-app[data-skin=tui] .td-quick{padding:6px 10px;border:1px solid var(--td-line);border-radius:0}
+#whendesk-command-first .td-app[data-skin=tui] .cf-home-section{margin-top:12px;padding:0 12px 4px;border:1px solid var(--td-line)}
+#whendesk-command-first .td-app[data-skin=tui] .cf-home-head{margin-top:-11px}
+#whendesk-command-first .td-app[data-skin=tui] .cf-home-head h2,#whendesk-command-first .td-app[data-skin=tui] .cf-home-head button{padding:0 6px;background:var(--td-surface)}
+#whendesk-command-first .td-app[data-skin=tui] .cf-home-task:last-child{border-bottom:0}
+#whendesk-command-first .td-app[data-skin=tui] :is([data-task-row],[data-work-project-row],.desk-note-row,[data-event]):focus-visible{background:var(--td-inv-bg)!important;box-shadow:none!important}
+#whendesk-command-first .td-app[data-skin=tui] :is([data-task-row],[data-work-project-row],.desk-note-row,[data-event]):focus-visible :is(*,small){color:var(--td-inv-fg)!important}
+#whendesk-command-first .td-app[data-skin=tui] .td-day.today>span:first-child{border:0;padding:0 3px;background:var(--td-inv-bg);color:var(--td-inv-fg)}
+#whendesk-command-first .td-app[data-skin=tui] .td-hints{padding:3px 8px;border-top:0;background:var(--td-wash)}
+#whendesk-command-first .td-app[data-skin=tui] .td-hints kbd{padding:0;background:none;font-weight:700;color:var(--td-text)}
+#whendesk-command-first .td-app[data-skin=tui] :is(.td-primary,.td-secondary,.td-modal,.td-pick,kbd){border-radius:0}
+#whendesk-command-first .td-app[data-skin=tui] .td-modal{border:1px solid var(--td-line);box-shadow:none}
+
+/* ── GLASS: 흐린 색 덩어리 바탕 위 서로 떨어진 반투명 패널, 알약 메뉴 ── */
+#whendesk-command-first .td-app[data-skin=glass]{--td-radius:12px;border:0;background-color:var(--td-bg);background-image:radial-gradient(circle 620px at 6% 2%,var(--td-blob-a),transparent 72%),radial-gradient(circle 560px at 96% 42%,var(--td-blob-b),transparent 72%),radial-gradient(circle 520px at 30% 110%,var(--td-blob-c),transparent 72%),radial-gradient(circle 420px at 70% -10%,var(--td-blob-d),transparent 72%)}
+#whendesk-command-first .td-app[data-skin=glass] .td-layout{gap:12px;padding:12px;box-sizing:border-box}
+#whendesk-command-first .td-app[data-skin=glass] :is(.td-sidebar,.td-main,.td-calendar-side){border:0;border-radius:20px;background:var(--td-surface);backdrop-filter:blur(30px) saturate(1.3);box-shadow:inset 0 0 0 1px var(--td-glass-stroke),0 10px 40px var(--td-shadow-c)}
+#whendesk-command-first .td-app[data-skin=glass] :is(.td-hints,.cf-command-panel .td-command){background:transparent}
+/* 고정 막대(Work 검색 줄)는 면을 겹치지 않고 아래로 지나가는 내용만 흐린다 */
+#whendesk-command-first .td-app:is([data-skin=glass],[data-skin=sketch]) .td-body .work-toolbar{background:transparent;backdrop-filter:blur(18px)}
+#whendesk-command-first .td-app[data-skin=glass] .td-main-head h1{font-size:30px;font-weight:300;letter-spacing:-1px}
+#whendesk-command-first .td-app[data-skin=glass] .td-nav button{border-radius:999px;color:var(--td-text)}
+#whendesk-command-first .td-app[data-skin=glass] .td-nav button.active{background:var(--td-text);color:var(--td-bg)}
+#whendesk-command-first .td-app[data-skin=glass] .td-quick{padding:9px 16px;border:0;border-radius:999px;background:var(--td-wash);box-shadow:inset 0 0 0 1px var(--td-glass-stroke)}
+#whendesk-command-first .td-app[data-skin=glass] :is([data-task-row],[data-work-project-row],.desk-note-row,[data-event]):focus-visible{background:var(--td-sel);border-radius:14px;box-shadow:none!important}
+#whendesk-command-first .td-app[data-skin=glass] .td-day.today>span:first-child{display:inline-grid;place-items:center;min-width:22px;height:22px;border:0;border-radius:50%;background:var(--td-text);color:var(--td-bg)}
+#whendesk-command-first .td-app[data-skin=glass] :is(.td-primary,.td-secondary,.td-hints kbd){border-radius:999px}
+#whendesk-command-first .td-app[data-skin=glass] .td-modal{border:0;border-radius:22px;background:var(--td-surface);backdrop-filter:blur(30px);box-shadow:inset 0 0 0 1px var(--td-glass-stroke),0 20px 60px var(--td-shadow-c)}
+
+/* ── IDE: 탐색기 같은 사이드바, 선택은 파란 면, 탭은 편집기 탭, 단축키 힌트는 상태 표시줄 ── */
+#whendesk-command-first .td-app[data-skin=ide]{--td-radius:2px;--td-font:'Segoe UI',Pretendard,'Malgun Gothic',sans-serif;border-radius:6px}
+#whendesk-command-first .td-app[data-skin=ide] .td-main-head h1{font-size:20px;font-weight:400;letter-spacing:0}
+#whendesk-command-first .td-app[data-skin=ide] .td-nav button{border-radius:0;color:var(--td-muted)}
+#whendesk-command-first .td-app[data-skin=ide] .td-nav button.active{background:var(--td-wash);color:var(--td-text);box-shadow:inset 2px 0 0 var(--td-mark)}
+#whendesk-command-first .td-app[data-skin=ide] .td-main>.td-work-nav{gap:0;border-bottom:1px solid var(--td-line);background:var(--td-bar)}
+#whendesk-command-first .td-app[data-skin=ide] .td-work-nav button{padding:7px 14px;border-right:1px solid var(--td-line);color:var(--td-muted)}
+#whendesk-command-first .td-app[data-skin=ide] .td-work-nav button[aria-selected=true]{background:var(--td-surface);color:var(--td-text);box-shadow:inset 0 1px 0 var(--td-mark)}
+#whendesk-command-first .td-app[data-skin=ide] .td-quick{padding:6px 10px;border:1px solid var(--td-line);border-radius:2px;background:var(--td-wash)}
+#whendesk-command-first .td-app[data-skin=ide] :is([data-task-row],[data-work-project-row],.desk-note-row,[data-event]):focus-visible{background:var(--td-inv-bg)!important;color:var(--td-inv-fg);box-shadow:inset 0 0 0 1px var(--td-mark)!important}
+#whendesk-command-first .td-app[data-skin=ide] .td-day.today>span:first-child{border:0;padding:0 4px;background:var(--td-mark);color:#fff}
+#whendesk-command-first .td-app[data-skin=ide] .td-hints{margin-inline:-29px;padding:4px 29px;border-top:0;background:var(--td-sb);color:var(--td-sb-fg)}
+#whendesk-command-first .td-app[data-skin=ide] .td-hints kbd{padding:0 2px;background:none;color:inherit;font-weight:600}
+#whendesk-command-first .td-app[data-skin=ide] .td-primary{background:var(--td-mark)!important;color:#fff!important}
+#whendesk-command-first .td-app[data-skin=ide] :is(.td-primary,.td-secondary,.td-modal,.td-pick){border-radius:2px}
+#whendesk-command-first .td-app[data-skin=ide] .td-modal{border:1px solid var(--td-line);box-shadow:0 8px 30px var(--td-shadow-c)}
+@media(max-width:850px){#whendesk-command-first .td-app[data-skin=ide] .td-hints{margin-inline:-22px;padding-inline:22px}}
+@media(max-width:650px){#whendesk-command-first .td-app[data-skin=ide] .td-hints{margin-inline:-17px;padding-inline:17px}}
+
+/* ── SKETCH: 모눈 캔버스 위 떠 있는 판(사이드바·캘린더), 손글씨 제목, 손으로 그은 테두리 ── */
+#whendesk-command-first .td-app[data-skin=sketch]{--td-radius:8px;--td-hand:Gaegu,Pretendard,cursive;background-color:var(--td-bg);background-image:linear-gradient(var(--td-grid) 1px,transparent 1px),linear-gradient(90deg,var(--td-grid) 1px,transparent 1px);background-size:22px 22px}
+#whendesk-command-first .td-app[data-skin=sketch] :is(.td-main,.td-hints,.cf-command-panel .td-command){background:transparent}
+#whendesk-command-first .td-app[data-skin=sketch] :is(.td-sidebar,.td-calendar-side){margin:10px;border:0;border-radius:10px;background:var(--td-surface);box-shadow:0 0 0 1px var(--td-line),0 2px 10px var(--td-shadow-c)}
+#whendesk-command-first .td-app[data-skin=sketch] .td-main-head h1{font:700 36px/1.1 var(--td-hand);letter-spacing:0}
+#whendesk-command-first .td-app[data-skin=sketch] :is(.td-main h2,.cf-home-head h2){font:700 20px/1.2 var(--td-hand)}
+#whendesk-command-first .td-app[data-skin=sketch] .td-nav button{border-radius:7px;color:var(--td-text)}
+#whendesk-command-first .td-app[data-skin=sketch] .td-nav button.active{background:var(--td-sel);color:var(--td-inv-fg)}
+#whendesk-command-first .td-app[data-skin=sketch] .td-quick{padding:9px 14px;border:0;border-radius:10px;background:var(--td-surface);box-shadow:0 0 0 1px var(--td-line),0 2px 10px var(--td-shadow-c)}
+#whendesk-command-first .td-app[data-skin=sketch] :is(.td-task,.cf-home-task){margin:0 0 10px;padding:8px 14px;border:2px solid var(--td-text);border-radius:255px 15px 225px 15px/15px 225px 15px 255px;background:var(--td-surface)}
+#whendesk-command-first .td-app[data-skin=sketch] .td-task-open>span{font:700 19px/1.2 var(--td-hand)}
+#whendesk-command-first .td-app[data-skin=sketch] :is([data-task-row],[data-work-project-row],.desk-note-row,[data-event]):focus-visible{background:var(--td-sel);box-shadow:none!important}
+#whendesk-command-first .td-app[data-skin=sketch] .td-day.today>span:first-child{padding:0 4px;border:2px solid var(--td-mark);border-radius:50% 45% 55% 40%;color:var(--td-accent)}
+#whendesk-command-first .td-app[data-skin=sketch] .td-due.today{background:var(--td-marker)!important}
+#whendesk-command-first .td-app[data-skin=sketch] :is(.td-primary,.td-secondary){border-radius:8px}
+#whendesk-command-first .td-app[data-skin=sketch] .td-primary{background:var(--td-mark)!important;color:#fff!important}
+#whendesk-command-first .td-app[data-skin=sketch] .td-modal{border:0;border-radius:10px;box-shadow:0 0 0 1px var(--td-line),0 10px 40px var(--td-shadow-c)}
+#whendesk-command-first .td-app[data-skin=sketch] :is(.td-main h2,.cf-home-head h2) small{font:400 11px var(--td-font)}

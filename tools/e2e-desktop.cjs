@@ -63,7 +63,7 @@ async function test(name,fn){await fn();results.push({name,ok:true});}
    await note.press('Control+k');await page.locator('.td-command input').press('Tab');
    assert.equal(await note.evaluate(el=>el===window.__editor),true);assert.deepEqual(await note.evaluate(el=>[el.selectionStart,el.selectionEnd]),[2,7]);
    await page.locator('[data-field=title]').focus();await page.keyboard.press('Tab');assert.equal(await page.locator('#cf-dashboard-panel').isVisible(),true);
-   await page.keyboard.press('Control+Comma');await page.locator('[data-theme-pick=dim]').click();
+   await page.keyboard.press('Control+Comma');await page.locator('[data-theme-pick=zen-dim]').click();
    await page.locator('.td-nav > [data-action=work]').click();await page.locator('.td-main > .td-work-nav [data-tab=todo]').click();await page.locator('[data-task]').filter({hasText:'E2E 저장 확인'}).click();
    assert.equal(await note.inputValue(),'다시 실행해도 남는 실제 상세 내용');
    await page.keyboard.press('Escape');await page.locator('.task-form').waitFor({state:'detached'});
@@ -88,14 +88,14 @@ async function test(name,fn){await fn();results.push({name,ok:true});}
   });
   await test('설정 IPC와 실제 검색 결과',async()=>{
    await page.locator('.td-sidebar-bottom [data-action=settings]').click();assert.ok((await page.locator('.settings-path').filter({hasText:'e2e-profile'}).first().textContent()).includes('e2e-profile'));await page.locator('[data-settings-tab=shortcuts]').click();await page.locator('[aria-label="Command 단축키"]').waitFor();
-   const prefs=await call('preferences.get');assert.equal(prefs.theme,'dim');assert.equal(prefs.mode,'dark');
+   const prefs=await call('preferences.get');assert.equal(prefs.theme,'zen-dim');assert.equal(prefs.mode,'dark');
    await page.waitForFunction(async()=>{const info=await window.desk.call('app.info');return info.commandReady||info.commandFailure;},null,{timeout:30000});
    const query=await call('command.query',{q:'계산기',seq:100});assert.ok(Array.isArray(query.items));assert.ok(query.items.some(i=>i.source==='apps'),query.notice||'설치된 계산기 앱 검색 결과 없음');
   });
   await page.screenshot({path:path.join(shots,'dashboard.png')});
   await test('재시작 이후 실제 데이터와 외관 지속',async()=>{
    await app.close();await launch();const state=await call('state',{});const task=state.tasks.find(t=>t.id===taskId);assert.equal(task.title,'E2E 저장 확인');assert.equal(task.note,'다시 실행해도 남는 실제 상세 내용');assert.equal(task.project_id,projectId);assert.ok(state.events.some(e=>e.id===eventId));
-   const prefs=await call('preferences.get');assert.equal(prefs.theme,'dim');assert.equal(prefs.mode,'dark');assert.equal(await page.locator('#cf-dashboard-panel').isVisible(),false);
+   const prefs=await call('preferences.get');assert.equal(prefs.theme,'zen-dim');assert.equal(prefs.mode,'dark');assert.equal(await page.locator('#cf-dashboard-panel').isVisible(),false);
   });
   await page.screenshot({path:path.join(shots,'command.png')});
   assert.deepEqual(errors,[]);

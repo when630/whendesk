@@ -79,7 +79,8 @@ async function probe(selector,label,variant){
   measurements.checks.push({variant,label,selector,focusVisible:await locator.evaluate(element=>element.matches(':focus-visible')),backgroundChanged:after[0].background!==before[0].background});
 }
 async function changeLook(theme,mode){
-  await section('s','[data-theme-pick]');
+  await section('s','[data-skin-pick]');
+  await page.locator(`[data-skin-pick=${theme.split('-')[0]}]`).click();
   await page.locator(`[data-theme-pick=${theme}]`).click();
   await waitUntil(async()=>{const preferences=await call('preferences.get');return preferences.theme===theme&&preferences.mode===mode;},'테마 설정 저장 실패');
   await page.waitForFunction(({theme,mode})=>{const app=document.querySelector('.td-app');return app.dataset.theme===theme&&getComputedStyle(app).colorScheme===mode;},{theme,mode});
@@ -189,10 +190,11 @@ async function withDelayedTaskSelection(run){
       measurements.selectionSaveFocus={delayMs:450,projectNextField:'note',kindNextField:'due',restoredSelection:false};
     });
 
-    for(const [theme,mode] of [['sage','light'],['snow','light'],['ink','dark'],['dim','dark']]){
+    for(const [theme,mode] of [['zen-sage','light'],['zen-dim','dark'],['poster-white','light'],['soft-dark','dark'],['tui-night','dark'],['glass-day','light'],['ide-dark','dark'],['sketch-paper','light']]){
       const variant=theme+'/'+mode;
       await test(variant+' 전 화면 키보드 포커스 표시·배치 유지',async()=>{
         await changeLook(theme,mode);measurements.matrix.push({theme,mode});
+        await probe('[data-skin-pick][aria-checked=true]','스킨 선택',variant);
         await probe('[data-theme-pick][aria-checked=true]','테마 선택',variant);
         await page.locator('[data-settings-tab=general]').focus();await press('ArrowRight');await page.locator('[data-shortcut=hotkey]').waitFor();
         await probe('[data-settings-tab=shortcuts]','설정 분류 탭',variant);
