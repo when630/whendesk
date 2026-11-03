@@ -13,6 +13,14 @@ import {exportWorkspace,prepareRestore,prepareLegacy,installPrepared} from './da
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const argv=process.argv.slice(1);
 function option(name){const eq=argv.find(a=>a.startsWith(name+'='));if(eq)return eq.slice(name.length+1);const i=argv.indexOf(name);return i>=0?argv[i+1]:null;}
+/** 설정에서 고른 앱 아이콘(assets/icons/<id>.png). 창과 트레이에 바로 쓰고, 설치 파일 아이콘(assets/icon.png)은 따로 고정이다. */
+function iconFile(id){const file=path.join(ROOT,'assets','icons',id+'.png');return fs.existsSync(file)?file:path.join(ROOT,'assets','icon.png');}
+/** 트레이 아이콘: 고른 아이콘을 16px과 고DPI 배율로 줄여 넣는다(WHENTERMINAL makeTrayIcon과 같은 방식) */
+function trayIcon(id){
+ const source=nativeImage.createFromPath(iconFile(id)),image=nativeImage.createEmpty();
+ for(const scaleFactor of [1,1.25,1.5,2]){const size=Math.round(16*scaleFactor);image.addRepresentation({scaleFactor,buffer:source.resize({width:size,height:size,quality:'best'}).toPNG()});}
+ return image;
+}
 const testMode=argv.includes('--smoke')||argv.includes('--test');
 app.setName('whendesk');
 const dataDir=path.resolve(option('--data-dir')||(app.isPackaged?path.join(app.getPath('appData'),'whendesk'):path.join(ROOT,'.local')));
@@ -28,6 +36,7 @@ async function bootstrap(){
  const {createDomain}=await import('./domain.mjs');
  const {createCommand}=await import('./command.mjs');
  let domain,command,win,tray,mediaControl,mediaTimer;
+ function applyAppIcon(id){const image=nativeImage.createFromPath(iconFile(id));if(image.isEmpty())return;if(win&&!win.isDestroyed())win.setIcon(image);tray?.setImage(trayIcon(id));}
  let quitting=false,shellMode='command',dataBusy=false;
  let commandReady=false,commandFailure=null,mutationTail=Promise.resolve();
  let updater=null,toast=null,icons=null;const updateState=createUpdateState();
@@ -152,7 +161,7 @@ async function bootstrap(){
  }});
  function registerShortcuts(values=preferences.get()){return shortcutManager.update(values);}
  const area=workArea();
- win=new BrowserWindow({width:560,height:54,x:Math.round(area.x+(area.width-560)/2),y:Math.round(area.y+area.height*.22),minWidth:360,minHeight:54,frame:false,thickFrame:false,skipTaskbar:true,hasShadow:false,show:false,resizable:true,backgroundColor:'#20252c',title:'WHENDESK',icon:path.join(ROOT,'assets','icon.png'),webPreferences:{preload:path.join(ROOT,'main','preload.cjs'),contextIsolation:true,sandbox:true,nodeIntegration:false,webSecurity:true}});
+ win=new BrowserWindow({icon:iconFile(preferences.get().appIcon),width:560,height:54,x:Math.round(area.x+(area.width-560)/2),y:Math.round(area.y+area.height*.22),minWidth:360,minHeight:54,frame:false,thickFrame:false,skipTaskbar:true,hasShadow:false,show:false,resizable:true,backgroundColor:'#20252c',title:'WHENDESK',icon:path.join(ROOT,'assets','icon.png'),webPreferences:{preload:path.join(ROOT,'main','preload.cjs'),contextIsolation:true,sandbox:true,nodeIntegration:false,webSecurity:true}});
  win.setMenu(null);
  win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
  win.webContents.on('will-navigate',(event,url)=>{if(url!==rendererURL)event.preventDefault();});
@@ -163,8 +172,7 @@ async function bootstrap(){
  win.on('resize',()=>{if(shellMode==='dashboard'&&win.isVisible())rememberDashboard();});
  app.on('second-instance',()=>showCommand());
  app.on('activate',()=>showCommand());
- const trayImage=nativeImage.createFromPath(path.join(ROOT,'assets','tray.png'));
- tray=new Tray(trayImage.isEmpty()?nativeImage.createFromPath(path.join(ROOT,'assets','icon.png')).resize({width:24,height:24}):trayImage);
+ tray=new Tray(trayIcon(preferences.get().appIcon));
  tray.setToolTip(app.isPackaged?'WHENDESK':'WHENDESK 개발본');
  tray.setContextMenu(Menu.buildFromTemplate([{label:'WHENCOMMAND',click:showCommand},{label:'대시보드',click:()=>showDashboard()},{label:'인박스',click:()=>showDashboard({view:'tasks',tab:'inbox',focusCapture:true})},{type:'separator'},{label:'입력줄 위치 되돌리기',click:()=>{preferences.set({commandPosition:null});if(win?.isVisible()&&shellMode==='command'){const [width,height]=win.getSize();win.setBounds(commandBoundsFor(width,height));}}},{label:'대시보드 위치 되돌리기',click:()=>{dashboardBounds=null;preferences.set({dashboardBounds:null});}},{label:'앱 목록 새로고침',click:()=>command.refresh().catch(error=>dialog.showErrorBox('목록 새로고침',error.message))},{label:'설정',click:()=>showDashboard({settings:true})},{type:'separator'},{label:'종료',click:()=>requestQuit()}]));
  tray.on('click',()=>win.isVisible()&&win.isFocused()?win.hide():showCommand());
@@ -225,7 +233,7 @@ async function bootstrap(){
    const patch=payload&&typeof payload==='object'&&!Array.isArray(payload)?payload:{};
    const before=preferences.get(),changesShortcut=SHORTCUT_FIELDS.some(field=>Object.hasOwn(patch,field));
    const value=changesShortcut?shortcutManager.update({...before,...patch},next=>preferences.set({...patch,...Object.fromEntries(SHORTCUT_FIELDS.map(field=>[field,next[field]]))})):preferences.set(patch);
-   nativeTheme.themeSource=value.mode;if('launchAtLogin'in patch&&!testMode&&app.isPackaged)app.setLoginItemSettings({openAtLogin:value.launchAtLogin,args:['--hidden']});return value;
+   nativeTheme.themeSource=value.mode;if(value.appIcon!==before.appIcon)applyAppIcon(value.appIcon);if('launchAtLogin'in patch&&!testMode&&app.isPackaged)app.setLoginItemSettings({openAtLogin:value.launchAtLogin,args:['--hidden']});return value;
   },
   'update.state':()=>updateView(),
   'update.check':async()=>{if(updater)await updater.check();return updateView();},
@@ -297,7 +305,7 @@ async function bootstrap(){
    const parts=briefingLines(domain.work.briefing(STALE_WAITING_DAYS),{events});
    preferences.set({lastBriefing:today});
    if(!parts.length||!Notification.isSupported())return;
-   const notice=new Notification({title:'오늘 WHENDESK',body:parts.join(' · '),icon:path.join(ROOT,'assets','icon.png')});
+   const notice=new Notification({title:'오늘 WHENDESK',body:parts.join(' · '),icon:iconFile(preferences.get().appIcon)});
    notice.on('click',()=>showDashboard());notice.show();
   }catch(error){console.error('브리핑:',error.message);}
  }

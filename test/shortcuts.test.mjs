@@ -121,6 +121,7 @@ test('테마가 스킨과 화면 모드를 정하고 옛 설정은 ZEN 테마로
   value=prefs.set({theme:'soft-dark'});value=prefs.set({skin:'tui'});assert.equal(value.theme,'tui-amber','스킨으로 돌아오면 마지막 테마를 되살립니다.');
   value=prefs.set({skin:'soft'});assert.equal(value.theme,'soft-dark');
   assert.equal(prefs.set({theme:'nope',skin:'nope'}).theme,'soft-dark');
-  prefs.replace({skin:'base',mode:'dark',skinThemes:{tui:'zen-sage'}});assert.equal(prefs.get().theme,'zen-ink');assert.deepEqual(prefs.get().skinThemes,{zen:'zen-ink'});
+  assert.equal(prefs.get().appIcon,'brand');assert.equal(prefs.set({appIcon:'wordmark'}).appIcon,'wordmark');assert.equal(prefs.set({appIcon:'nope'}).appIcon,'wordmark');
+  prefs.replace({skin:'base',mode:'dark',skinThemes:{tui:'zen-sage'}});assert.equal(prefs.get().theme,'zen-ink');assert.deepEqual(prefs.get().skinThemes,{zen:'zen-ink'});assert.equal(prefs.get().appIcon,'brand','모르는 아이콘 값은 기본 아이콘으로 되돌립니다.');
  }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });

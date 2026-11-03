@@ -302,6 +302,17 @@ function durableData(state) {
         await page.keyboard.press('Control+Comma');
         await page.locator('[data-skin-pick]').first().waitFor();
       }
+      // 앱 아이콘: 6개 중 하나를 고르면 저장되고, 화살표로 옆 아이콘을 바로 고른다
+      assert.equal(await page.locator('[data-icon-pick]').count(), 6);
+      assert.equal(await page.locator('[data-icon-pick=brand]').getAttribute('aria-checked'), 'true');
+      assert.equal(await page.locator('[data-icon-pick] img').first().evaluate(image => image.complete && image.naturalWidth > 0), true, '아이콘 미리보기 이미지가 보이지 않습니다.');
+      await page.locator('[data-icon-pick=wordmark]').click();
+      await waitUntil(async () => (await call('preferences.get')).appIcon === 'wordmark', '앱 아이콘 변경이 저장되지 않았습니다.');
+      await page.keyboard.press('ArrowRight');
+      await waitUntil(async () => (await call('preferences.get')).appIcon === 'command', '→로 다음 아이콘이 골라지지 않았습니다.');
+      await screenshot('07-app-icon');
+      await page.locator('[data-icon-pick=brand]').click();
+      await waitUntil(async () => (await call('preferences.get')).appIcon === 'brand', '기본 아이콘으로 돌아가지 않았습니다.');
       await page.locator('[data-skin-pick=zen]').click();
       await waitUntil(async () => (await call('preferences.get')).theme === 'zen-paper', 'ZEN의 마지막 테마를 되살리지 않았습니다.');
       assert.deepEqual(durableData(await call('state', {})), before);

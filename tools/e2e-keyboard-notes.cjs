@@ -111,7 +111,7 @@ async function closeApp(){
    const selection=await editor.evaluate(element=>[element.selectionStart,element.selectionEnd]);assert.deepEqual(selection,[2,7]);
    await press('Control+Slash');await page.locator('.minimal-help-layer').waitFor();await press('Escape');await page.locator('.minimal-help-layer').waitFor({state:'hidden'});
    assert.deepEqual(await editor.evaluate(element=>[element.selectionStart,element.selectionEnd]),selection);
-   await section('settings');await tabTo('[data-theme-pick][aria-checked=true]');await press('End');await waitFocus('[data-theme-pick=zen-dim]');await press('Tab');
+   await section('settings');await tabTo('[data-theme-pick][aria-checked=true]');await press('End');await waitFocus('[data-theme-pick=zen-dim]');await press('Tab');await waitFocus('[data-icon-pick][aria-checked=true]');await press('Tab');
    await waitUntil(async()=>{const prefs=await preferences();return prefs.theme==='zen-dim'&&prefs.mode==='dark';},'키보드 테마 선택이 저장되지 않았습니다.');
    await waitFocus('[data-pref]');await section('notes');await waitFocus('[data-note-editor]');
    assert.equal(await editor.evaluate(element=>element===document.querySelector('[data-note-editor]')),true);assert.equal(await editor.inputValue(),noteBody);assert.deepEqual(await editor.evaluate(element=>[element.selectionStart,element.selectionEnd]),selection);

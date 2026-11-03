@@ -1,4 +1,4 @@
-/* WHENDESK 스킨·테마 목록 — 설정 화면(app.js)과 설정 저장(main/preferences.mjs)의 단일 출처.
+/* WHENDESK 스킨·테마·앱 아이콘 목록 — 설정 화면(app.js)과 설정 저장(main/preferences.mjs)의 단일 출처.
  * 스킨은 모양(선·모서리·글꼴·면, renderer/skins.css), 테마는 색(renderer/themes.css). 스킨마다 제 테마 목록이 있고 첫 테마가 그 스킨의 기본값.
  * 목록과 문구는 WHENTERMINAL(src/shared/keymap.ts SKINS·THEMES)과 같다. colors는 [바탕, 글자, 신호색] (카드 견본) */
 (() => {
@@ -47,8 +47,17 @@
     { id: 'sketch-kraft', skin: 'sketch', name: 'KRAFT', note: '갈색 크라프트지에 초록 펜', colors: ['#d6bf99', '#2b2117', '#c92a2a'] },
     { id: 'sketch-legal', skin: 'sketch', name: 'LEGAL', note: '줄 친 노란 패드에 파란 펜', colors: ['#fff6b8', '#1e1e1e', '#e03131'] },
   ]);
+  // 앱 아이콘: assets/icons/<id>.png (원본 build/icons/<id>.svg, tools/render-icons.cjs로 렌더링). 설치 파일 아이콘(assets/icon.png)은 첫 값 brand로 고정
+  const APP_ICONS = Object.freeze([
+    { id: 'brand', name: 'w.', note: '앱 안 로고와 같은 모양, 작은 크기에서 가장 또렷함' },
+    { id: 'wordmark', name: 'WD_', note: 'WHENTERMINAL WT_의 짝, 빨간 밑줄은 커서' },
+    { id: 'command', name: 'COMMAND', note: '검색 막대와 빨간 커서' },
+    { id: 'desk', name: 'DESK', note: '사이드바·본문·캘린더 3단, 오늘은 빨간 칸' },
+    { id: 'check', name: 'CHECK', note: '키캡처럼 들뜬 칸에 빨간 체크' },
+    { id: 'list', name: 'LIST', note: '첫 칸만 빨갛게 채운 할 일 목록' },
+  ]);
   const themesOf = skin => THEMES.filter(theme => theme.skin === skin);
-  const api = Object.freeze({ SKINS, THEMES, themesOf });
+  const api = Object.freeze({ SKINS, THEMES, APP_ICONS, themesOf });
   if (typeof window !== 'undefined') window.WhendeskThemes = api;
   else globalThis.WhendeskThemes = api;
 })();

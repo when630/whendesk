@@ -5,7 +5,7 @@ import {normalizeShortcutValues,SHORTCUT_FIELDS} from './shortcuts.mjs';
 // 스킨·테마 목록은 렌더러와 같은 파일(renderer/themes.js)을 읽는다.
 const themeContext={};
 vm.runInNewContext(fs.readFileSync(new URL('../renderer/themes.js',import.meta.url),'utf8'),themeContext);
-const {SKINS,THEMES:THEME_LIST}=themeContext.WhendeskThemes;
+const {SKINS,THEMES:THEME_LIST,APP_ICONS}=themeContext.WhendeskThemes;
 const THEMES=new Map(THEME_LIST.map(theme=>[theme.id,theme]));
 const firstTheme=skin=>THEME_LIST.find(theme=>theme.skin===skin)?.id;
 /** 0.3.13의 ZEN 테마 id(sage·ink…)는 zen- 접두를 붙여 옮기고, 그보다 옛 설정(skin·mode)은 다크면 INK, 아니면 SAGE로 옮긴다. */
@@ -21,10 +21,11 @@ function withTheme(next,theme){
 }
 function normalize(base,data){
  const merged={...base,...data};
+ if(!APP_ICONS.some(icon=>icon.id===merged.appIcon))merged.appIcon=base.appIcon;
  merged.skinThemes=Object.fromEntries(Object.entries(merged.skinThemes&&typeof merged.skinThemes==='object'?merged.skinThemes:{}).filter(([skin,theme])=>THEMES.get(theme)?.skin===skin));
  return withTheme(merged,legacyTheme(data)||base.theme);
 }
-export const DEFAULTS=Object.freeze({skin:'zen',theme:'zen-sage',mode:'light',skinThemes:{},hotkey:'Alt+Space',captureHotkey:'Control+Alt+Space',noteCaptureHotkey:'Control+Alt+M',mediaPlayHotkey:'Control+Alt+P',mediaRewindHotkey:'Control+Alt+Left',mediaForwardHotkey:'Control+Alt+Right',media:true,launchAtLogin:false,briefEnabled:true,briefAt:'09:00',lastBriefing:null,commandPosition:null,dashboardBounds:null,clipboardRow:true});
+export const DEFAULTS=Object.freeze({skin:'zen',theme:'zen-sage',mode:'light',skinThemes:{},appIcon:'brand',hotkey:'Alt+Space',captureHotkey:'Control+Alt+Space',noteCaptureHotkey:'Control+Alt+M',mediaPlayHotkey:'Control+Alt+P',mediaRewindHotkey:'Control+Alt+Left',mediaForwardHotkey:'Control+Alt+Right',media:true,launchAtLogin:false,briefEnabled:true,briefAt:'09:00',lastBriefing:null,commandPosition:null,dashboardBounds:null,clipboardRow:true});
 export function createPreferences(file){
  let values={...DEFAULTS};
  if(fs.existsSync(file)){
@@ -37,6 +38,7 @@ export function createPreferences(file){
    for(const [key,value] of Object.entries(patch||{})){
     if(key==='theme'&&THEMES.has(value))Object.assign(next,withTheme(next,value));
     else if(key==='skin'&&SKINS.some(skin=>skin.id===value)&&!THEMES.has(patch.theme))Object.assign(next,withTheme(next,next.skinThemes?.[value]||firstTheme(value)));
+    else if(key==='appIcon'&&APP_ICONS.some(icon=>icon.id===value))next.appIcon=value;
     else if(SHORTCUT_FIELDS.includes(key))next[key]=value;
     else if(['media','launchAtLogin','briefEnabled'].includes(key)&&typeof value==='boolean')next[key]=value;
     else if(key==='briefAt'&&typeof value==='string'&&/^([01]?\d|2[0-3]):[0-5]\d$/.test(value))next.briefAt=value.padStart(5,'0');

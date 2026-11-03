@@ -18,7 +18,7 @@
   const tomorrow = dateKey(new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()+1));
   const state = { shell:'command', view:'dashboard', tab:'todo', calView:'today',settingsTab:'general', selected:null, project:null, dueOnly:false, year:new Date().getFullYear(), month:new Date().getMonth(), date:today, theme:'zen-sage', tasks:[], projects:[], events:[], calendars:[], info:{}, prefs:{}, media:{ sessions:[] } };
   // 스킨·테마 목록은 themes.js(WHENTERMINAL과 같은 목록). 스킨은 모양, 테마는 그 스킨의 색
-  const { SKINS, THEMES, themesOf } = window.WhendeskThemes;
+  const { SKINS, THEMES, APP_ICONS, themesOf } = window.WhendeskThemes;
   const themeById = id => THEMES.find(theme => theme.id === id) || THEMES[0];
   const command = { seq:0, items:[], selected:0, pending:false, query:'', renderedQuery:null, request:null, running:false, activating:false, activation:0, composing:false, actions:null, more:null, waiters:new Set(), notice:'', start:0, end:0, timer:null };
   const pending = new Map();
@@ -60,7 +60,8 @@
   }
   function look() {
     const theme = themeById(state.theme); app.dataset.theme = theme.id; app.dataset.skin = theme.skin;
-    root.querySelectorAll('[data-theme-pick],[data-skin-pick]').forEach(card => { const on = card.dataset.themePick ? card.dataset.themePick === theme.id : card.dataset.skinPick === theme.skin; card.classList.toggle('on', on); card.setAttribute('aria-checked', String(on)); card.tabIndex = on ? 0 : -1; card.querySelector('.theme-on')?.toggleAttribute('hidden', !on); });
+    const appIcon = state.prefs.appIcon || APP_ICONS[0].id;
+    root.querySelectorAll('[data-theme-pick],[data-skin-pick],[data-icon-pick]').forEach(card => { const on = card.dataset.iconPick ? card.dataset.iconPick === appIcon : card.dataset.themePick ? card.dataset.themePick === theme.id : card.dataset.skinPick === theme.skin; card.classList.toggle('on', on); card.setAttribute('aria-checked', String(on)); card.tabIndex = on ? 0 : -1; card.querySelector('.theme-on')?.toggleAttribute('hidden', !on); });
     resizeCommand();
   }
   function resizeCommand() {
@@ -661,6 +662,15 @@
     return `<h3>스킨</h3><div class="theme-grid" role="radiogroup" aria-label="스킨">${SKINS.map(skin => lookCard('skin',skin.id,skin.name,skin.note,themesOf(skin.id)[0].colors,skin.id,skin.id === current.skin)).join('')}</div>
       <h3>테마</h3><div class="theme-grid" role="radiogroup" aria-label="색 테마" data-theme-grid>${themesOf(current.skin).map(theme => lookCard('theme',theme.id,theme.name,theme.note,theme.colors,theme.skin,theme.id === current.id)).join('')}</div>`;
   }
+  // 앱 아이콘: 고르면 창·트레이 아이콘이 바로 바뀐다(메인 applyAppIcon). 설치 파일 아이콘은 첫 아이콘으로 고정
+  function iconCards(){
+    const current = state.prefs.appIcon || APP_ICONS[0].id;
+    return `<div class="theme-grid icon-grid" role="radiogroup" aria-label="앱 아이콘">${APP_ICONS.map((item,index) => { const on = item.id === current; return `<button type="button" role="radio" class="theme-card ${on ? 'on' : ''}" data-icon-pick="${item.id}" aria-checked="${on}" tabindex="${on ? 0 : -1}"><img src="../assets/icons/${item.id}.png" alt="" width="64" height="64"><span class="theme-name">${String(index+1).padStart(2,'0')} ${esc(item.name)}<span class="theme-on" ${on ? '' : 'hidden'}>in use</span></span><span class="theme-note">${esc(item.note)}</span></button>`; }).join('')}</div><p class="icon-help">고르면 트레이와 창 아이콘이 바로 바뀌어요. 설치 파일의 아이콘은 01 ${esc(APP_ICONS[0].name)}예요.</p>`;
+  }
+  async function pickIcon(id){
+    if(id===(state.prefs.appIcon||APP_ICONS[0].id)||!APP_ICONS.some(item=>item.id===id))return;
+    state.prefs={...state.prefs,appIcon:id}; look(); state.prefs=await call('preferences.set',{appIcon:id});
+  }
   async function pickTheme(id){
     if(id===state.theme||!THEMES.some(theme=>theme.id===id))return;
     state.theme=id; look(); state.prefs=await call('preferences.set',{theme:id});
@@ -681,7 +691,7 @@
     const shortcutFields = SHORTCUT_UI, tab = state.settingsTab;
     const tabs = `<div class="cal-views settings-tabs" role="tablist" aria-label="설정 분류">${SETTINGS_TABS.map(([value,label]) => `<button role="tab" data-settings-tab="${value}" aria-selected="${tab === value}" tabindex="${tab === value ? 0 : -1}">${label}</button>`).join('')}</div>`;
     if (tab === 'shortcuts') return tabs + `<form class="preferences-form"><section class="settings-section"><h2>어디서나 쓰는 단축키</h2><p class="settings-lead">다른 앱을 쓰는 중에도 바로 부르는 전역 단축키입니다. 칸을 고른 뒤 조합을 누르면 기록되고, Delete는 해제, Esc는 저장된 값으로 되돌립니다.</p>${shortcutFields.map(([field,label,aria,fallback]) => `<label class="td-field">${label}<input name="${field}" data-shortcut="${field}" aria-label="${aria}" aria-describedby="shortcut-error-${field}" aria-invalid="${!!state.info.shortcutErrors?.[field]}" value="${esc(state.prefs[field] ?? fallback)}" placeholder="사용 안 함" autocomplete="off" spellcheck="false"><span id="shortcut-error-${field}" class="settings-warning" data-shortcut-error="${field}" ${state.info.shortcutErrors?.[field] ? '' : 'hidden'}>${esc(state.info.shortcutErrors?.[field])}</span></label>`).join('')}<div class="settings-actions"><button class="td-primary" type="submit">단축키 저장</button><button class="td-secondary" type="button" data-action="help">앱 안 단축키 보기 (?)</button></div></section></form>`;
-    return tabs + `<section class="settings-section theme-section"><h2>모양</h2>${themeCards()}</section>
+    return tabs + `<section class="settings-section theme-section"><h2>모양</h2>${themeCards()}<h3>앱 아이콘</h3>${iconCards()}</section>
     <section class="settings-section"><h2>시작과 알림</h2><label class="settings-check"><input type="checkbox" data-pref="launchAtLogin" ${state.prefs.launchAtLogin ? 'checked' : ''} ${state.info.launchAtLoginSupported ? '' : 'disabled'}>로그인할 때 트레이에 숨겨 실행</label>${state.info.launchAtLoginSupported ? '' : '<small class="settings-path">배포본에서만 설정할 수 있습니다.</small>'}<label class="settings-check"><input type="checkbox" data-pref="briefEnabled" ${state.prefs.briefEnabled !== false ? 'checked' : ''}>아침 브리핑 알림</label><label class="td-field settings-time">브리핑 시각<input type="time" data-pref="briefAt" aria-label="아침 브리핑 시각" value="${esc(state.prefs.briefAt || '09:00')}"></label><small class="settings-path">하루 한 번, 정한 시각부터 3시간 안에 켜져 있으면 오늘 마감·지연·일정·대기·인박스를 알립니다.</small></section>
     <section class="settings-section"><h2>업데이트</h2><p class="settings-update" data-update-line role="status">${esc(state.update?.line || '')}</p><div class="settings-actions"><button class="td-secondary" type="button" data-action="update-check" ${state.update?.supported ? '' : 'disabled'}>지금 확인</button><button class="td-secondary" type="button" data-action="update-install" ${state.update?.status === 'ready' ? '' : 'disabled'}>재시작해 설치</button></div></section>
     <section class="settings-section"><h2>데이터</h2><div class="settings-actions"><button class="td-secondary" data-data="importLegacy">기존 데이터 복사해 가져오기</button><button class="td-secondary" data-data="export">백업 내보내기</button><button class="td-secondary" data-data="restore">백업 복원</button><button class="td-secondary" data-data="openFolder">저장 폴더 열기</button></div><small class="settings-path">${esc(state.info.dataDir)}</small></section><section class="settings-section"><h2>WHENCOMMAND</h2><label class="settings-check"><input type="checkbox" data-pref="clipboardRow" ${state.prefs.clipboardRow !== false ? 'checked' : ''}>빈 입력에 클립보드로 할 수 있는 것 보이기</label><button class="td-secondary" data-action="refresh-command">검색 목록 새로고침</button></section><section class="settings-section"><h2>WHENDESK ${esc(state.info.version || '')}</h2><button class="td-secondary" data-action="quit">앱 종료</button></section>`;
@@ -1181,10 +1191,10 @@
     if(K.is(event,'app.undo')&&!editingTarget(target)){event.preventDefault();safe(undoLastAction);return true;}
     if(state.view==='dashboard'&&!editingTarget(target)&&body.contains(target)&&dashboardKeys(event))return true;
     if(state.view==='settings'&&target.closest('.settings-tabs')){const order=SETTINGS_TABS.map(([tab])=>tab),index=order.indexOf(state.settingsTab),to=K.is(event,'settings.next')?index+1:K.is(event,'settings.prev')?index-1:null;if(to!==null){event.preventDefault();setSettingsTab(order[(to+order.length)%order.length]);return true;}}
-    if(state.view==='settings'&&target.matches('[data-theme-pick],[data-skin-pick]')&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(event.key)&&!event.ctrlKey&&!event.altKey&&!event.metaKey){
+    if(state.view==='settings'&&target.matches('[data-theme-pick],[data-skin-pick],[data-icon-pick]')&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(event.key)&&!event.ctrlKey&&!event.altKey&&!event.metaKey){
       event.preventDefault();const cards=[...target.closest('.theme-grid').querySelectorAll('.theme-card')],index=cards.indexOf(target),columns=Math.max(1,cards.filter(card=>card.offsetTop===cards[0].offsetTop).length);
       const to={ArrowLeft:index-1,ArrowRight:index+1,ArrowUp:index-columns,ArrowDown:index+columns,Home:0,End:cards.length-1}[event.key];
-      const next=cards[Math.min(cards.length-1,Math.max(0,to))];if(next&&next!==target){next.focus({preventScroll:false});safe(()=>next.dataset.skinPick?pickSkin(next.dataset.skinPick):pickTheme(next.dataset.themePick));}return true;
+      const next=cards[Math.min(cards.length-1,Math.max(0,to))];if(next&&next!==target){next.focus({preventScroll:false});safe(()=>next.dataset.iconPick?pickIcon(next.dataset.iconPick):next.dataset.skinPick?pickSkin(next.dataset.skinPick):pickTheme(next.dataset.themePick));}return true;
     }
     if(workKeys(event))return true;
     if(state.view==='calendar'&&!editingTarget(target)&&target.closest('.td-full-calendar')&&K.is(event,'calendar.view')){event.preventDefault();if(!event.repeat){const order=CAL_VIEWS.map(([view])=>view);safe(()=>setCalView(order[(order.indexOf(state.calView)+(event.shiftKey?order.length-1:1))%order.length]));}return true;}
@@ -1242,6 +1252,7 @@
     if (data.settingsTab) return setSettingsTab(data.settingsTab);
     if (data.themePick) return pickTheme(data.themePick);
     if (data.skinPick) return pickSkin(data.skinPick);
+    if (data.iconPick) return pickIcon(data.iconPick);
     if (data.tab) return switchWorkTab(data.tab,{focus:button.closest('.td-work-nav')?'tab':'list',clearProject:state.view!=='tasks'});
     if (button.classList.contains('td-drag-handle')) return;
     if (data.task) { taskCursor=data.task; await openTaskField(data.task);return; }
