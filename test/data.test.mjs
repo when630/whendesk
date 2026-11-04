@@ -49,3 +49,8 @@ test('기존 앱 DB와 queue.jsonl 원본을 보존하면서 복사본에서만 
 test('더 최신인 Work DB는 복사본에서도 거부한다',async()=>{
  const {dir,domain}=await fixture('새 스키마');domain.close();const file=path.join(dir,'work','store.sqlite');const db=new DatabaseSync(file);db.exec('PRAGMA user_version=999');db.close();assert.throws(()=>createDomain({dataDir:dir}),/최신|새로|새 버전|schema|저장소/);
 });
+test('v3 Work DB를 열면 취소·미룸 칸이 붙고 기존 항목은 열린 일·미룬 적 없음으로 남는다',async()=>{
+ const {dir,domain}=await fixture('v3 이행');const task=await domain.mutate('task.create',{title:'옛 항목'});domain.close();
+ const file=path.join(dir,'work','store.sqlite');const db=new DatabaseSync(file);db.exec('ALTER TABLE item DROP COLUMN cancelled;ALTER TABLE item DROP COLUMN postponed;PRAGMA user_version=3');db.close();
+ const reopened=createDomain({dataDir:dir});try{const view=reopened.state().tasks.find(item=>item.id===task.id);assert.equal(view.cancelled,false);assert.equal(view.postponed,0);assert.equal(reopened.work.schemaVersion(),4);}finally{reopened.close();}
+});

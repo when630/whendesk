@@ -139,3 +139,40 @@ test('완료 기록 기간과 목록 밖 검색은 원본 기준을 사용하고
   await assert.rejects(domain.mutate('work.history',{ days:0 }),/기간/);
   assert.equal(domain.state(range).tasks.some(item => item.id === deleted.id),false);
 });
+
+test('취소는 완료와 같은 닫힘으로 남고 완료·해제·되돌리기가 서로 섞이지 않는다',async t => {
+  const { domain,reopen } = setup(t);
+  const task = await domain.mutate('task.create',{ title:'안 할 일' });
+  const cancelled = await domain.mutate('task.cancel',{ id:task.id });
+  assert.equal(cancelled.cancelled,true);
+  assert.equal(cancelled.done,true);
+  assert.ok(cancelled.doneAt);
+  // 열린 일만 세는 브리핑에서 빠지고, 완료 기록에는 취소로 남는다
+  assert.equal(domain.work.briefing().inbox,0);
+  const history = await domain.mutate('work.history',{ days:7 });
+  assert.equal(history.items.find(item => item.id === task.id).cancelled,true);
+  assert.equal(reopen().state(range).tasks.find(item => item.id === task.id).cancelled,true);
+  const done = await domain.mutate('task.complete',{ id:task.id });
+  assert.equal(done.cancelled,false);
+  assert.equal(done.done,true);
+  const recancelled = await domain.mutate('task.cancel',{ id:task.id,cancelled:true });
+  const reopened = await domain.mutate('task.cancel',{ id:task.id,cancelled:false });
+  assert.equal(recancelled.cancelled,true);
+  assert.equal(reopened.done,false);
+  assert.equal(reopened.cancelled,false);
+  await assert.rejects(domain.mutate('task.cancel',{ id:task.id,cancelled:'yes' }),/취소/);
+});
+
+test('이미 있던 마감을 뒤로 밀 때만 미룬 횟수를 세고 되돌리기는 횟수를 돌려놓는다',async t => {
+  const { domain } = setup(t);
+  const task = await domain.mutate('task.create',{ title:'자꾸 미루는 일' });
+  assert.equal((await domain.mutate('task.update',{ id:task.id,due:'2026-11-10' })).postponed,0);
+  assert.equal((await domain.mutate('task.update',{ id:task.id,due:'2026-11-12' })).postponed,1);
+  assert.equal((await domain.mutate('task.update',{ id:task.id,due:'2026-11-11' })).postponed,1);
+  assert.equal((await domain.mutate('task.setDue',{ id:task.id,text:'2026-12-01' })).postponed,2);
+  assert.equal((await domain.mutate('task.update',{ id:task.id,due:null })).postponed,2);
+  const undone = await domain.mutate('task.update',{ id:task.id,due:'2026-11-11',postponed:1 });
+  assert.equal(undone.due,'2026-11-11');
+  assert.equal(undone.postponed,1);
+  await assert.rejects(domain.mutate('task.update',{ id:task.id,postponed:-1 }),/미룬 횟수/);
+});

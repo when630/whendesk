@@ -168,6 +168,8 @@ export function createDomain({ dataDir, fetchImpl = globalThis.fetch } = {}) {
       project, project_name:project || null,
       due: task.due ?? '', note: task.note ?? '', waitingFor: task.waiting_for ?? '',
       done: !!task.done_at, doneAt: task.done_at ?? null,
+      // 불릿 저널 상태: 취소(줄 긋기)는 닫힌 일의 한 갈래, postponed는 마감을 뒤로 민 횟수(>).
+      cancelled: !!task.done_at && !!task.cancelled, postponed: Number(task.postponed ?? 0),
       deleted: !!task.deleted_at, deletedAt: task.deleted_at ?? null,
       capturedAt: task.captured_at, nudgedAt: task.nudged_at ?? null,
       nudgeCount: task.nudge_count ?? 0,
@@ -204,7 +206,16 @@ export function createDomain({ dataDir, fetchImpl = globalThis.fetch } = {}) {
     const patch = {};
     if (owns(payload, 'title')) patch.title = text(payload.title, '제목', { limit: 10_000 });
     if (owns(payload, 'note')) patch.note = text(payload.note ?? '', '상세 내용', { empty: true });
-    if (owns(payload, 'due')) patch.due = dateKey(payload.due, '마감', { empty: true });
+    if (owns(payload, 'due')) {
+      patch.due = dateKey(payload.due, '마감', { empty: true });
+      // 이미 있던 마감을 더 뒤로 밀면 한 번 미룬 것이다. 처음 정하기·당기기·해제는 세지 않는다.
+      if (current.due && patch.due && patch.due > current.due) patch.postponed = Number(current.postponed ?? 0) + 1;
+    }
+    // 되돌리기는 직전 횟수를 그대로 돌려놓는다.
+    if (owns(payload, 'postponed')) {
+      if (!Number.isSafeInteger(payload.postponed) || payload.postponed < 0) throw new Error('미룬 횟수가 올바르지 않습니다.');
+      patch.postponed = payload.postponed;
+    }
     if (owns(payload, 'waitingFor') || owns(payload, 'waiting_for')) patch.waiting_for = text(payload.waitingFor ?? payload.waiting_for ?? '', '대기 상대', { empty: true, limit: 10_000 }) || null;
     if (owns(payload, 'kind')) {
       if (!['inbox', 'todo', 'waiting'].includes(payload.kind)) throw new Error('할 일 상태가 올바르지 않습니다.');
@@ -217,7 +228,14 @@ export function createDomain({ dataDir, fetchImpl = globalThis.fetch } = {}) {
     }
     if (owns(payload, 'done')) {
       if (typeof payload.done !== 'boolean') throw new Error('완료 상태가 올바르지 않습니다.');
-      patch.done_at = payload.done ? (current.done_at || new Date().toISOString()) : null;
+      // 취소한 일을 완료로 바꾸면 그 순간 끝낸 것이다 — 취소 시각을 완료 시각으로 물려받지 않는다.
+      patch.done_at = payload.done ? (current.done_at && !current.cancelled ? current.done_at : new Date().toISOString()) : null;
+      patch.cancelled = 0;
+    }
+    if (owns(payload, 'cancelled')) {
+      if (typeof payload.cancelled !== 'boolean') throw new Error('취소 상태가 올바르지 않습니다.');
+      if (payload.cancelled) { patch.done_at = current.done_at && current.cancelled ? current.done_at : new Date().toISOString(); patch.cancelled = 1; }
+      else { patch.done_at = null; patch.cancelled = 0; }
     }
     work.patchItem(payload.id, patch);
     return taskView(rawTask(payload.id));
@@ -349,6 +367,7 @@ export function createDomain({ dataDir, fetchImpl = globalThis.fetch } = {}) {
         return patchTask({ id:payload.id, due:parsed.value });
       }
       case 'task.complete': return patchTask({ id: payload.id, done: payload.done ?? true });
+      case 'task.cancel': return patchTask({ id: payload.id, cancelled: payload.cancelled ?? true });
       case 'task.delete': rawTask(payload.id); work.removeItem(payload.id); return { id: payload.id };
       case 'task.restore': rawTask(payload.id, { deleted: true }); work.restoreItem(payload.id); return taskView(rawTask(payload.id));
       case 'task.nudge': {

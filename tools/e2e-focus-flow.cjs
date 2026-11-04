@@ -220,7 +220,7 @@ async function withDelayedTaskSelection(run){
         for(const field of ['title','kind','due','project_id','note'])await probe(`[data-field=${field}]`,'할 일 편집 '+field,variant);
         await page.locator('[data-field=title]').focus();await press('Escape');
         await page.locator('.task-form').waitFor({state:'detached'});
-        await probe(`[data-check="${fixture.inbox.id}"]`,'할 일 완료 체크',variant);
+        await probe(`[data-mark="${fixture.inbox.id}"]`,'할 일 완료 기호',variant);
         await page.locator(`[data-task-row="${fixture.inbox.id}"]`).focus();await press('d');
         await page.locator('.work-due-form').waitFor();
         await probe('.work-due-form [name=text]','마감 대화상자 입력',variant);

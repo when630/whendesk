@@ -61,3 +61,13 @@
 #whendesk-command-first .task-form .td-inline{margin:4px 0 0;padding:0;border:0;background:none}
 #whendesk-command-first .task-form .td-note{min-height:120px}
 #whendesk-command-first .task-form .td-inline-foot{margin-top:12px}
+
+/* 불릿 저널 상태 기호 — 체크박스 자리(15px)에 같은 크기로 선다. 고정 폭이라 기호마다 줄이 흔들리지 않는다. */
+#whendesk-command-first .td-app .task-mark{position:relative;flex:0 0 15px;width:15px;height:20px;margin:0;padding:0;border:0;background:none;font:600 15px/20px ui-monospace,"Cascadia Mono",Consolas,monospace;text-align:center;color:var(--td-text);cursor:pointer}
+#whendesk-command-first .td-app .task-mark:hover{color:var(--td-accent)}
+#whendesk-command-first .td-app .task-mark.is-done{color:var(--td-muted)}
+#whendesk-command-first .td-app .task-mark.is-postponed{color:var(--td-accent)}
+#whendesk-command-first .td-app .task-mark:is(.is-waiting,.is-scheduled){color:var(--td-muted)}
+#whendesk-command-first .td-app .task-mark.is-cancelled{color:var(--td-muted)}
+#whendesk-command-first .td-app .task-mark.is-cancelled::after{content:"";position:absolute;left:0;right:0;top:50%;height:1.5px;background:currentColor}
+#whendesk-command-first .td-task.cancelled .td-task-open>span{text-decoration:line-through;color:var(--td-muted)}

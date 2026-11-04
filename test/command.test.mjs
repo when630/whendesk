@@ -94,7 +94,7 @@ test('검색한 할 일은 Command에서 바로 완료·마감·삭제하고 되
     assert.deepEqual(done.undo, { type: 'task.complete', payload: { id: 't1', done: false } });
     const due = await f.command.run(task.key, 'due-tomorrow');
     assert.equal(f.mutations.at(-1).type, 'task.update');assert.match(f.mutations.at(-1).payload.due, /^\d{4}-\d{2}-\d{2}$/);
-    assert.deepEqual(due.undo, { type: 'task.update', payload: { id: 't1', due: '2026-10-29' } });
+    assert.deepEqual(due.undo, { type: 'task.update', payload: { id: 't1', due: '2026-10-29', postponed: 0 } });
     const removed = await f.command.run(task.key, 'delete');
     assert.deepEqual(f.mutations.at(-1), { type: 'task.delete', payload: { id: 't1' } });
     assert.deepEqual(removed.undo, { type: 'task.restore', payload: { id: 't1' } });

@@ -22,10 +22,11 @@ function withTheme(next,theme){
 function normalize(base,data){
  const merged={...base,...data};
  if(!APP_ICONS.some(icon=>icon.id===merged.appIcon))merged.appIcon=base.appIcon;
+ if(!['symbol','checkbox'].includes(merged.taskMarker))merged.taskMarker=base.taskMarker;
  merged.skinThemes=Object.fromEntries(Object.entries(merged.skinThemes&&typeof merged.skinThemes==='object'?merged.skinThemes:{}).filter(([skin,theme])=>THEMES.get(theme)?.skin===skin));
  return withTheme(merged,legacyTheme(data)||base.theme);
 }
-export const DEFAULTS=Object.freeze({skin:'zen',theme:'zen-sage',mode:'light',skinThemes:{},appIcon:'brand',hotkey:'Alt+Space',captureHotkey:'Control+Alt+Space',noteCaptureHotkey:'Control+Alt+M',mediaPlayHotkey:'Control+Alt+P',mediaRewindHotkey:'Control+Alt+Left',mediaForwardHotkey:'Control+Alt+Right',media:true,launchAtLogin:false,briefEnabled:true,briefAt:'09:00',lastBriefing:null,commandPosition:null,dashboardBounds:null,clipboardRow:true});
+export const DEFAULTS=Object.freeze({skin:'zen',theme:'zen-sage',mode:'light',skinThemes:{},appIcon:'brand',hotkey:'Alt+Space',captureHotkey:'Control+Alt+Space',noteCaptureHotkey:'Control+Alt+M',mediaPlayHotkey:'Control+Alt+P',mediaRewindHotkey:'Control+Alt+Left',mediaForwardHotkey:'Control+Alt+Right',media:true,launchAtLogin:false,briefEnabled:true,briefAt:'09:00',lastBriefing:null,commandPosition:null,dashboardBounds:null,clipboardRow:true,taskMarker:'symbol'});
 export function createPreferences(file){
  let values={...DEFAULTS};
  if(fs.existsSync(file)){
@@ -44,6 +45,7 @@ export function createPreferences(file){
     else if(key==='briefAt'&&typeof value==='string'&&/^([01]?\d|2[0-3]):[0-5]\d$/.test(value))next.briefAt=value.padStart(5,'0');
     else if(key==='commandPosition'&&(value===null||value&&Number.isFinite(value.x)&&Number.isFinite(value.y)))next.commandPosition=value?{x:Math.round(value.x),y:Math.round(value.y)}:null;
     else if(key==='clipboardRow'&&typeof value==='boolean')next.clipboardRow=value;
+    else if(key==='taskMarker'&&['symbol','checkbox'].includes(value))next.taskMarker=value;
     else if(key==='dashboardBounds'&&(value===null||value&&['x','y','width','height'].every(field=>Number.isFinite(value[field]))))next.dashboardBounds=value?{x:Math.round(value.x),y:Math.round(value.y),width:Math.round(value.width),height:Math.round(value.height)}:null;
     else if(key==='lastBriefing'&&(value===null||typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)))next.lastBriefing=value;
    }

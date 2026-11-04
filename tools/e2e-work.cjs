@@ -264,6 +264,31 @@ function setOwnedFixtureDoneDates(entries){
       measurements.doneRanges={days:dates.map(entry=>entry.days),seven:dates.slice(0,1).map(entry=>entry.id),thirty:dates.slice(0,2).map(entry=>entry.id),all:dates.map(entry=>entry.id),dateGroups:dates.map(entry=>entry.key)};
       assert.equal(errors.length,0);await screenshot('09-work-done-history');
     });
+
+    await test('불릿 저널 기호: < 예정 · 마감을 미루면 > · C 취소 줄 긋기 · Space ×, U로 되돌리고 설정에서 체크박스로 바꾼다',async()=>{
+      const id=await createFixture('기호 검증 '+runId,{kind:'todo',project_id:fixture.projectA,due:await dateAfter(1)});
+      const mark=()=>page.locator(`[data-task-row="${id}"] .task-mark`);
+      await gotoTab('todo');await waitUntil(async()=>await mark().textContent()==='<','마감이 남은 일이 < 기호가 아닙니다.');
+      await call('mutate',{type:'task.update',payload:{id,due:await dateAfter(2)}});await gotoTab('todo');
+      await waitUntil(async()=>await mark().textContent()==='>','마감을 미룬 일이 > 기호가 아닙니다.');
+      assert.ok((await page.locator(`[data-task-row="${id}"] .td-task-open small`).textContent()).includes('미룸 1회'),'미룬 횟수가 행에 보이지 않습니다.');
+      await focusTask(id);await press('c');
+      await waitUntil(async()=>{const item=await task(id);return item?.cancelled&&item.done;},'C로 취소하지 못했습니다.');
+      await page.locator(`.td-task.cancelled[data-task-row="${id}"] .task-mark.is-cancelled`).waitFor();
+      await waitUntil(()=>focusWithin('.td-main'),'취소 뒤 Work 포커스를 잃었습니다.');
+      await screenshot('11-work-bullet-cancelled');
+      await press('u');await waitUntil(async()=>{const item=await task(id);return item&&!item.cancelled&&!item.done;},'취소를 U로 되돌리지 못했습니다.');
+      await gotoTab('todo');await focusTask(id);await press('Space');
+      await waitUntil(async()=>(await task(id))?.done===true,'Space로 완료하지 못했습니다.');await waitUntil(async()=>await mark().textContent()==='×','완료한 일이 × 기호가 아닙니다.');
+      await press('u');await waitUntil(async()=>(await task(id))?.done===false,'완료를 U로 되돌리지 못했습니다.');
+      await press('Control+Comma');await page.locator('[data-pref=taskMarker]').waitFor();await page.locator('[data-pref=taskMarker]').focus();
+      await press('Enter');await press('End');await press('Enter');
+      await waitUntil(async()=>(await call('preferences.get')).taskMarker==='checkbox','설정에서 체크박스 표시로 바꾸지 못했습니다.');
+      await gotoTab('todo');await page.locator(`[data-task-row="${id}"] input[type=checkbox][data-check]`).waitFor();assert.equal(await mark().count(),0);
+      await screenshot('12-work-checkbox-marker');
+      await call('preferences.set',{taskMarker:'symbol'});
+      assert.equal(errors.length,0,errors.join('\n'));
+    });
   }catch(error){failure=error.stack||String(error);if(page&&!page.isClosed())await screenshot('failure').catch(()=>{});}
   finally{
     try{await closeApp();}catch(error){failure=[failure,error.stack||String(error)].filter(Boolean).join('\n');}

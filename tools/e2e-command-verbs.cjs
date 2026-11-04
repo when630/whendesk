@@ -116,6 +116,28 @@ async function closeApp(){
       await press('Escape');await waitUntil(async()=>!await windowVisible(),'빈 담기 모드의 Esc가 창을 숨기지 않았습니다.');
     });
 
+    await test('담기 모드의 접두 기호는 받을 곳을 바꾼다: o 일정 · - 메모 · . 할 일, 기호 없는 글은 담기 종류대로',async()=>{
+      await signal({shell:'command',capture:'task'});
+      await waitUntil(async()=>await page.locator(commandInput).getAttribute('placeholder')==='InBox에 담기','할 일 담기 모드로 열리지 않았습니다.');
+      await text('o 내일 오후 3시 접두일정 '+runId);await press('Enter');
+      await waitUntil(async()=>(await state()).events.some(item=>item.title==='접두일정 '+runId),'o 접두가 일정으로 담기지 않았습니다.');
+      await text('- 접두메모 '+runId);await press('Enter');
+      await waitUntil(async()=>(await state()).notes.some(item=>item.title==='접두메모 '+runId),'- 접두가 메모로 담기지 않았습니다.');
+      await text('. 접두할일 '+runId);await press('Enter');
+      await waitUntil(async()=>(await state()).tasks.some(item=>item.title==='접두할일 '+runId&&item.kind==='inbox'),'. 접두가 기호를 뗀 할 일로 담기지 않았습니다.');
+      await text('-3도 접두아님 '+runId);await press('Enter');
+      await waitUntil(async()=>(await state()).tasks.some(item=>item.title==='-3도 접두아님 '+runId),'빈칸 없는 기호가 할 일 제목으로 남지 않았습니다.');
+      // 접두로 담은 일정도 같은 되돌리기 타임라인에 오른다.
+      assert.equal((await state()).tasks.some(item=>item.title.includes('접두일정')),false);
+      await press('Escape');await waitUntil(async()=>!await windowVisible(),'빈 담기 모드의 Esc가 창을 숨기지 않았습니다.');
+      await signal({shell:'command',capture:'note'});
+      await waitUntil(async()=>await page.locator(commandInput).getAttribute('placeholder')==='메모 담기','메모 담기 모드로 열리지 않았습니다.');
+      await text('- 목록 그대로 '+runId);await press('Enter');
+      await waitUntil(async()=>(await state()).notes.some(item=>item.body?.startsWith('- 목록 그대로 '+runId)||item.title==='- 목록 그대로 '+runId),'메모 담기에서 - 목록 기호를 떼었습니다.');
+      await press('Escape');await waitUntil(async()=>!await windowVisible(),'빈 메모 담기 모드의 Esc가 창을 숨기지 않았습니다.');
+      assert.equal(errors.length,0,errors.join('\n'));
+    });
+
     await test('메모 담기 모드는 Enter로 메모를 만들고, Tab은 메모 화면을 연다',async()=>{
       await signal({shell:'command',capture:'note'});
       await waitUntil(async()=>await page.locator(commandInput).getAttribute('placeholder')==='메모 담기','메모 담기 모드로 열리지 않았습니다.');

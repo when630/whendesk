@@ -76,12 +76,20 @@ ALTER TABLE project ADD COLUMN deleted_at TEXT;
 UPDATE project SET deleted_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE status != 'active';
 `;
 
+// v4 — 불릿 저널의 상태 기호를 담는다. 취소는 완료와 같은 닫힘이라 done_at을 함께 채우고
+// cancelled만 1로 둔다 — "열린 일"을 done_at IS NULL로 거르는 모든 쿼리가 그대로 맞는다.
+// postponed는 이미 있던 마감을 더 뒤로 민 횟수(이관 >)다.
+const V4_SQL = `
+ALTER TABLE item ADD COLUMN cancelled INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE item ADD COLUMN postponed INTEGER NOT NULL DEFAULT 0;
+`;
+
 // PRAGMA user_version 순번 마이그레이션(D-12). 새 DB도 빈 상태(v0)에서 이 배열을 처음부터
 // 끝까지 밟아 올라간다 — 경로가 하나다. 한 번 배포된 함수는 절대 고치지 않는다.
-export const MIGRATIONS = [(db) => db.exec(V1_SQL), (db) => db.exec(V2_SQL), (db) => db.exec(V3_SQL)];
+export const MIGRATIONS = [(db) => db.exec(V1_SQL), (db) => db.exec(V2_SQL), (db) => db.exec(V3_SQL), (db) => db.exec(V4_SQL)];
 
 // schemaTables()가 대조하는 원본 — MIGRATIONS와 함수 대 함수로 짝을 이룬다.
-const MIGRATION_SQL = [V1_SQL, V2_SQL, V3_SQL];
+const MIGRATION_SQL = [V1_SQL, V2_SQL, V3_SQL, V4_SQL];
 
 // 스키마가 실제로 만드는 테이블 이름 — STOR-05 가드 테스트가 이것과 대조한다.
 export function schemaTables() {
@@ -609,6 +617,7 @@ export function createStore(file) {
     const columns = {
       title: 'title', project_id: 'project_id', kind: 'kind', due: 'due',
       waiting_for: 'waiting_for', note: 'note', done_at: 'done_at', deleted_at: 'deleted_at',
+      cancelled: 'cancelled', postponed: 'postponed',
     };
     const fields = Object.entries(patch).filter(([key]) => key in columns);
     if (!fields.length) return false;
@@ -687,7 +696,7 @@ export function createStore(file) {
     const where = `i.deleted_at IS NULL AND i.done_at IS NOT NULL${days == null ? '' : ' AND i.done_at > ?'}`;
     const stmt = db.prepare(
       `SELECT i.id, i.title, i.kind, i.done_at, i.project_id, p.name AS project_name,
-              i.note, i.waiting_for
+              i.note, i.waiting_for, i.cancelled
        FROM item i LEFT JOIN project p ON p.id = i.project_id
        WHERE ${where}
        ORDER BY i.done_at DESC`
@@ -705,7 +714,7 @@ export function createStore(file) {
     return db
       .prepare(
         `SELECT i.id, i.project_id, p.name AS project_name, i.kind, i.title, i.due,
-                i.waiting_for, i.captured_at, i.done_at, i.deleted_at, i.note
+                i.waiting_for, i.captured_at, i.done_at, i.deleted_at, i.note, i.cancelled
          FROM item i
          LEFT JOIN project p ON p.id = i.project_id
          WHERE i.deleted_at IS NOT NULL OR i.done_at <= ?
@@ -786,7 +795,7 @@ export function createStore(file) {
       item: db
         .prepare(
           `SELECT id, project_id, kind, title, due, waiting_for, captured_at, done_at,
-                  source, context, note, nudged_at, nudge_count, deleted_at
+                  source, context, note, nudged_at, nudge_count, deleted_at, cancelled, postponed
              FROM item ORDER BY captured_at`
         )
         .all(),
@@ -816,8 +825,8 @@ export function createStore(file) {
       for (const r of data.project) ip.run(r.id, r.name, r.status ?? 'active', r.sort ?? 0);
       const ii = db.prepare(
         `INSERT INTO item (id, project_id, kind, title, due, waiting_for, captured_at, done_at,
-                           source, context, note, nudged_at, nudge_count, deleted_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                           source, context, note, nudged_at, nudge_count, deleted_at, cancelled, postponed)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       );
       for (const r of data.item) {
         ii.run(
@@ -825,7 +834,9 @@ export function createStore(file) {
           r.captured_at, r.done_at ?? null, r.source ?? 'manual',
           // context는 객체로 내보냈으면 객체로 돌아와야 한다 — 문자열이면 그대로 둔다
           r.context == null ? null : typeof r.context === 'string' ? r.context : JSON.stringify(r.context),
-          r.note ?? null, r.nudged_at ?? null, Number(r.nudge_count ?? 0), r.deleted_at ?? null
+          r.note ?? null, r.nudged_at ?? null, Number(r.nudge_count ?? 0), r.deleted_at ?? null,
+          // v3 이하에서 내보낸 파일에는 두 칸이 없다 — 열린 일·미룬 적 없음으로 들어온다
+          r.cancelled ? 1 : 0, Number(r.postponed ?? 0)
         );
       }
       const ie = db.prepare('INSERT INTO event (id, at, kind, detail) VALUES (?, ?, ?, ?)');

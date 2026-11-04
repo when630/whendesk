@@ -62,6 +62,7 @@
 
     A('task.open','task','편집',['Mod+KeyE','Enter']),
     A('task.complete','task','완료',['Space']),
+    A('task.cancel','task','취소 (안 하기로 함)',['KeyC']),
     A('task.collapse','task','상세 편집 접기',['Mod+Enter']),
     A('task.title','task','제목',['KeyE']),
     A('task.due','task','마감',['KeyD']),
@@ -215,7 +216,7 @@
     ] },
     { title:'할 일 목록', rows:[
       ['항목 선택',['list.up','list.down','list.first','list.last']],['검색 · 마감 필터 · 완료 기록',['work.search','work.dueFilter','work.doneHistory']],
-      ['편집 · 완료',['task.open','task.complete']],[null,['task.assign']],['제목 · 마감 · 상세 · 프로젝트',['task.title','task.due','task.note','task.project']],
+      ['편집 · 완료 · 취소',['task.open','task.complete','task.cancel']],[null,['task.assign']],['제목 · 마감 · 상세 · 프로젝트',['task.title','task.due','task.note','task.project']],
       ['대기 상대 지정 · 재촉 기록',['task.waiting','task.nudge']],['삭제 · 되돌리기',['task.delete','work.undo','app.undo']],
       [null,['task.collapse']],[null,['project.new']],
     ] },

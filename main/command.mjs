@@ -466,9 +466,9 @@ export function createCommand({ dataDir, domain, onMore, onLaunch, platform: pro
       await domain.mutate('task.complete', { id: action.id, done: action.done });
       result = { ok: true, clear: true, message: `${action.done ? '완료했습니다' : '완료를 해제했습니다'} · ${item.title}`, undo: { type: 'task.complete', payload: { id: action.id, done: !action.done } } };
     } else if (action.type === 'task-due') {
-      const previous = (domain.state().tasks || []).find(task => task.id === action.id)?.due ?? null;
+      const before = (domain.state().tasks || []).find(task => task.id === action.id);
       await domain.mutate('task.update', { id: action.id, due: dayKey(action.days) });
-      result = { ok: true, clear: true, message: `${action.days ? '내일' : '오늘'} 마감으로 정했습니다 · ${item.title}`, undo: { type: 'task.update', payload: { id: action.id, due: previous } } };
+      result = { ok: true, clear: true, message: `${action.days ? '내일' : '오늘'} 마감으로 정했습니다 · ${item.title}`, undo: { type: 'task.update', payload: { id: action.id, due: before?.due || null, postponed: before?.postponed ?? 0 } } };
     } else if (action.type === 'task-delete') {
       await domain.mutate('task.delete', { id: action.id });
       result = { ok: true, clear: true, message: `삭제했습니다 · ${item.title}`, undo: { type: 'task.restore', payload: { id: action.id } } };
