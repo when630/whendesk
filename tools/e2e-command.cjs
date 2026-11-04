@@ -279,9 +279,9 @@ async function closeHarness() {
       await page.keyboard.press('Escape');await page.locator('.minimal-help-layer').waitFor({state:'hidden'});assert.equal(await page.locator('.event-form').isVisible(),true);assert.deepEqual(await title.evaluate(element=>[element.selectionStart,element.selectionEnd]),[2,8]);
       assert.equal((await call('state',{})).events.length,0);await screenshot('04-modal-draft');
       await page.keyboard.press('Escape');assert.equal(await page.locator('.event-form').isVisible(),true,'입력한 초안을 Esc 한 번에 버렸습니다.');await page.keyboard.press('Escape');await page.locator('.event-form').waitFor({state:'hidden'});
-      // 대화상자를 연 버튼에서 Esc는 먼저 화면의 기본 자리(선택 날짜)로, 한 번 더 누르면 Command로 간다.
+      // 대화상자를 연 버튼에서 Esc는 먼저 화면의 기본 자리(선택 날짜)로, 한 번 더 누르면 창을 숨긴다.
       await page.keyboard.press('Escape');await waitUntil(()=>page.evaluate(()=>!!document.activeElement?.closest('.td-main [data-date],.td-main .cal-list')),'Esc가 캘린더 기본 자리로 돌아가지 않았습니다.');assert.equal(await page.locator('#cf-dashboard-panel').isVisible(),true);
-      await page.keyboard.press('Escape');await page.locator('#cf-command-panel').waitFor();
+      const hides=(await records('window.hide')).length;await page.keyboard.press('Escape');await waitUntil(async()=>(await records('window.hide')).length>hides,'대시보드의 마지막 Esc가 창을 숨기지 않았습니다.');
     });
 
     assert.deepEqual(errors,[]);

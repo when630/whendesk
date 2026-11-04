@@ -94,13 +94,17 @@
     if (next !== 'command') { cancelCommandActivation(); closeCommandActions(false); }
     if (state.shell === 'dashboard' && next === 'command') { dashboardFocus = captureFocus() || dashboardFocus; const element=document.activeElement; dashboardReturn={element,start:element?.selectionStart,end:element?.selectionEnd,scroll:element?.scrollTop}; }
     if (state.shell === 'command') { command.query = commandInput.value; command.start = commandInput.selectionStart || 0; command.end = commandInput.selectionEnd || 0; }
+    // Command에서 펼칠 때는 창이 투명하게 커진 뒤에 대시보드를 그리고, 그린 다음 프레임에 나타낸다. 작은 창에 대시보드가 비치지 않는다.
+    const expanding = state.shell === 'command' && next === 'dashboard';
+    if (expanding) await call('shell', { mode:next });
     state.shell = next; root.classList.toggle('is-command', next === 'command');
     notes?.setActive(next === 'dashboard' && state.view === 'notes');
     root.querySelector('#cf-command-panel').hidden = next !== 'command';
     root.querySelector('#cf-dashboard-panel').hidden = next !== 'dashboard';
     root.querySelector('.cf-entry-name').textContent = next === 'command' ? 'WHENCOMMAND' : '대시보드';
     status(); icons(); syncHints();
-    await call('shell', { mode:next });
+    if (expanding) requestAnimationFrame(() => requestAnimationFrame(() => call('window.painted').catch(() => {})));
+    else await call('shell', { mode:next });
     if (next === 'command') {
       commandInput.value = command.query; renderCommand(); resizeCommand();
       if (focus) { commandInput.focus({ preventScroll:true }); commandInput.setSelectionRange(command.start, command.end); }
@@ -1022,7 +1026,7 @@
     if(state.dueOnly){state.dueOnly=false;renderMainView();focusView();return true;}
     return false;
   }
-  /* Esc는 맨 위 하나만 끝낸다: 실행 대기 → 동작 목록 → 대화상자 → 편집 → 필터·하위 화면 → 화면 기본 자리 → Command → 입력 지우기 → 숨기기. */
+  /* Esc는 맨 위 하나만 끝낸다: 실행 대기 → 동작 목록 → 대화상자 → 편집 → 필터·하위 화면 → 화면 기본 자리 → 숨기기(대시보드) / 입력 지우기 → 숨기기(Command). */
   async function escapeStep() {
     if(command.activating&&!command.running)return cancelCommandActivation();
     if(command.actions)return closeCommandActions();
@@ -1032,7 +1036,8 @@
       if(clearViewFilter())return;
       const before=document.activeElement;focusView();
       if(document.activeElement!==before&&document.activeElement!==document.body)return;
-      await flushPending();return shell('command');
+      // 대시보드의 마지막 Esc는 Command로 돌아가지 않고 창을 숨긴다. Command는 단축키로 다시 부른다.
+      await flushPending();return call('window.close');
     }
     if(!root.querySelector('.command-output').hidden){clearCommandOutput();resizeCommand();return call('window.close');}
     if(commandInput.value){commandInput.value='';clearCommandNotice();if(!command.capture)queueCommandQuery('',0,true);return;}

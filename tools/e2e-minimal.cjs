@@ -134,7 +134,7 @@ function durableData(state) {
       await noPersistentKeycaps('도움말을 닫은 Command');
     });
 
-    await test('Tab/Esc 2회 왕복 뒤 대시보드 native 크기와 검색 선택영역 보존', async () => {
+    await test('Tab/Ctrl+K 2회 왕복 뒤 대시보드 native 크기와 검색 선택영역 보존', async () => {
       await page.locator('.td-command input').press('Tab');
       await page.locator('#cf-dashboard-panel').waitFor();
       await page.locator('.td-main h1').filter({ hasText: 'Dashboard' }).waitFor();
@@ -144,7 +144,8 @@ function durableData(state) {
       await noPersistentKeycaps('대시보드');
       await screenshot('03-dashboard');
       for (let round = 1; round <= 2; round++) {
-        await page.keyboard.press('Escape');
+        // 대시보드의 Esc는 창을 숨기므로, 검색어를 지닌 채 돌아가는 왕복은 Ctrl+K로 한다.
+        await page.keyboard.press('Control+k');
         await commandRestored('123+456', [1, 4]);
         await waitUntil(async () => (await bounds()).width === 560, 'Command 복귀 후 native 창 너비가 복원되지 않았습니다.');
         await page.locator('.td-command input').press('Tab');
@@ -157,7 +158,7 @@ function durableData(state) {
         measurements.dashboardBounds.returns.push(returned);
         assert.deepEqual({ width: returned.width, height: returned.height }, { width: initial.width, height: initial.height });
       }
-      await page.keyboard.press('Escape');
+      await page.keyboard.press('Control+k');
       await commandRestored('123+456', [1, 4]);
       await waitUntil(async () => (await bounds()).width === 560, 'Command 복귀 후 native 창 너비가 복원되지 않았습니다.');
     });
@@ -323,10 +324,11 @@ function durableData(state) {
       await page.keyboard.press('Escape');
       await page.locator('.minimal-help-layer').waitFor({ state: 'hidden' });
       assert.equal(await page.locator('[data-shortcut=hotkey]').isVisible(), true, '설정의 도움말을 닫으면 설정 화면이 유지돼야 합니다.');
-      // 화면 기본 자리가 아니면 Esc는 먼저 그 자리로 돌아오고, 기본 자리에서 한 번 더 누르면 Command로 간다.
+      // 화면 기본 자리가 아니면 Esc는 먼저 그 자리로 돌아온다(기본 자리에서 한 번 더 누르면 창을 숨긴다). 검색어를 지닌 채 Command로는 Ctrl+K.
       await page.keyboard.press('Escape');
       await waitUntil(() => page.evaluate(() => document.activeElement?.matches('[data-settings-tab][aria-selected=true]')), 'Esc가 설정의 기본 자리로 돌아가지 않았습니다.');
-      await page.keyboard.press('Escape');
+      assert.equal(await page.locator('#cf-dashboard-panel').isVisible(), true, '기본 자리로 돌아오는 Esc가 창을 숨겼습니다.');
+      await page.keyboard.press('Control+k');
       await commandRestored('123+456', [1, 4]);
       await page.locator('.td-command input').press('Tab');
       await page.locator('.td-nav > [data-action=work]').click();

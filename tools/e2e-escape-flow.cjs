@@ -29,7 +29,7 @@ const within = selector => page.evaluate(selector=>!!document.activeElement?.clo
 const visible = selector => page.locator(selector).isVisible();
 const commandInput = '.td-command input';
 const windowVisible = () => app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isVisible());
-async function showCommand(){await app.evaluate(({BrowserWindow})=>{const win=BrowserWindow.getAllWindows()[0];win.show();win.focus();});await page.locator('#cf-command-panel').waitFor();await page.locator(commandInput).focus();}
+async function showCommand(){await app.evaluate(({app})=>app.emit('second-instance'));await page.locator('#cf-command-panel').waitFor();await page.locator(commandInput).focus();}
 async function commandQuery(value){await page.locator(commandInput).fill('');await text(value);await waitUntil(()=>page.evaluate(()=>!document.querySelector('#cf-command-panel').hasAttribute('aria-busy')&&!!document.querySelector('.td-command-results [data-result]')),'Command 검색 결과가 나오지 않았습니다: '+value);}
 async function screenshot(name){const file=path.join(shots,name+'.png');await page.screenshot({path:file});screenshots.push(file);}
 async function test(name,action){const start=Date.now();try{await action();results.push({name,ok:true,durationMs:Date.now()-start});}catch(error){results.push({name,ok:false,durationMs:Date.now()-start,error:error.message});throw error;}}
@@ -100,8 +100,8 @@ async function closeApp(){
       await press('Escape');await waitUntil(()=>focused('[data-task-row]'),'빈 검색의 Esc가 목록으로 돌아가지 않았습니다.');
       assert.equal(await visible('#cf-dashboard-panel'),true);
       await screenshot('02-work-list-home');
-      await press('Escape');await page.locator('#cf-command-panel').waitFor();
-      assert.equal(await focused(commandInput),true);
+      await press('Escape');await waitUntil(async()=>!await windowVisible(),'대시보드의 마지막 Esc가 창을 숨기지 않았습니다.');
+      await showCommand();assert.equal(await focused(commandInput),true);
     });
 
     await test('Command의 Esc는 입력을 먼저 지우고 빈 입력에서 창을 숨긴다',async()=>{
@@ -112,7 +112,7 @@ async function closeApp(){
       await showCommand();
     });
 
-    await test('메모의 Tab은 메모·보관함·휴지통을 순환하고 Esc는 메모로 돌아온 뒤 Command로 간다',async()=>{
+    await test('메모의 Tab은 메모·보관함·휴지통을 순환하고 Esc는 메모로 돌아온 뒤 창을 숨긴다',async()=>{
       await press('Tab');await page.locator('#cf-dashboard-panel').waitFor();
       await press('Alt+n');await waitUntil(()=>within('.desk-notes-browser'),'메모 목록에 포커스가 없습니다.');
       const scope=page.locator('[data-note-scope]');
@@ -124,7 +124,8 @@ async function closeApp(){
       await press('Escape');await waitUntil(async()=>await scope.inputValue()==='active','Esc가 하위 분류에서 메모로 돌아오지 않았습니다.');
       assert.equal(await visible('#cf-dashboard-panel'),true,'분류를 푸는 Esc가 대시보드까지 접었습니다.');
       await waitUntil(()=>within('.desk-notes-browser'),'메모로 돌아온 뒤 목록 포커스를 잃었습니다.');
-      await press('Escape');await page.locator('#cf-command-panel').waitFor();
+      await press('Escape');await waitUntil(async()=>!await windowVisible(),'메모에서 마지막 Esc가 창을 숨기지 않았습니다.');
+      await showCommand();
     });
 
     await test('입력한 대화상자는 Esc 한 번에 버리지 않고, 입력이 없으면 한 번에 닫는다',async()=>{

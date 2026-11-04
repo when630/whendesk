@@ -144,7 +144,7 @@ const playing=session('fixture-playing','재생 중인 아주 긴 노래 제목 
       assert.equal(await page.locator('.td-nav > [data-action=work]').getAttribute('aria-current'),'page');
       await page.keyboard.press('Alt+n');await page.locator('.td-main h1').filter({hasText:'Note'}).waitFor();
       assert.equal(await page.locator('.td-main > .td-work-nav').isVisible(),false,'Note에서 Work 탭이 표시됩니다.');
-      await page.keyboard.press('Escape');await page.waitForFunction(()=>document.querySelector('.td-command input')===document.activeElement);assert.equal(await input().inputValue(),'ListSpec');
+      await page.keyboard.press('Control+k');await page.waitForFunction(()=>document.querySelector('.td-command input')===document.activeElement);assert.equal(await input().inputValue(),'ListSpec');
       await page.keyboard.press('Control+Comma');await page.locator('.td-main h1').filter({hasText:'Settings'}).waitFor();await page.locator('[data-theme-pick=zen-dim]').click();
       await waitUntil(async()=>{const preferences=await page.evaluate(()=>window.desk.call('preferences.get'));return preferences.theme==='zen-dim'&&preferences.mode==='dark';},'설정에서 테마 선택이 저장되지 않았습니다.');
       await page.keyboard.press('Alt+n');await page.locator('.td-main h1').filter({hasText:'Note'}).waitFor();await page.locator('.desk-notes').waitFor();

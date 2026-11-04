@@ -110,6 +110,8 @@ async function bootstrap(){
   const area=screen.getDisplayMatching(win.getBounds()).workArea;
   if(mode==='dashboard'){
    if(shellMode!=='dashboard'){
+    // Command 크기에 대시보드가 한 프레임 그려지거나 커진 창에 Command가 남아 보이지 않게, 투명한 채 펼치고 렌더러가 그린 뒤(window.painted) 나타낸다.
+    if(!testMode&&win.isVisible()){win.setOpacity(0);clearTimeout(revealTimer);revealTimer=setTimeout(reveal,300);}
     // 대시보드는 자기 자리(옮기거나 크기를 바꾼 곳, 재시작 뒤에도)로 펼친다. 없거나 화면 밖이면 커서가 있는 디스플레이 가운데.
     const saved=preferences.get().dashboardBounds||dashboardBounds;const usable=saved&&visibleOnAnyDisplay(saved,screen.getAllDisplays().map(display=>display.workArea));
     const home=usable?screen.getDisplayMatching(saved).workArea:workArea();

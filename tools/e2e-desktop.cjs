@@ -31,11 +31,13 @@ async function test(name,fn){await fn();results.push({name,ok:true});}
    const bounds=await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].getBounds());assert.equal(bounds.width,560);
    await page.waitForTimeout(200);const compact=await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].getBounds());assert.equal(compact.height,54,'빈 Command는 WHENCOMMAND와 같은 54px 높이여야 합니다.');
   });
-  await test('Tab native확장·Esc 축소 및 검색어 선택복원',async()=>{
+  await test('Tab native확장·Esc 숨김 뒤 빈 Command로 다시 부르기',async()=>{
    const input=page.locator('.td-command input');await input.fill('123+456');await page.waitForFunction(()=>document.querySelector('.td-command-results')?.textContent.includes('579'));
    await input.evaluate(el=>el.setSelectionRange(1,4));await input.press('Tab');await page.locator('.td-main h1').filter({hasText:'Dashboard'}).waitFor();
    const bounds=await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].getBounds());assert.ok(bounds.width>=800);
-   await page.keyboard.press('Escape');assert.equal(await input.inputValue(),'123+456');assert.deepEqual(await input.evaluate(el=>[el.selectionStart,el.selectionEnd]),[1,4]);
+   await page.keyboard.press('Escape');for(let attempt=0;attempt<40&&await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isVisible());attempt++)await page.waitForTimeout(50);
+   assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isVisible()),false,'대시보드의 Esc가 창을 숨기지 않았습니다.');
+   await app.evaluate(({app})=>app.emit('second-instance'));await page.locator('#cf-command-panel').waitFor();await page.waitForFunction(()=>document.querySelector('.td-command input')===document.activeElement);
    const small=await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].getBounds());assert.equal(small.width,560);
   });
   await test(mockClipboard?'실제 Command 계산과 격리 클립보드':'실제 Command 계산과 클립보드',async()=>{
