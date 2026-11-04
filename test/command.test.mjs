@@ -86,12 +86,15 @@ test('검색한 할 일은 Command에서 바로 완료·마감·삭제하고 되
   try {
     await f.command.ready();
     const task = (await f.command.query('테스트 결과')).items.find(item => item.key === 'tasks:t1');
-    assert.deepEqual(task.actions.map(action => action.id), ['open', 'complete', 'due-today', 'due-tomorrow', 'delete']);
+    assert.deepEqual(task.actions.map(action => action.id), ['open', 'complete', 'cancel', 'due-today', 'due-tomorrow', 'delete']);
     assert.equal(task.altId, 'complete', 'Ctrl+Enter는 완료');
     const done = await f.command.run(task.key, 'complete');
     assert.equal(done.route, undefined);assert.equal(done.clear, true);
     assert.deepEqual(f.mutations.at(-1), { type: 'task.complete', payload: { id: 't1', done: true } });
     assert.deepEqual(done.undo, { type: 'task.complete', payload: { id: 't1', done: false } });
+    const cancelled = await f.command.run(task.key, 'cancel');
+    assert.deepEqual(f.mutations.at(-1), { type: 'task.cancel', payload: { id: 't1', cancelled: true } });
+    assert.deepEqual(cancelled.undo, { type: 'task.cancel', payload: { id: 't1', cancelled: false } });
     const due = await f.command.run(task.key, 'due-tomorrow');
     assert.equal(f.mutations.at(-1).type, 'task.update');assert.match(f.mutations.at(-1).payload.due, /^\d{4}-\d{2}-\d{2}$/);
     assert.deepEqual(due.undo, { type: 'task.update', payload: { id: 't1', due: '2026-10-29', postponed: 0 } });

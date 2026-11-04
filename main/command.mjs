@@ -219,8 +219,8 @@ export function createCommand({ dataDir, domain, onMore, onLaunch, platform: pro
     for (const task of state.tasks || []) {
       if (task.deleted) continue;
       addMatched(out, q, { key: `tasks:${task.id}`, source: 'tasks', title: task.title,
-        subtitle: [task.done ? '완료' : task.kind === 'waiting' ? '대기' : task.kind === 'inbox' ? '인박스' : '할 일', task.project, task.due].filter(Boolean).join(' · '),
-        searchText: [task.note, task.waitingFor, task.project].filter(Boolean).join(' '), icon: 'circle-check', done: !!task.done,
+        subtitle: [task.cancelled ? '취소' : task.done ? '완료' : task.kind === 'waiting' ? '대기' : task.kind === 'inbox' ? '인박스' : '할 일', task.project, task.due].filter(Boolean).join(' · '),
+        searchText: [task.note, task.waitingFor, task.project].filter(Boolean).join(' '), icon: 'circle-check', done: !!task.done, cancelled: !!task.cancelled,
         action: { type: 'route', route: { view: 'tasks', tab: task.done ? 'done' : task.kind, id: task.id } } }, .9);
     }
     // 저장소의 검색은 선택된 달 밖의 일정도 찾는다.
@@ -464,7 +464,13 @@ export function createCommand({ dataDir, domain, onMore, onLaunch, platform: pro
         : { ok: true, clear: true, message: `일정을 추가했습니다 · ${[eventWhen(parsed), parsed.title].filter(Boolean).join(' ')}`, undo: { type: 'event.delete', payload: { id: event.id, scope: 'all' } } };
     } else if (action.type === 'task-complete') {
       await domain.mutate('task.complete', { id: action.id, done: action.done });
-      result = { ok: true, clear: true, message: `${action.done ? '완료했습니다' : '완료를 해제했습니다'} · ${item.title}`, undo: { type: 'task.complete', payload: { id: action.id, done: !action.done } } };
+      // 취소했던 일을 완료로 바꿨으면 되돌리기는 다시 취소다.
+      const undo = item.cancelled ? { type: 'task.cancel', payload: { id: action.id, cancelled: true } } : { type: 'task.complete', payload: { id: action.id, done: !action.done } };
+      result = { ok: true, clear: true, message: `${action.done ? '완료했습니다' : '완료를 해제했습니다'} · ${item.title}`, undo };
+    } else if (action.type === 'task-cancel') {
+      await domain.mutate('task.cancel', { id: action.id, cancelled: action.cancelled });
+      const undo = action.cancelled && item.done ? { type: 'task.complete', payload: { id: action.id, done: true } } : { type: 'task.cancel', payload: { id: action.id, cancelled: !action.cancelled } };
+      result = { ok: true, clear: true, message: `${action.cancelled ? '안 하기로 했습니다' : '취소를 해제했습니다'} · ${item.title}`, undo };
     } else if (action.type === 'task-due') {
       const before = (domain.state().tasks || []).find(task => task.id === action.id);
       await domain.mutate('task.update', { id: action.id, due: dayKey(action.days) });

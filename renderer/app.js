@@ -24,6 +24,7 @@
   const pending = new Map();
   const workRules = window.VIEW;
   const workUndo = [], undoTimeline = [];
+  let capturePreview = '', capturePreviewSeq = 0;
   const projectMoves = new Map();
   const workCursors = new Map();
   Object.assign(state,{ allTasks:[], archivedProjects:[], workQuery:'', workSort:'project', workRange:null, workTrash:false });
@@ -784,6 +785,8 @@
     });
   }
   function renderCommand() {
+    // 담기 모드의 결과 자리는 접두 기호 미리보기 한 줄만 쓴다(검색하지 않는다).
+    if (command.capture) { commandBox.innerHTML = capturePreview; commandBox.hidden = !capturePreview; icons(); resizeCommand(); return; }
     command.selected = Math.max(0, Math.min(command.selected, Math.max(0, command.items.length-1)));
     const scrollTop = root.querySelector('#cf-command-panel').scrollTop;
     commandBox.innerHTML = `${command.items.map((item,index) => `<button id="command-option-${index}" class="td-command-result ${index === command.selected ? 'selected' : ''}" data-result="${index}" data-result-key="${esc(item.key)}" role="option" aria-selected="${index === command.selected}" tabindex="-1" ${command.running ? 'disabled' : ''}>${commandAvatar(item)}<span class="command-result-text"><span class="command-result-title">${highlightTitle(item.title, item.positions)}</span>${item.subtitle ? `<small class="command-subtitle">${esc(item.subtitle)}</small>` : ''}</span><small>${esc(({apps:'앱',files:'파일',calc:'계산',tasks:'할 일',work:'할 일',events:'일정',calendar:'일정',notes:'메모',scripts:'명령',system:'시스템',builtin:'명령',clip:'클립보드'})[item.source] || (item.key?.startsWith('clip:') ? '클립보드' : ''))}</small></button>`).join('')}${command.items.length || !command.query.trim() && !command.pending ? '' : `<div class="command-empty" role="status">${command.pending ? '검색 중…' : '결과 없음'}</div>`}`;
@@ -896,10 +899,27 @@
       } },
   };
   function enterCapture(kind) {
-    if (!CAPTURE[kind]) return; command.capture = kind; root.classList.add('is-capture');
+    if (!CAPTURE[kind]) return; command.capture = kind; capturePreview = ''; capturePreviewSeq++; root.classList.add('is-capture');
+    // 대시보드에서 남은 알림이 담기 미리보기 줄을 덮지 않게 닫는다. 되돌리기는 U 타임라인에 남아 있다.
+    root.querySelector('.td-feedback').hidden = true;
     commandInput.value = ''; queueCommandQuery('', 0, true); clearCommandNotice(); commandInput.focus({ preventScroll:true });
   }
-  function exitCapture() { if (!command.capture) return; command.capture = null; root.classList.remove('is-capture'); clearCommandNotice(); }
+  function exitCapture() { if (!command.capture) return; command.capture = null; root.classList.remove('is-capture'); clearCommandNotice(); capturePreviewSeq++; capturePreview = ''; }
+  /* 접두 기호가 받을 곳을 바꾸면 무엇으로 담길지 입력줄 아래 한 줄로 미리 보인다. 일정은 날짜·시간 해석까지 보인다. */
+  const RAPID_PREVIEW = { task:['할 일','circle-plus'], event:['일정','calendar-plus'], note:['메모','notebook-pen'] };
+  async function previewCapture() {
+    const seq = ++capturePreviewSeq, parsed = window.WhendeskRapid?.parse(commandInput.value.trim());
+    const rapid = parsed && parsed.kind !== command.capture ? parsed : null;
+    let line = '';
+    if (rapid?.kind === 'event') {
+      const result = await call('mutate', { type:'calendar.parse', payload:{ text:rapid.text } }).catch(() => null), when = result?.parsed || result;
+      line = when?.ok !== false && when?.startsAt ? [eventWhen(when), when.title].filter(Boolean).join(' · ') : '날짜와 시간을 더 적어 주세요';
+    } else if (rapid) line = rapid.text.split('\n')[0];
+    if (seq !== capturePreviewSeq || !command.capture) return;
+    const [label, glyph] = RAPID_PREVIEW[rapid?.kind] || [];
+    capturePreview = rapid ? `<div class="command-capture-preview" role="status">${icon(glyph)}<span><b>${label}</b> · ${esc(line)}</span></div>` : '';
+    renderCommand();
+  }
   async function saveCapture({ open = false } = {}) {
     // 메모 담기에서 "- "는 Markdown 목록이라 떼지 않는다.
     const raw = commandInput.value.trim(), parsed = window.WhendeskRapid?.parse(raw), rapid = parsed && !(parsed.kind === 'note' && command.capture === 'note') ? parsed : null;
@@ -908,7 +928,7 @@
     command.running = true;
     try {
       const saved = kind.save ? await kind.save(text) : { item:await mutate(kind.type, kind.payload(text)), line:text.split('\n')[0] }, item = saved.item;
-      commandInput.value = '';
+      commandInput.value = ''; previewCapture();
       const undo = kind.undo(item); undoTimeline.push(() => mutate(undo.type, undo.payload)); if (undoTimeline.length > 50) undoTimeline.shift();
       if (open) { exitCapture(); await navigate(kind.open(item)); return; }
       commandNotice(`${kind.label} · ${saved.line}`);
@@ -1356,7 +1376,7 @@
   }));
   root.addEventListener('input', event => {
     const element=event.target;
-    if (element===commandInput) { if (!command.capture) queueCommandQuery(element.value); return; }
+    if (element===commandInput) { if (!command.capture) queueCommandQuery(element.value); else previewCapture(); return; }
     if (element.matches('.quick-event-form [name=line]')) { clearTimeout(quickEventTimer); quickEventTimer = setTimeout(() => safe(parseQuickEvent), 120); return; }
     if (element.matches('[data-shortcut]')) { shortcutErrors(); return; }
     if (element.matches('[data-work-search]')) {state.workQuery=element.value;state.selected=null;taskCursor=null;projectCursor=null;if(!event.isComposing&&!workComposing)renderMainView();return;}

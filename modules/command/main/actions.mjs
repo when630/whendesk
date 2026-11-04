@@ -21,7 +21,8 @@ export function actionsFor(item) {
     const id = a.route.id;
     push('open', '열기', a);
     if (a.route.view === 'tasks') {
-      push('complete', item.done ? '완료 해제' : '완료', { type: 'task-complete', id, done: !item.done });
+      push('complete', item.done && !item.cancelled ? '완료 해제' : '완료', { type: 'task-complete', id, done: !(item.done && !item.cancelled) });
+      push('cancel', item.cancelled ? '취소 해제' : '취소 (안 하기로 함)', { type: 'task-cancel', id, cancelled: !item.cancelled });
       if (!item.done) {
         push('due-today', '오늘 마감', { type: 'task-due', id, days: 0 });
         push('due-tomorrow', '내일 마감', { type: 'task-due', id, days: 1 });

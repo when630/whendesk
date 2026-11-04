@@ -128,3 +128,4 @@ body{background:transparent}
  #whendesk-command-first .calendar-natural>input{flex-basis:100%}
  #whendesk-command-first .media-title{max-width:160px}
 }
+#whendesk-command-first .command-capture-preview{display:flex;align-items:center;gap:9px;padding:10px 12px;font-size:12px;color:var(--td-muted);overflow-wrap:anywhere}#whendesk-command-first .command-capture-preview svg{width:14px;height:14px;flex-shrink:0;color:var(--td-accent)}#whendesk-command-first .command-capture-preview b{font-weight:600;color:var(--td-text)}

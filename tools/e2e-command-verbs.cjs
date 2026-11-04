@@ -73,18 +73,33 @@ async function closeApp(){
       await commandQuery('커맨드동사 '+runId,'커맨드동사 '+runId);await selectResult('커맨드동사 '+runId);
       await press('Alt+Enter');await page.locator('#command-actions').waitFor();
       const labels=await page.locator('#command-actions [data-command-action]').evaluateAll(rows=>rows.map(row=>row.dataset.commandAction));
-      assert.deepEqual(labels,['open','complete','delete'],'완료된 할 일의 동작 목록이 다릅니다.');
+      assert.deepEqual(labels,['open','complete','cancel','delete'],'완료된 할 일의 동작 목록이 다릅니다.');
       await press('ArrowDown');await press('Enter');await waitUntil(async()=>(await task(target.id)).done===false,'동작 목록의 완료 해제가 실행되지 않았습니다.');
       await commandQuery('커맨드동사 '+runId,'커맨드동사 '+runId);await selectResult('커맨드동사 '+runId);
       await press('Alt+Enter');await page.locator('#command-actions').waitFor();
       const open=await page.locator('#command-actions [data-command-action]').evaluateAll(rows=>rows.map(row=>row.dataset.commandAction));
-      assert.deepEqual(open,['open','complete','due-today','due-tomorrow','delete']);
+      assert.deepEqual(open,['open','complete','cancel','due-today','due-tomorrow','delete']);
       for(let step=0;step<open.indexOf('due-tomorrow');step++)await press('ArrowDown');
       await press('Enter');await waitUntil(async()=>!!(await task(target.id)).due,'내일 마감이 저장되지 않았습니다.');
       measurements.dueFromCommand=(await task(target.id)).due;
       await press('Tab');await page.locator('#cf-dashboard-panel').waitFor();await press('Alt+i');await waitWithin('.td-main');
       await press('u');await waitUntil(async()=>!(await task(target.id)).due,'Command에서 정한 마감을 화면의 U로 되돌리지 못했습니다.');
       await press('Control+k');await page.locator('#cf-command-panel').waitFor();
+    });
+
+    await test('Command 동작 목록의 취소는 할 일을 닫힌 채 취소로 남기고, 다시 열면 취소 해제가 된다',async()=>{
+      await commandQuery('커맨드동사 '+runId,'커맨드동사 '+runId);await selectResult('커맨드동사 '+runId);
+      await press('Alt+Enter');await page.locator('#command-actions [data-command-action=cancel]').waitFor();
+      const order=await page.locator('#command-actions [data-command-action]').evaluateAll(rows=>rows.map(row=>row.dataset.commandAction));
+      for(let step=0;step<order.indexOf('cancel');step++)await press('ArrowDown');
+      await press('Enter');await waitUntil(async()=>{const item=await task(target.id);return item.cancelled&&item.done;},'동작 목록의 취소가 실행되지 않았습니다.');
+      assert.match(await page.locator(commandInput).getAttribute('placeholder'),/안 하기로 했습니다/);
+      await commandQuery('커맨드동사 '+runId,'커맨드동사 '+runId);await selectResult('커맨드동사 '+runId);
+      await press('Alt+Enter');await page.locator('#command-actions [data-command-action=cancel]').waitFor();
+      assert.match(await page.locator('#command-actions [data-command-action=cancel]').innerText(),/취소 해제/);
+      const again=await page.locator('#command-actions [data-command-action]').evaluateAll(rows=>rows.map(row=>row.dataset.commandAction));
+      for(let step=0;step<again.indexOf('cancel');step++)await press('ArrowDown');
+      await press('Enter');await waitUntil(async()=>{const item=await task(target.id);return !item.cancelled&&!item.done;},'동작 목록의 취소 해제가 실행되지 않았습니다.');
     });
 
     await test('Command 일정 추가는 해석 결과를 미리 보여 주고 Enter로 추가한 뒤 머물며, Ctrl+Enter는 캘린더에서 그 일정에 포커스를 둔다',async()=>{
@@ -119,7 +134,14 @@ async function closeApp(){
     await test('담기 모드의 접두 기호는 받을 곳을 바꾼다: o 일정 · - 메모 · . 할 일, 기호 없는 글은 담기 종류대로',async()=>{
       await signal({shell:'command',capture:'task'});
       await waitUntil(async()=>await page.locator(commandInput).getAttribute('placeholder')==='InBox에 담기','할 일 담기 모드로 열리지 않았습니다.');
-      await text('o 내일 오후 3시 접두일정 '+runId);await press('Enter');
+      await text('o 내일 오후 3시 접두일정 '+runId);
+      await waitUntil(async()=>/일정 · .*오후 3:00/.test(await page.locator('.command-capture-preview').innerText().catch(()=>'')),'일정 접두의 해석 미리보기가 보이지 않습니다.');
+      // 미리보기 줄만큼 창이 실제로 자라야 보인다.
+      await waitUntil(async()=>(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].getBounds().height))>60,'미리보기 줄만큼 Command 창이 자라지 않았습니다.');
+      measurements.capturePreview=await page.locator('.command-capture-preview').innerText();
+      // 늦게 도착한 검색 결과 렌더가 미리보기를 지우고 창을 줄이던 회귀를 막는다.
+      await page.waitForTimeout(400);assert.equal(await page.locator('.command-capture-preview').count(),1,'미리보기 줄이 다시 그려지며 사라졌습니다.');await screenshot('03-capture-prefix-preview');
+      await press('Enter');await page.locator('.command-capture-preview').waitFor({state:'detached'});
       await waitUntil(async()=>(await state()).events.some(item=>item.title==='접두일정 '+runId),'o 접두가 일정으로 담기지 않았습니다.');
       await text('- 접두메모 '+runId);await press('Enter');
       await waitUntil(async()=>(await state()).notes.some(item=>item.title==='접두메모 '+runId),'- 접두가 메모로 담기지 않았습니다.');
