@@ -116,7 +116,7 @@ test('할 일 검색·명시적 추가·캘린더 자연어 추가가 통합 저
     const added = await f.command.run(capture.key);
     assert.equal(added.route, undefined, '기본 추가는 Command에 머문다');
     assert.equal(added.clear, true, '같은 항목을 다시 추가하지 않도록 입력을 비운다');
-    assert.match(added.message, /인박스에 담았습니다/);
+    assert.match(added.message, /InBox에 담았습니다/);
     assert.equal(f.mutations[0].payload.title, '테스트 실행');
     assert.equal(capture.altId, 'add-open');
     assert.deepEqual((await f.command.run(capture.key, 'add-open')).route, { view: 'tasks', tab: 'inbox', id: 'new-task' });

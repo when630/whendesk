@@ -71,3 +71,11 @@
 #whendesk-command-first .td-app .task-mark.is-cancelled{color:var(--td-muted)}
 #whendesk-command-first .td-app .task-mark.is-cancelled::after{content:"";position:absolute;left:0;right:0;top:50%;height:1.5px;background:currentColor}
 #whendesk-command-first .td-task.cancelled .td-task-open>span{text-decoration:line-through;color:var(--td-muted)}
+/* 삭제는 위험한 동작이라 색을 달리하고, 편집 대화상자에서는 완료·안 하기와 떨어진 왼쪽 끝에 둔다 */
+#whendesk-command-first .td-app :is(.td-modal-delete,.td-modal-delete:hover){color:light-dark(#a0473a,#e08b7d)!important}
+#whendesk-command-first .task-form .td-inline-foot{display:flex}
+#whendesk-command-first .task-form .td-inline-foot>[data-save-status]{display:none}
+#whendesk-command-first .task-form .td-inline-foot>div{flex:1}
+#whendesk-command-first .task-form .td-inline-foot .td-modal-delete{margin-right:auto}
+#whendesk-command-first .task-form .td-inline-foot button:not(.td-primary):not(.td-modal-delete){font-size:12px;color:var(--td-text);padding:6px 4px}
+#whendesk-command-first .td-done-at{flex:0 0 auto;font-size:11px;color:var(--td-muted);white-space:nowrap;padding-top:2px}

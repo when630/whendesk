@@ -65,3 +65,8 @@
   outline-width:0!important;
   box-shadow:none!important;
 }
+/* 메모 미리보기는 본문 영역이라 상자 외곽선 대신 행처럼 왼쪽 막대만 보인다. */
+#whendesk-command-first .td-app .desk-note-preview:focus-visible{
+  outline:none!important;
+  box-shadow:inset 2px 0 0 var(--td-accent);
+}

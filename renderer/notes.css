@@ -60,3 +60,9 @@
 #whendesk-command-first .desk-note-links button{padding:3px 5px;color:var(--td-accent);border-radius:var(--td-radius)}
 @media(max-width:900px){#whendesk-command-first .desk-notes{grid-template-columns:190px minmax(0,1fr);gap:20px}#whendesk-command-first .desk-notes-browser{padding-right:15px}#whendesk-command-first .desk-note-toolbar{align-items:flex-start;flex-direction:column;gap:8px}#whendesk-command-first .desk-note-title{width:100%}#whendesk-command-first .desk-note-tools{justify-content:flex-start}}
 @media(max-width:650px){#whendesk-command-first .desk-notes{height:auto;min-height:650px;grid-template-columns:minmax(0,1fr);gap:24px}#whendesk-command-first .desk-notes-browser{border-right:0;border-bottom:1px solid var(--td-line);padding:0 0 20px;max-height:270px}#whendesk-command-first .desk-note-toolbar{flex-direction:row;align-items:center}#whendesk-command-first .desk-note-body,#whendesk-command-first .desk-note-preview{min-height:360px}#whendesk-command-first .desk-note-title{width:auto}}
+/* 지금 모드(보기·편집 중)를 제목 옆에 적고, 삭제 아이콘은 다른 도구와 떨어뜨려 색을 달리한다 */
+#whendesk-command-first .desk-note-mode{flex:0 0 auto;margin-left:8px;padding:1px 6px;border-radius:3px;font-size:10px;color:var(--td-muted);background:var(--td-wash)}
+#whendesk-command-first .desk-note-mode:empty{display:none}
+#whendesk-command-first .desk-note-tools .desk-note-danger{margin-left:8px;color:light-dark(#a0473a,#e08b7d)}
+#whendesk-command-first .desk-note-toolbar .desk-note-title{flex:0 1 auto}
+#whendesk-command-first .desk-note-toolbar .desk-note-tools{margin-left:auto}

@@ -227,7 +227,7 @@ export function createCommand({ dataDir, domain, onMore, onLaunch, platform: pro
     for (const task of state.tasks || []) {
       if (task.deleted) continue;
       addMatched(out, q, { key: `tasks:${task.id}`, source: 'tasks', title: task.title,
-        subtitle: [task.cancelled ? '취소' : task.done ? '완료' : task.kind === 'waiting' ? '대기' : task.kind === 'inbox' ? '인박스' : '할 일', task.project, task.due].filter(Boolean).join(' · '),
+        subtitle: [task.cancelled ? '취소' : task.done ? '완료' : task.kind === 'waiting' ? 'Waiting' : task.kind === 'inbox' ? 'InBox' : 'ToDo', task.project, task.due].filter(Boolean).join(' · '),
         searchText: [task.note, task.waitingFor, task.project].filter(Boolean).join(' '), icon: 'circle-check', done: !!task.done, cancelled: !!task.cancelled,
         action: { type: 'route', route: { view: 'tasks', tab: task.done ? 'done' : task.kind, id: task.id } } }, .9);
     }
@@ -275,7 +275,7 @@ export function createCommand({ dataDir, domain, onMore, onLaunch, platform: pro
     const todo = q.match(/^(?:할\s*일\s*추가|투두\s*추가|todo\s+add)\s+(.+)$/i);
     const schedule = q.match(/^(?:일정\s*추가|약속\s*추가)\s+(.+)$/i);
     const note = q.match(/^(?:메모\s*추가|노트\s*추가|note\s+add)(?:\s+([\s\S]+))?$/i);
-    if (todo) out.push({ key: 'capture:todo', source: 'tasks', title: `할 일 추가: ${todo[1]}`, subtitle: '인박스에 저장', icon: 'circle-plus', base: 1.5,
+    if (todo) out.push({ key: 'capture:todo', source: 'tasks', title: `할 일 추가: ${todo[1]}`, subtitle: 'InBox에 저장', icon: 'circle-plus', base: 1.5,
       action: { type: 'capture-task', text: todo[1] } });
     if (schedule) out.push({ key: 'capture:event', source: 'events', title: `일정 추가: ${schedule[1]}`, subtitle: '날짜와 시간을 해석해 저장', icon: 'calendar-plus', base: 1.5,
       action: { type: 'capture-event', text: schedule[1] } });
@@ -398,7 +398,7 @@ export function createCommand({ dataDir, domain, onMore, onLaunch, platform: pro
       for (const script of scripts.filter(x => x.fallback)) fallback.push({ key: `scripts:${script.path}`, source: 'scripts', title: script.name,
         subtitle: q, icon: 'file-code', base: .8, action: { type: 'run-script', path: script.path, args: [q] } });
       // 기존 WHENWORK의 명시적 '할 일 추가' 폴백을 로컬 저장소에 연결한다.
-      fallback.push({ key: 'capture:fallback', source: 'tasks', title: `할 일 추가: ${q}`, subtitle: '인박스에 저장',
+      fallback.push({ key: 'capture:fallback', source: 'tasks', title: `할 일 추가: ${q}`, subtitle: 'InBox에 저장',
         icon: 'circle-plus', base: .4, action: { type: 'capture-task', text: q } });
     }
     const pending = q.length >= MIN_FILE_CHARS && !!fileSearch?.status?.().ok;
@@ -458,8 +458,8 @@ export function createCommand({ dataDir, domain, onMore, onLaunch, platform: pro
     else if (action.type === 'capture-task') {
       const task = await domain.mutate('task.create', { title: action.text });
       // 기본은 Command에 머물러 연달아 담는다. '담고 열기'(Ctrl+Enter)만 InBox 편집으로 간다.
-      result = action.open ? { ok: true, route: { view: 'tasks', tab: 'inbox', id: task.id }, message: '인박스에 담았습니다.' }
-        : { ok: true, clear: true, message: `인박스에 담았습니다 · ${task.title || action.text}` };
+      result = action.open ? { ok: true, route: { view: 'tasks', tab: 'inbox', id: task.id }, message: 'InBox에 담았습니다.' }
+        : { ok: true, clear: true, message: `InBox에 담았습니다 · ${task.title || action.text}` };
     } else if (action.type === 'capture-note') {
       const note = await domain.mutate('note.create', { body:action.text });
       // 새로 만든 메모는 이어서 쓰도록 편집으로 연다. 검색 결과로 여는 메모는 보기로 연다.

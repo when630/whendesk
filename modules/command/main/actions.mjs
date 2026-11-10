@@ -12,7 +12,7 @@ export function actionsFor(item) {
   const list = [];
   const push = (id, title, action) => list.push({ id, title, action });
   if (a.type === 'capture-task' || a.type === 'capture-event') {
-    push('add', a.type === 'capture-task' ? '인박스에 담기' : '일정 추가', a);
+    push('add', a.type === 'capture-task' ? 'InBox에 담기' : '일정 추가', a);
     push('add-open', a.type === 'capture-task' ? '담고 열기' : '추가하고 캘린더에서 보기', { ...a, open: true });
     return list;
   }

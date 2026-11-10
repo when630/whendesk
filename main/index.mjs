@@ -178,7 +178,7 @@ async function bootstrap(){
  app.on('activate',()=>showCommand());
  tray=new Tray(trayIcon(preferences.get().appIcon));
  tray.setToolTip(app.isPackaged?'WHENDESK':'WHENDESK 개발본');
- tray.setContextMenu(Menu.buildFromTemplate([{label:'WHENCOMMAND',click:showCommand},{label:'대시보드',click:()=>showDashboard()},{label:'인박스',click:()=>showDashboard({view:'tasks',tab:'inbox',focusCapture:true})},{type:'separator'},{label:'입력줄 위치 되돌리기',click:()=>{preferences.set({commandPosition:null});if(win?.isVisible()&&shellMode==='command'){const [width,height]=win.getSize();win.setBounds(commandBoundsFor(width,height));}}},{label:'대시보드 위치 되돌리기',click:()=>{dashboardBounds=null;preferences.set({dashboardBounds:null});}},{label:'앱 목록 새로고침',click:()=>command.refresh().catch(error=>dialog.showErrorBox('목록 새로고침',error.message))},{label:'설정',click:()=>showDashboard({settings:true})},{type:'separator'},{label:'종료',click:()=>requestQuit()}]));
+ tray.setContextMenu(Menu.buildFromTemplate([{label:'WHENCOMMAND',click:showCommand},{label:'대시보드',click:()=>showDashboard()},{label:'InBox',click:()=>showDashboard({view:'tasks',tab:'inbox',focusCapture:true})},{type:'separator'},{label:'입력줄 위치 되돌리기',click:()=>{preferences.set({commandPosition:null});if(win?.isVisible()&&shellMode==='command'){const [width,height]=win.getSize();win.setBounds(commandBoundsFor(width,height));}}},{label:'대시보드 위치 되돌리기',click:()=>{dashboardBounds=null;preferences.set({dashboardBounds:null});}},{label:'앱 목록 새로고침',click:()=>command.refresh().catch(error=>dialog.showErrorBox('목록 새로고침',error.message))},{label:'설정',click:()=>showDashboard({settings:true})},{type:'separator'},{label:'종료',click:()=>requestQuit()}]));
  tray.on('click',()=>win.isVisible()&&win.isFocused()?win.hide():showCommand());
  shortcutManager.initialize(preferences.get());
 
@@ -301,7 +301,7 @@ async function bootstrap(){
     }else{
      const [first,...rest]=intent.text.split('\n');const title=first.trim().slice(0,500)||intent.text.slice(0,500),note=rest.join('\n').trim();
      const task=await mutateNow('task.create',{title});if(note)await mutateNow('task.update',{id:task.id,note});
-     result={kind:'task',message:'인박스에 담았어요'};
+     result={kind:'task',message:'InBox에 담았어요'};
     }
     changed();return result;
    },

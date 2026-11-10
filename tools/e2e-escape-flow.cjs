@@ -61,7 +61,7 @@ async function closeApp(){
         await waitUntil(async()=>await page.locator(commandInput).inputValue()==='','추가한 뒤 입력이 비워지지 않았습니다.');
         assert.equal(await visible('#cf-command-panel'),true,'추가한 뒤 Command를 떠났습니다.');
         assert.equal(await focused(commandInput),true,'추가한 뒤 입력 포커스를 잃었습니다.');
-        assert.match(await page.locator(commandInput).getAttribute('placeholder'),/인박스에 담았습니다/);
+        assert.match(await page.locator(commandInput).getAttribute('placeholder'),/InBox에 담았습니다/);
       }
       assert.equal(await page.locator('.td-command-results [data-result]').count(),0,'담은 뒤 이전 검색 결과가 남아 있습니다.');
       await waitUntil(async()=>(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].getBounds().height))===54,'담은 뒤 Command 창이 한 줄 높이로 돌아오지 않았습니다.');

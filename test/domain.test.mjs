@@ -101,6 +101,21 @@ test('반복 일정의 한 회차 수정·삭제와 전체 수정은 시리즈 �
   assert.equal(domain.state(range).events.filter(item => item.id === event.id).length, 4);
 });
 
+test('반복 회차 삭제(이 회차만·뒤 전부)는 돌려받은 이전 모양으로 되돌린다', async t => {
+  const { domain } = setup(t);
+  const event = await domain.mutate('event.create', { title: '반복', date: '2026-10-26', time: '09:00', end: '10:00', rrule: 'FREQ=DAILY;COUNT=5' });
+  const count = () => domain.state(range).events.filter(item => item.id === event.id).length;
+  const [, second, third] = domain.state(range).events.filter(item => item.id === event.id);
+  const one = await domain.mutate('event.delete', { id: event.id, recurrenceId: second.recurrenceId, scope: 'one' });
+  assert.equal(count(), 4);
+  const future = await domain.mutate('event.delete', { id: event.id, recurrenceId: third.recurrenceId, scope: 'future' });
+  assert.equal(count(), 1);
+  await domain.mutate('event.reshape', { id: event.id, ...future.previous });
+  assert.equal(count(), 4);
+  await domain.mutate('event.reshape', { id: event.id, ...one.previous });
+  assert.equal(count(), 5);
+});
+
 test('반복을 이 회차부터 나누어도 COUNT가 늘어나거나 앞부분이 사라지지 않는다', async t => {
   const { domain } = setup(t);
   const event = await domain.mutate('event.create', { title: '이전 이름', date: '2026-10-26', time: '09:00', end: '10:00', rrule: 'FREQ=DAILY;COUNT=5' });

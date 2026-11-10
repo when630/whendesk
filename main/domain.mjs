@@ -501,10 +501,19 @@ export function createDomain({ dataDir, fetchImpl = globalThis.fetch } = {}) {
       }
       case 'event.delete': {
         const current = rawEvent(payload.id, { writable: true });
+        // 회차 삭제는 규칙·제외일만 바꾼다. 되돌리기(event.reshape)가 쓰도록 바꾸기 전 모양을 돌려준다.
+        const previous = { rrule: current.rrule ?? null, exdates: current.exdates ?? null };
         if (payload.recurrenceId && payload.scope === 'one') calendar.excludeOccurrence(current.id, iso(payload.recurrenceId, '회차 시각'));
         else if (payload.recurrenceId && payload.scope === 'future') calendar.truncateSeries(current.id, iso(payload.recurrenceId, '회차 시각'));
-        else calendar.softDeleteEvent(current.id);
-        return { id: current.id };
+        else { calendar.softDeleteEvent(current.id); return { id: current.id }; }
+        return { id: current.id, previous };
+      }
+      case 'event.reshape': {
+        const current = rawEvent(payload.id, { writable: true });
+        const rrule = payload.rrule == null ? null : text(payload.rrule, '반복 규칙', { limit: 10_000 });
+        const exdates = payload.exdates == null ? null : [].concat(payload.exdates).map(value => iso(value, '제외 회차'));
+        if (!calendar.setSeriesShape(current.id, rrule, exdates)) throw new Error('반복 일정을 되돌리지 못했습니다.');
+        return normalizeEvent(rawEvent(current.id));
       }
       case 'event.restore': rawEvent(payload.id, { writable: true }); calendar.restoreEvent(Number(payload.id)); return normalizeEvent(rawEvent(payload.id));
       case 'calendar.parse': {

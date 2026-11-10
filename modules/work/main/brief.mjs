@@ -56,7 +56,7 @@ export function briefingLines(
     parts.push(`일정 ${events.length}건${first ? ` (첫 일정 ${first})` : ''}`);
   }
   if (b.stale_waiting) parts.push(`${staleDays}일 넘게 기다림 ${b.stale_waiting}건`);
-  if (b.inbox) parts.push(`인박스 ${b.inbox}건`);
+  if (b.inbox) parts.push(`InBox ${b.inbox}건`);
   // 급한 것이 하나도 없어도 손에 든 일은 있다. 마감을 쓰지 않기 시작하자 위의 다섯 줄이
   // 한꺼번에 0이 되어 브리핑이 통째로 침묵했다 — 열린 할 일이 11건 있던 아침에도 그랬다.
   // 아침에 아무 말이 없으니 앱을 열 이유도 없어졌다. 브리핑이 마감이라는 습관 하나에

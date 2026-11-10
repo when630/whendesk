@@ -36,7 +36,7 @@ test('브리핑 문구는 WHENDESK 저장소의 지연·오늘 마감·인박스
   await domain.mutate('task.setDue', { id:today.id, text:'오늘' });
   await domain.mutate('task.create', { title:'인박스에 남은 일' });
   const parts = briefingLines(domain.work.briefing(STALE_WAITING_DAYS), { events:[{ start:at(14, 0).toISOString() }] });
-  assert.deepEqual(parts, ['지연 1건', '오늘 마감 1건', '일정 1건 (첫 일정 14:00)', '인박스 3건']);
+  assert.deepEqual(parts, ['지연 1건', '오늘 마감 1건', '일정 1건 (첫 일정 14:00)', 'InBox 3건']);
 });
 
 test('시작·브리핑 설정은 형식이 맞는 값만 저장한다', t => {

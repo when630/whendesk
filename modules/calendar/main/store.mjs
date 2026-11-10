@@ -635,6 +635,15 @@ export function createStore(file) {
       });
     },
 
+    // WHENDESK: 회차 삭제(제외일·뒤 자르기)를 되돌린다. 삭제 전 규칙과 제외일을 그대로 돌려놓는다.
+    setSeriesShape(eventId, rrule, exdates) {
+      const row = q('SELECT c.kind FROM event e JOIN calendar c ON c.id = e.calendar_id WHERE e.id = ?').get(eventId);
+      if (!row || row.kind === 'subscription') return false;
+      q('UPDATE event SET rrule = ?, exdates = ?, updated_at = ? WHERE id = ?')
+        .run(rrule ?? null, exdates?.length ? JSON.stringify(exdates) : null, now(), eventId);
+      return true;
+    },
+
     // 되돌리기(EV-06). 소프트 삭제라 지웠던 행을 되살리기만 하면 된다.
     restoreEvent(id) {
       q('UPDATE event SET deleted_at = NULL, updated_at = ? WHERE id = ?').run(now(), id);

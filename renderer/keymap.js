@@ -206,7 +206,7 @@
       ['화면 안 분류 순환 (Work · 메모)',['work.tab.cycle']],['한 단계 뒤로 (편집 → 필터 → 화면 → Command)',['back']],
     ] },
     { title:'Dashboard', rows:[
-      ['항목 이동 (할 일 → Work · Note · Calendar)',['list.up','list.down','list.first','list.last']],['할 일 완료 · 되돌리기',['task.complete','work.undo']],['열기',['task.open']],
+      ['항목 이동 (할 일 → InBox · Waiting · 오늘 일정)',['list.up','list.down','list.first','list.last']],['할 일 완료 · 되돌리기',['task.complete','work.undo']],['열기',['task.open']],
     ] },
     { title:'할 일 목록', rows:[
       ['항목 선택',['list.up','list.down','list.first','list.last']],['검색 · 마감 필터 · 완료 기록',['work.search','work.dueFilter','work.doneHistory']],
@@ -248,12 +248,14 @@
     pick:[['pick.down','고르기','↑↓'],['pick.choose','확정','Enter'],['back','닫기']],
     pickNumbered:[['pick.down','고르기','↑↓'],[null,'번호로 바로','1 ~ 9'],['pick.choose','확정','Enter'],['back','닫기']],
     settings:[['settings.next','분류','← →'],['help.toggle','단축키 전체']],
-    settingsShortcuts:[['settings.next','분류','← →'],['app.save','저장'],['help.toggle','단축키 전체']],
+    settingsShortcuts:[['settings.next','분류','← →'],[null,'기록하면 바로 저장','조합'],[null,'되돌리기','Esc'],['help.toggle','단축키 전체']],
     calendarMonth:[['date.open','일정'],['event.new','새 일정'],['date.today','오늘'],['calendar.view','보기','Tab']],
     calendarList:[['agenda.new','새 일정'],['agenda.nextDay','이동','← →'],['agenda.today','오늘'],['calendar.view','보기','Tab']],
     event:[['event.rename','제목'],['event.move','옮기기'],['event.edit','자세히'],['event.delete','삭제'],['agenda.undo','되돌리기']],
     lineEdit:[[null,'저장','Enter'],['back','닫기']],
     dialog:[['app.save','저장'],['back','닫기']],
+    dialogClose:[['focus.cycle','이동','Tab'],['back','닫기']],
+    scopeDialog:[[null,'고르기','1 ~ 3'],[null,'실행','Enter'],['back','취소']],
     quickEvent:[[null,'추가','Enter'],['quickEvent.detail','자세히'],['back','닫기']],
     home:[['list.down','이동','↑↓'],['task.complete','완료'],[null,'열기','Enter'],['help.toggle','단축키 전체']],
   });

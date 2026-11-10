@@ -140,7 +140,7 @@ async function openQuick(){
       const before=(await events()).filter(e=>e.title==='아침 운동').length;
       await waitUntil(async()=>page.evaluate(()=>{const row=[...document.querySelectorAll('.td-main [data-event], .td-calendar-side [data-event]')].find(row=>row.textContent.includes('아침 운동'));row?.focus();return document.activeElement===row&&!!row;}),'반복 일정 행에 포커스를 두지 못했습니다.');
       await press('Enter');await page.locator('.event-form [name=scope]').waitFor();
-      assert.equal(await page.locator('.event-form [name=scope]').inputValue(),'one','반복 일정 편집 범위 기본값이 이 회차만이 아닙니다.');
+      assert.equal(await page.locator('.event-form [name=scope]').getAttribute('value'),'one','반복 일정 편집 범위 기본값이 이 회차만이 아닙니다.');
       await press('Escape');await waitUntil(async()=>!(await modalOpen('.event-form')),'폼이 닫히지 않았습니다.');
       await page.evaluate(()=>[...document.querySelectorAll('.td-main [data-event], .td-calendar-side [data-event]')].find(row=>row.textContent.includes('아침 운동'))?.focus());
       await press('e');await page.locator('.line-edit-form[data-mode=title]').waitFor();await press('Control+a');await text('아침 달리기');await press('Enter');
@@ -157,7 +157,9 @@ async function openQuick(){
       await screenshot('03-scope-chooser');
       await press('1');
       await waitUntil(async()=>(await events()).filter(e=>e.title==='아침 운동').length===remaining-1,'이 회차만 지워지지 않았습니다.');
-      assert.equal(await page.locator('.td-feedback [data-action=undo]').isVisible().catch(()=>false),false,'되돌릴 수 없는 회차 삭제에 되돌리기가 보입니다.');
+      // 회차 삭제도 앱의 다른 삭제처럼 되돌린다(삭제 전 규칙·제외일로).
+      await page.locator('.td-feedback [data-action=undo]').click();
+      await waitUntil(async()=>(await events()).filter(e=>e.title==='아침 운동').length===remaining,'회차 삭제를 되돌리지 못했습니다.');
     });
 
     assert.equal(errors.length,0,errors.join('\n'));
