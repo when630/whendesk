@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>WHENDESK</title>
+  <link rel="stylesheet" href="../libs/css/uspi.css">
+  <style>.note { color: #9a9a9a; font-size: 12px; line-height: 1.5; padding: 4px 0 0; }</style>
+</head>
+<body>
+  <div class="uspi-wrapper hidden">
+    <form id="property-inspector">
+      <div class="uspi-item">
+        <div class="uspi-item-label">항목</div>
+        <select class="uspi-item-value select" name="pick" id="pick">
+          <option value="inbox">인박스 (분류할 것)</option>
+          <option value="waiting">대기</option>
+          <option value="staleWaiting">5일 넘게 기다림</option>
+          <option value="overdue">마감 지남</option>
+          <option value="dueToday">오늘 마감</option>
+          <option value="postponed">세 번 넘게 미룸</option>
+          <option value="doneToday">오늘 완료</option>
+          <option value="todo">남은 할 일</option>
+        </select>
+      </div>
+    </form>
+    <div class="note">고른 항목의 개수를 보여 줘요. 마감 지남·오래 기다림·여러 번 미룸은 1개 이상이면 붉게 바뀌어요. 누르면 그 목록을 열어요.</div>
+  </div>
+  <script src="../libs/js/constants.js"></script>
+  <script src="../libs/js/eventEmitter.js"></script>
+  <script src="../libs/js/timers.js"></script>
+  <script src="../libs/js/utils.js"></script>
+  <script src="../libs/js/ulanziApi.js"></script>
+  <script>
+    const sel = document.getElementById('pick')
+    const form = document.getElementById('property-inspector')
+    const load = (jsn) => { if (jsn && jsn.param && jsn.param.pick !== undefined) sel.value = String(jsn.param.pick) }
+    $UD.connect()
+    $UD.onConnected(() => {
+      document.querySelector('.uspi-wrapper').classList.remove('hidden')
+      form.addEventListener('change', () => $UD.sendParamFromPlugin({ pick: sel.value }))
+    })
+    $UD.onAdd(load)
+    $UD.onParamFromApp(load)
+  </script>
+</body>
+</html>

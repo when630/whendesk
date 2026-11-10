@@ -55,6 +55,10 @@ Work는 원본 WHENWORK의 저장소와 날짜·검색·그룹 계산 코드를 
 
 Work 검색은 초성·제목·본문·프로젝트·대기 상대를 지원합니다. `마감순`, `최신순`, `오래된순`, `이름순`, `마감있음`, `마감없음`, `마감지남`, `오늘까지`, `이번주`, `메모있음`, `미완료`, `#프로젝트`, `#미지정`을 조합할 수 있습니다. 지난 완료·삭제 항목은 검색 결과 아래에 표시되며 Enter·Space로 되살릴 수 있습니다. 보관한 프로젝트는 완료 기록을 유지하고 미완료 항목을 InBox로 옮깁니다. 같은 실행에서 보관을 되돌리면 아직 재분류하지 않은 항목도 복귀합니다.
 
+## 스트림덱(Ulanzi) 플러그인
+
+`integrations/ulanzi/`의 플러그인을 Ulanzi Studio에 넣으면 키에 오늘 할 일·다음 일정·인박스 개수를 보여 주고, 키를 눌러 할 일을 완료·취소하거나 클립보드 글을 창 없이 담습니다. 앱은 `127.0.0.1:37632`에서만 덱 통로를 엽니다. 설치와 액션은 [integrations/ulanzi/README.md](integrations/ulanzi/README.md)를 보세요.
+
 ## 실행
 
 [릴리스](https://github.com/when630/whendesk/releases/latest)의 `WHENDESK-<버전>-win-x64.exe`로 설치합니다. 사용자 폴더(`%LOCALAPPDATA%ProgramsWHENDESK`)에 설치되어 관리자 권한이 필요 없고, 서명되지 않은 설치 파일이라 Windows SmartScreen이 경고하면 "추가 정보 → 실행"을 누릅니다.

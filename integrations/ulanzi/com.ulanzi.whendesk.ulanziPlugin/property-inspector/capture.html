@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>WHENDESK</title>
+  <link rel="stylesheet" href="../libs/css/uspi.css">
+  <style>.note { color: #9a9a9a; font-size: 12px; line-height: 1.5; padding: 4px 0 0; }</style>
+</head>
+<body>
+  <div class="uspi-wrapper hidden">
+    <form id="property-inspector">
+      <div class="uspi-item">
+        <div class="uspi-item-label">담을 것</div>
+        <select class="uspi-item-value select" name="mode" id="mode">
+          <option value="clipboard">클립보드 글</option>
+          <option value="phrase">정해 둔 문구</option>
+        </select>
+      </div>
+      <div class="uspi-item" id="phrase-row">
+        <div class="uspi-item-label">문구</div>
+        <input class="uspi-item-value" type="text" name="phrase" id="phrase" maxlength="500" placeholder=". 주간보고 작성">
+      </div>
+    </form>
+    <div class="note">창을 열지 않고 담아요. 맨 앞 접두 기호로 받을 곳이 바뀌어요: <b>. </b>할 일(기본, 인박스) · <b>@ </b>일정(날짜·시간 해석) · <b>- </b>메모. 여러 줄이면 첫 줄이 할 일 제목, 나머지는 상세 내용이 돼요.</div>
+  </div>
+  <script src="../libs/js/constants.js"></script>
+  <script src="../libs/js/eventEmitter.js"></script>
+  <script src="../libs/js/timers.js"></script>
+  <script src="../libs/js/utils.js"></script>
+  <script src="../libs/js/ulanziApi.js"></script>
+  <script>
+    const mode = document.getElementById('mode')
+    const phrase = document.getElementById('phrase')
+    const row = document.getElementById('phrase-row')
+    const form = document.getElementById('property-inspector')
+    const sync = () => { row.style.display = mode.value === 'phrase' ? '' : 'none' }
+    const load = (jsn) => {
+      const p = (jsn && jsn.param) || {}
+      if (p.mode) mode.value = p.mode
+      if (typeof p.phrase === 'string') phrase.value = p.phrase
+      sync()
+    }
+    const save = () => { sync(); $UD.sendParamFromPlugin({ mode: mode.value, phrase: phrase.value }) }
+    $UD.connect()
+    $UD.onConnected(() => {
+      document.querySelector('.uspi-wrapper').classList.remove('hidden')
+      sync()
+      form.addEventListener('change', save)
+      phrase.addEventListener('input', save)
+    })
+    $UD.onAdd(load)
+    $UD.onParamFromApp(load)
+  </script>
+</body>
+</html>

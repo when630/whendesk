@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>WHENDESK</title>
+  <link rel="stylesheet" href="../libs/css/uspi.css">
+  <style>.note { color: #9a9a9a; font-size: 12px; line-height: 1.5; padding: 4px 0 0; }</style>
+</head>
+<body>
+  <div class="uspi-wrapper hidden">
+    <form id="property-inspector">
+      <div class="uspi-item">
+        <div class="uspi-item-label">화면</div>
+        <select class="uspi-item-value select" name="view" id="view">
+          <option value="dashboard">대시보드</option>
+          <option value="command">입력줄 (Command)</option>
+          <option value="inbox">인박스</option>
+          <option value="todo">할 일</option>
+          <option value="waiting">대기</option>
+          <option value="calendar">캘린더</option>
+        </select>
+      </div>
+    </form>
+    <div class="note">누르면 WHENDESK에서 고른 화면을 열어요.</div>
+  </div>
+  <script src="../libs/js/constants.js"></script>
+  <script src="../libs/js/eventEmitter.js"></script>
+  <script src="../libs/js/timers.js"></script>
+  <script src="../libs/js/utils.js"></script>
+  <script src="../libs/js/ulanziApi.js"></script>
+  <script>
+    const sel = document.getElementById('view')
+    const form = document.getElementById('property-inspector')
+    const load = (jsn) => { if (jsn && jsn.param && jsn.param.view !== undefined) sel.value = String(jsn.param.view) }
+    $UD.connect()
+    $UD.onConnected(() => {
+      document.querySelector('.uspi-wrapper').classList.remove('hidden')
+      form.addEventListener('change', () => $UD.sendParamFromPlugin({ view: sel.value }))
+    })
+    $UD.onAdd(load)
+    $UD.onParamFromApp(load)
+  </script>
+</body>
+</html>

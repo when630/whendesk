@@ -10,6 +10,7 @@ import {pickPosition,visibleOnAnyDisplay} from './place.mjs';
 import {createToast} from './toast.mjs';
 import {briefDecision,briefingLines,dayKey,STALE_WAITING_DAYS} from '../modules/work/main/brief.mjs';
 import {exportWorkspace,prepareRestore,prepareLegacy,installPrepared} from './data.mjs';
+import {DeckBridge,summarize as deckSummary,captureIntent} from './deck.mjs';
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const argv=process.argv.slice(1);
 function option(name){const eq=argv.find(a=>a.startsWith(name+'='));if(eq)return eq.slice(name.length+1);const i=argv.indexOf(name);return i>=0?argv[i+1]:null;}
@@ -50,7 +51,8 @@ async function bootstrap(){
  function rememberDashboard(now=false){if(!win||win.isDestroyed()||shellMode!=='dashboard'||win.isMinimized()||win.isMaximized())return;dashboardBounds=win.getBounds();clearTimeout(dashboardSaveTimer);const save=()=>{if(!testMode)preferences.set({dashboardBounds});};if(now)save();else dashboardSaveTimer=setTimeout(save,400);}
  const rendererURL=pathToFileURL(path.join(ROOT,'renderer','index.html')).href;
  const send=(event,payload)=>{if(win&&!win.isDestroyed())win.webContents.send(event,payload);};
- const changed=()=>send('state.changed',{});
+ let deck=null;
+ const changed=()=>{send('state.changed',{});deck?.changed();};
  async function requestQuit(){
   try{if(win&&!win.isDestroyed())await win.webContents.executeJavaScript('window.__whendeskFlush ? window.__whendeskFlush() : Promise.resolve()');}
   catch(error){await dialog.showMessageBox(win,{type:'error',message:'변경 내용을 저장하지 못해 종료를 취소했습니다.',detail:error.message});return;}
@@ -274,12 +276,51 @@ async function bootstrap(){
   'window.painted':()=>reveal(),
   'app.quit':()=>requestQuit(),
  };
+ /* 스트림덱 플러그인(integrations/ulanzi)용 로컬 통로. 덱에서 한 변경도 화면과 같은 줄(mutationTail)에 선다. */
+ async function startDeck(){
+  if(testMode||argv.includes('--no-deck'))return;
+  await import('../renderer/rapid.js');const rapid=globalThis.WhendeskRapid;
+  const mutateNow=(type,payload)=>enqueueMutation(()=>domain.mutate(type,payload));
+  deck=new DeckBridge({
+   busy:()=>dataBusy,
+   snapshot:()=>{
+    const now=new Date(),data=domain.work.exportAll();
+    const from=new Date(now.getFullYear(),now.getMonth(),now.getDate()-1),to=new Date(now.getFullYear(),now.getMonth(),now.getDate()+2);
+    return deckSummary({items:data.item,projects:data.project,events:domain.calendar.listBetween(from.toISOString(),to.toISOString()),now});
+   },
+   complete:async(id,done)=>{await mutateNow('task.complete',{id,done});changed();},
+   cancel:async(id,cancelled)=>{await mutateNow('task.cancel',{id,cancelled});changed();},
+   clipboard:()=>clipboard.readText(),
+   capture:async raw=>{
+    const intent=captureIntent(raw,rapid);if(!intent)throw new Error('담을 글이 없어요');
+    let result;
+    if(intent.kind==='note'){await mutateNow('note.create',{body:intent.text});result={kind:'note',message:'메모에 담았어요'};}
+    else if(intent.kind==='event'){
+     const parsed=await mutateNow('calendar.parse',{text:intent.text});if(!parsed?.ok)throw new Error('일정의 날짜를 알아듣지 못했어요');
+     await mutateNow('event.create',parsed);result={kind:'event',message:'일정에 담았어요'};
+    }else{
+     const [first,...rest]=intent.text.split('\n');const title=first.trim().slice(0,500)||intent.text.slice(0,500),note=rest.join('\n').trim();
+     const task=await mutateNow('task.create',{title});if(note)await mutateNow('task.update',{id:task.id,note});
+     result={kind:'task',message:'인박스에 담았어요'};
+    }
+    changed();return result;
+   },
+   open:(view,{id=null,date=null}={})=>{
+    if(view==='command')showCommand();
+    else if(['inbox','todo','waiting'].includes(view))showDashboard(id?{view:'tasks',id}:{view:'tasks',tab:view});
+    else if(view==='calendar')showDashboard(id?{view:'calendar',id:Number(id),date:/^\d{4}-\d{2}-\d{2}$/.test(date||'')?date:undefined}:{view:'calendar'});
+    else showDashboard();
+   },
+  });
+  deck.start();
+ }
+ startDeck().catch(error=>console.error('덱 통로:',error.message));
  ipcMain.handle('desk:call',async(event,method,payload)=>{
   if(event.sender!==win.webContents||event.senderFrame?.url!==rendererURL)return {ok:false,error:'허용하지 않는 호출입니다.'};
   try{if(!Object.hasOwn(methods,method))throw new Error('허용하지 않는 요청입니다.');return {ok:true,value:await methods[method](payload)};}catch(error){console.error(method,error);return {ok:false,error:error.message||String(error),...(error.fields?{fields:error.fields}:{})};}
  });
  win.webContents.on('render-process-gone',(_event,details)=>{console.error('renderer stopped',details);});
- app.on('before-quit',()=>{quitting=true;toast?.dispose();shortcutManager.dispose();clearInterval(mediaTimer);mediaControl?.stop();stopServices();tray?.destroy();});
+ app.on('before-quit',()=>{quitting=true;deck?.stop();toast?.dispose();shortcutManager.dispose();clearInterval(mediaTimer);mediaControl?.stop();stopServices();tray?.destroy();});
  await win.loadFile(path.join(ROOT,'renderer','index.html'));
  const hiddenStart=argv.includes('--hidden')||updatedQuietly;
  if(!argv.includes('--headless')&&!hiddenStart){win.show();win.focus();}

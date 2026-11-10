@@ -1,0 +1,129 @@
+{
+  "Author": "when630",
+  "Name": "WHENDESK",
+  "Description": "WHENDESK 할 일·일정을 키에 보여 주고, 눌러 완료하거나 담는다",
+  "Icon": "assets/plugin.png",
+  "Version": "0.1.0",
+  "Category": "WHENDESK",
+  "CategoryIcon": "assets/category.png",
+  "CodePath": "plugin/app.html",
+  "Type": "JavaScript",
+  "UUID": "com.ulanzi.ulanzistudio.whendesk",
+  "SupportedInMultiActions": false,
+  "Actions": [
+    {
+      "Name": "오늘",
+      "Icon": "assets/action-today.png",
+      "UUID": "com.ulanzi.ulanzistudio.whendesk.today",
+      "PropertyInspectorPath": "property-inspector/today.html",
+      "Tooltip": "남은 할 일 수와 지연·오늘 마감·오늘 완료. 누르면 대시보드를 연다",
+      "States": [
+        {
+          "Name": "Today",
+          "Image": "assets/action-today.png"
+        }
+      ],
+      "Controllers": [
+        "Keypad"
+      ],
+      "Devices": [],
+      "SupportedInMultiActions": false
+    },
+    {
+      "Name": "할 일",
+      "Icon": "assets/action-task.png",
+      "UUID": "com.ulanzi.ulanzistudio.whendesk.task",
+      "PropertyInspectorPath": "property-inspector/task.html",
+      "Tooltip": "놓은 순서대로 오늘 할 일을 하나씩 보여 준다. 짧게 누르면 완료, 길게 누르면 취소, 5초 안에 다시 누르면 되돌린다",
+      "States": [
+        {
+          "Name": "Task",
+          "Image": "assets/action-task.png"
+        }
+      ],
+      "Controllers": [
+        "Keypad"
+      ],
+      "Devices": [],
+      "SupportedInMultiActions": false
+    },
+    {
+      "Name": "다음 일정",
+      "Icon": "assets/action-next.png",
+      "UUID": "com.ulanzi.ulanzistudio.whendesk.next",
+      "PropertyInspectorPath": "property-inspector/next.html",
+      "Tooltip": "다음 일정의 시각·남은 시간·제목. 누르면 캘린더에서 그 일정을 연다",
+      "States": [
+        {
+          "Name": "Next",
+          "Image": "assets/action-next.png"
+        }
+      ],
+      "Controllers": [
+        "Keypad"
+      ],
+      "Devices": [],
+      "SupportedInMultiActions": false
+    },
+    {
+      "Name": "개수",
+      "Icon": "assets/action-count.png",
+      "UUID": "com.ulanzi.ulanzistudio.whendesk.count",
+      "PropertyInspectorPath": "property-inspector/count.html",
+      "Tooltip": "인박스·대기·마감 지남 등 하나의 개수. 누르면 그 목록을 연다",
+      "States": [
+        {
+          "Name": "Count",
+          "Image": "assets/action-count.png"
+        }
+      ],
+      "Controllers": [
+        "Keypad"
+      ],
+      "Devices": [],
+      "SupportedInMultiActions": false
+    },
+    {
+      "Name": "담기",
+      "Icon": "assets/action-capture.png",
+      "UUID": "com.ulanzi.ulanzistudio.whendesk.capture",
+      "PropertyInspectorPath": "property-inspector/capture.html",
+      "Tooltip": "클립보드 글이나 정해 둔 문구를 창을 열지 않고 담는다",
+      "States": [
+        {
+          "Name": "Capture",
+          "Image": "assets/action-capture.png"
+        }
+      ],
+      "Controllers": [
+        "Keypad"
+      ],
+      "Devices": [],
+      "SupportedInMultiActions": false
+    },
+    {
+      "Name": "열기",
+      "Icon": "assets/action-open.png",
+      "UUID": "com.ulanzi.ulanzistudio.whendesk.open",
+      "PropertyInspectorPath": "property-inspector/open.html",
+      "Tooltip": "입력줄·대시보드·인박스·할 일·대기·캘린더 중 하나를 연다",
+      "States": [
+        {
+          "Name": "Open",
+          "Image": "assets/action-open.png"
+        }
+      ],
+      "Controllers": [
+        "Keypad"
+      ],
+      "Devices": [],
+      "SupportedInMultiActions": false
+    }
+  ],
+  "OS": [
+    {
+      "Platform": "windows",
+      "MinimumVersion": "10"
+    }
+  ]
+}

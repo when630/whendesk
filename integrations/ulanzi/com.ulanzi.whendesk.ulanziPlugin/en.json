@@ -1,0 +1,31 @@
+{
+  "Name": "WHENDESK",
+  "Description": "Shows WHENDESK to-dos and events on keys; press to complete or capture",
+  "Actions": [
+    {
+      "Name": "Today",
+      "Tooltip": "Open to-dos with overdue / due today / done today. Press to open the dashboard"
+    },
+    {
+      "Name": "To-do",
+      "Tooltip": "Shows one to-do per key in placement order. Press to complete, hold to cancel, press again within 5s to undo"
+    },
+    {
+      "Name": "Next event",
+      "Tooltip": "Time, countdown and title of the next event. Press to open it in the calendar"
+    },
+    {
+      "Name": "Count",
+      "Tooltip": "One count: inbox, waiting, overdue and more. Press to open that list"
+    },
+    {
+      "Name": "Capture",
+      "Tooltip": "Capture the clipboard text or a preset phrase without opening a window"
+    },
+    {
+      "Name": "Open",
+      "Tooltip": "Open the command bar, dashboard, inbox, to-dos, waiting or calendar"
+    }
+  ],
+  "Localization": {}
+}
