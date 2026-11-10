@@ -489,8 +489,14 @@ export function createDomain({ dataDir, fetchImpl = globalThis.fetch } = {}) {
           }
           const id = calendar.splitEventSeries(current.id, occurrenceId, fields);
           if (!id) throw new Error('반복 일정을 나누지 못했습니다.');
+          // 새 시리즈로 넘어온 제외일·회차 수정은 옛 시각을 가리킨다. 첫 회차가 옮겨진 만큼 함께 옮긴다.
+          calendar.shiftExceptions(id, Date.parse(fields.startsAt) - Date.parse(occurrenceId));
           return normalizeEvent(rawEvent(id));
-        } else if (!calendar.updateEvent(current.id, fields)) throw new Error('일정을 수정하지 못했습니다.');
+        } else {
+          if (!calendar.updateEvent(current.id, fields)) throw new Error('일정을 수정하지 못했습니다.');
+          // 반복 시리즈 전체를 옮겼으면 제외일·회차 수정도 같은 만큼 옮긴다(빼 둔 회차가 되살아나지 않게).
+          if (current.rrule && fields.rrule) calendar.shiftExceptions(current.id, Date.parse(fields.startsAt) - Date.parse(current.startsAt));
+        }
         return normalizeEvent(rawEvent(current.id));
       }
       case 'event.delete': {

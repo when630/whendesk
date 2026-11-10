@@ -138,6 +138,32 @@ test('매주 화요일 회의를 이 회차부터 수요일로 옮기면 반복 
   assert.match(domain.calendar.getEvent(once.id).rrule, /BYDAY=TU/);
 });
 
+test('반복 일정의 시각을 옮겨도 빼 둔 회차는 빠진 채, 고친 회차는 한 번만 보인다', async t => {
+  const { domain } = setup(t);
+  const november = { year: 2026, month: 10 };
+  const at = (date, time) => new Date(`${date}T${time}:00`).toISOString();
+  const event = await domain.mutate('event.create', { title: '주간회의', date: '2026-11-03', time: '17:00', end: '18:00', rrule: 'FREQ=WEEKLY;BYDAY=TU' });
+  const occurrence = date => domain.state(november).events.find(item => item.id === event.id && item.date === date);
+  await domain.mutate('event.delete', { id: event.id, recurrenceId: occurrence('2026-11-10').recurrenceId, scope: 'one' });
+  await domain.mutate('event.update', { id: event.id, recurrenceId: occurrence('2026-11-17').recurrenceId, scope: 'one', title: '이번만 다른 이름' });
+  // 전체를 17:00 → 10:30으로
+  const first = occurrence('2026-11-03');
+  await domain.mutate('event.update', { id: event.id, recurrenceId: first.recurrenceId, scope: 'all', startsAt: at('2026-11-03', '10:30'), endsAt: at('2026-11-03', '11:30'), allDay: false });
+  const list = domain.state(november).events.filter(item => item.id === event.id);
+  const byDate = date => list.filter(item => item.date === date);
+  assert.equal(byDate('2026-11-10').length, 0, '빼 둔 11/10 회차가 되살아났다');
+  assert.equal(byDate('2026-11-17').length, 1, '고친 11/17 회차가 두 번 보인다');
+  assert.equal(byDate('2026-11-17')[0].title, '이번만 다른 이름');
+  assert.equal(byDate('2026-11-17')[0].time, '10:30', '제자리 수정 회차도 새 시각으로');
+  assert.ok(list.every(item => item.time === '10:30'));
+  // 이 회차부터 하루 뒤(수)로 나누어도 넘어간 제외일이 맞는다
+  await domain.mutate('event.delete', { id: event.id, recurrenceId: occurrence('2026-11-24').recurrenceId, scope: 'one' });
+  const split = await domain.mutate('event.update', { id: event.id, recurrenceId: occurrence('2026-11-17').recurrenceId, scope: 'future', startsAt: at('2026-11-18', '10:30'), endsAt: at('2026-11-18', '11:30'), allDay: false });
+  const after = domain.state(november).events.filter(item => item.id === split.id).map(item => item.date);
+  assert.ok(after.includes('2026-11-18'), '옮긴 첫 회차가 있다');
+  assert.ok(!after.includes('2026-11-25'), '빼 둔 회차(11/24 → 11/25)가 되살아났다');
+});
+
 test('구독 일정은 수정·삭제할 수 없고 동기화 실패에도 기존 내용이 남는다', async t => {
   let fail = false;
   const { domain } = setup(t, { fetchImpl: async () => fail ? { ok: false, status: 503 } : { ok: true, status: 200, text: async () => sampleIcs, headers: { get: () => null } } });

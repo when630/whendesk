@@ -557,6 +557,34 @@ export function createStore(file) {
       return true;
     },
 
+    // WHENDESK: 반복 시리즈의 시각(·요일)을 통째로 옮기면 회차를 가리키는 키도 같은 만큼 옮긴다.
+    // 제외일(EXDATE)과 한 회차 수정(override.recurrence_id)은 원래 회차 시각으로 회차를 찾는다 —
+    // 옮기지 않으면 빼 둔 회차가 되살아나고 고친 회차가 원래 모습과 함께 두 번 보인다.
+    // 회차를 따로 옮겨 둔 수정(시작이 원래 회차와 다른 것)은 사람이 정한 시각이라 그대로 두고, 제자리 수정은 함께 옮긴다.
+    shiftExceptions(eventId, deltaMs) {
+      if (!deltaMs) return true;
+      const row = q('SELECT e.exdates, c.kind FROM event e JOIN calendar c ON c.id = e.calendar_id WHERE e.id = ?').get(eventId);
+      if (!row || row.kind === 'subscription') return false;
+      const move = (iso) => (iso ? new Date(Date.parse(iso) + deltaMs).toISOString() : iso);
+      return withTransaction(db, () => {
+        if (row.exdates) {
+          const list = JSON.parse(row.exdates).map(move);
+          q('UPDATE event SET exdates = ?, updated_at = ? WHERE id = ?').run(JSON.stringify(list), now(), eventId);
+        }
+        const overrides = q('SELECT * FROM override WHERE event_id = ?').all(eventId);
+        if (overrides.length) {
+          // 같은 만큼 옮기면 서로 겹치지 않지만, 한 행씩 바꾸면 중간에 고유 색인이 부딪힐 수 있어 지우고 다시 넣는다.
+          q('DELETE FROM override WHERE event_id = ?').run(eventId);
+          const insert = q('INSERT INTO override (event_id, recurrence_id, starts_at, ends_at, title, cancelled) VALUES (?, ?, ?, ?, ?, ?)');
+          for (const o of overrides) {
+            const inPlace = !o.starts_at || Date.parse(o.starts_at) === Date.parse(o.recurrence_id);
+            insert.run(eventId, move(o.recurrence_id), inPlace ? move(o.starts_at) : o.starts_at, inPlace ? move(o.ends_at) : o.ends_at, o.title, o.cancelled);
+          }
+        }
+        return true;
+      });
+    },
+
     // 이 회차만 뺀다. EXDATE에 넣는 것과 같다 — 표준으로 내보낼 때 그대로 나간다.
     excludeOccurrence(eventId, recurrenceId) {
       const row = q('SELECT e.exdates, c.kind FROM event e JOIN calendar c ON c.id = e.calendar_id WHERE e.id = ?').get(eventId);
