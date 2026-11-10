@@ -282,3 +282,7 @@
 #whendesk-command-first .calendar-tools{margin:22px 0 6px;gap:14px}
 #whendesk-command-first .calendar-tools .work-text-button{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--td-muted)}
 #whendesk-command-first .calendar-tools .work-text-button svg{width:13px;height:13px}
+/* 담기 모드: 입력하는 동안에도 어디에 담기는지 입력줄 오른쪽에 보인다 */
+#whendesk-command-first.is-capture .cf-command-panel .td-command::after{content:attr(data-capture-label);flex:0 0 auto;margin-left:auto;padding:2px 8px;border-radius:3px;font-size:11px;white-space:nowrap;color:var(--td-muted);background:var(--td-wash)}
+/* 대시보드 알림은 하단 힌트·번호 띠를 가리지 않게 그 위에 뜬다 */
+#whendesk-command-first:not(.is-command) .td-feedback{bottom:76px}

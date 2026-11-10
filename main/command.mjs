@@ -67,6 +67,23 @@ function intentItem(intent, text, extra = {}) {
   return { key:`intent:${intent}`, source:target.source, title:target.title, subtitle:text, icon:target.icon, base:.6, ...extra, action:{ type:target.type, text } };
 }
 
+/* 결과 부제목용: 마감은 대시보드·Work 배지와 같은 말(오늘·D-3·D+2), 일정은 사람이 읽는 날짜·시각. */
+function dueText(due, now = new Date()) {
+  if (!due || !/^\d{4}-\d{2}-\d{2}$/.test(due)) return '';
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()), [y, m, d] = due.split('-').map(Number);
+  const days = Math.round((new Date(y, m - 1, d) - today) / 86400000);
+  return days === 0 ? '오늘 마감' : days > 0 ? `D-${days}` : `D+${-days} 지남`;
+}
+function whenText(event) {
+  const start = new Date(event.startsAt || event.starts_at || event.date);
+  if (!Number.isFinite(start.getTime())) return '';
+  const day = `${start.getMonth() + 1}월 ${start.getDate()}일 (${'일월화수목금토'[start.getDay()]})`;
+  return event.allDay ? `${day} 종일` : `${day} ${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`;
+}
+function plainSnippet(text) {
+  return String(text || '').split('\n').map(line => line.replace(/^\s*(?:[-*+]\s+\[[ xX]\]\s+|[-*+]\s+|\d+[.)]\s+|#{1,6}\s+|>\s?)/, ''))
+    .join(' ').replace(/(\*\*|__|~~|`)/g, '').replace(/\s-\s\[[ xX]\]\s/g, ' ').replace(/\s[-*+]\s/g, ' ').replace(/(^|\s)#[^\s#]+/g, '$1').replace(/\s+/g, ' ').trim();
+}
 function localDate(value) {
   if (!value) return '';
   const date = new Date(value);
@@ -227,7 +244,7 @@ export function createCommand({ dataDir, domain, onMore, onLaunch, platform: pro
     for (const task of state.tasks || []) {
       if (task.deleted) continue;
       addMatched(out, q, { key: `tasks:${task.id}`, source: 'tasks', title: task.title,
-        subtitle: [task.cancelled ? '취소' : task.done ? '완료' : task.kind === 'waiting' ? 'Waiting' : task.kind === 'inbox' ? 'InBox' : 'ToDo', task.project, task.due].filter(Boolean).join(' · '),
+        subtitle: [task.cancelled ? '취소' : task.done ? '완료' : task.kind === 'waiting' ? 'Waiting' : task.kind === 'inbox' ? 'InBox' : '', task.project, task.done ? '' : dueText(task.due)].filter(Boolean).join(' · '),
         searchText: [task.note, task.waitingFor, task.project].filter(Boolean).join(' '), icon: 'circle-check', done: !!task.done, cancelled: !!task.cancelled,
         action: { type: 'route', route: { view: 'tasks', tab: task.done ? 'done' : task.kind, id: task.id } } }, .9);
     }
@@ -235,7 +252,7 @@ export function createCommand({ dataDir, domain, onMore, onLaunch, platform: pro
     const events = typeof domain.calendar?.searchEvents === 'function' ? domain.calendar.searchEvents(q) : (state.events || []);
     for (const event of events) {
       addMatched(out, q, { key: `events:${event.id}`, source: 'events', title: event.title,
-        subtitle: [event.startsAt || event.starts_at || event.date, event.location].filter(Boolean).join(' · '),
+        subtitle: [whenText(event), event.location].filter(Boolean).join(' · '),
         icon: 'calendar-days', recurring: !!(event.rrule || event.recurrence || event.recurrenceId), action: { type: 'route', route: { view: 'calendar', id: event.id,
           date: event.date || localDate(event.startsAt || event.starts_at) } } }, .85);
     }
@@ -245,7 +262,7 @@ export function createCommand({ dataDir, domain, onMore, onLaunch, platform: pro
       for (const note of found.items || []) {
         const matched = match(q, note.title);
         out.push({ key:`notes:${note.id}`, source:'notes', title:note.title,
-          subtitle:[...(note.tags || []).map(tag => '#' + tag), note.snippet].filter(Boolean).join(' · '),
+          subtitle:[...(note.tags || []).map(tag => '#' + tag), plainSnippet(note.snippet)].filter(Boolean).join(' · '),
           icon:'notebook-pen', base:Math.max(matched.score * .9, .55), positions:matched.positions, via:matched.via,
           action:{ type:'route', route:{ view:'notes', id:note.id } } });
       }
@@ -253,7 +270,7 @@ export function createCommand({ dataDir, domain, onMore, onLaunch, platform: pro
       for (const note of state.notes || []) {
         if (note.deleted || note.deleted_at || note.archived || note.archived_at) continue;
         addMatched(out, q, { key:`notes:${note.id}`, source:'notes', title:note.title,
-          subtitle:note.snippet || '', searchText:[note.body, ...(note.tags || [])].filter(Boolean).join(' '), icon:'notebook-pen',
+          subtitle:plainSnippet(note.snippet), searchText:[note.body, ...(note.tags || [])].filter(Boolean).join(' '), icon:'notebook-pen',
           action:{ type:'route', route:{ view:'notes', id:note.id } } }, .9);
       }
     }

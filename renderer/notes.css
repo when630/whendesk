@@ -66,3 +66,9 @@
 #whendesk-command-first .desk-note-tools .desk-note-danger{margin-left:8px;color:light-dark(#a0473a,#e08b7d)}
 #whendesk-command-first .desk-note-toolbar .desk-note-title{flex:0 1 auto}
 #whendesk-command-first .desk-note-toolbar .desk-note-tools{margin-left:auto}
+/* 좁은 창: 제목과 모드 표시는 한 줄, 도구는 그 아래 한 줄 */
+@media(max-width:900px){
+  #whendesk-command-first .desk-note-toolbar{flex-direction:row;flex-wrap:wrap;align-items:center}
+  #whendesk-command-first .desk-note-toolbar .desk-note-title{width:auto;max-width:calc(100% - 70px)}
+  #whendesk-command-first .desk-note-toolbar .desk-note-tools{flex-basis:100%;margin-left:0}
+}

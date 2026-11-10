@@ -337,7 +337,8 @@
     tabs.hidden=state.view!=='tasks';
     if(tabs.hidden){body.removeAttribute('role');body.removeAttribute('aria-labelledby');return;}
     const focused=tabs.contains(document.activeElement)?document.activeElement?.closest('[data-tab]')?.dataset.tab:null;
-    const count = kind => kind==='projects'?state.projects.length:state.tasks.filter(task=>!task.deleted&&(kind==='done'?task.done:!task.done&&task.kind===kind)).length;
+    const inProject=task=>!state.project||(state.project==='unassigned'?task.project_id==null:task.project_id===state.project);
+    const count = kind => kind==='projects'?state.projects.length:state.tasks.filter(task=>!task.deleted&&inProject(task)&&(kind==='done'?task.done:!task.done&&task.kind===kind)).length;
     tabs.innerHTML=workTabs.map(([key,label])=>`<button id="work-tab-${key}" data-tab="${key}" role="tab" aria-selected="${state.tab===key}" aria-controls="work-panel" tabindex="${state.tab===key?0:-1}" class="${state.tab===key?'active':''}"><span>${label}</span><small>${count(key)}</small></button>`).join('');
     body.id='work-panel';body.setAttribute('role','tabpanel');body.setAttribute('aria-labelledby',`work-tab-${state.tab}`);
     if(focused)tabs.querySelector(`[data-tab="${CSS.escape(focused)}"]`)?.focus({preventScroll:true});
@@ -450,7 +451,7 @@
   /* 그날 마감인 열린 할 일. 오늘에는 마감이 지난 일도 함께 보인다(놓치지 않게). 누르면 그 할 일을 연다. */
   function deadlineTasks(date) { return state.tasks.filter(t => !t.done && t.due && (t.due === date || date === today && t.due < today)).sort((a, b) => a.due.localeCompare(b.due)); }
   function deadlineRows(date) {
-    return deadlineTasks(date).map(t => { const glyph = taskGlyph(t), late = t.due < today; return `<button class="td-deadline${late ? ' is-late' : ''}" data-reveal="${esc(t.id)}"><b class="td-deadline-glyph" aria-hidden="true">${glyph.glyph}</b><span>${esc(t.title)}</span>${late ? `<small class="work-overdue">${esc(workRules.dueBadge(t.due)?.text || '지남')}</small>` : ''}</button>`; }).join('');
+    return deadlineTasks(date).map(t => { const glyph = state.prefs?.taskMarker === 'checkbox' ? { glyph:'□' } : taskGlyph(t), late = t.due < today; return `<button class="td-deadline${late ? ' is-late' : ''}" data-reveal="${esc(t.id)}"><b class="td-deadline-glyph" aria-hidden="true">${glyph.glyph}</b><span>${esc(t.title)}</span>${late ? `<small class="work-overdue">${esc(workRules.dueBadge(t.due)?.text || '지남')}</small>` : ''}</button>`; }).join('');
   }
   /* 캘린더 보기: 오늘·주는 키보드로 훑기 빠른 목록, 월은 격자(원본 WHENCALENDAR). Tab·Shift+Tab으로 순환한다. */
   const CAL_VIEWS = [['today','오늘'],['week','주'],['month','월']];
@@ -1053,6 +1054,8 @@
   };
   function enterCapture(kind) {
     if (!CAPTURE[kind]) return; command.capture = kind; capturePreview = ''; capturePreviewSeq++; root.classList.add('is-capture');
+    // 입력을 시작하면 자리 표시 문구가 사라지므로, 어디에 담기는지는 입력줄 오른쪽에 계속 보인다.
+    root.querySelector('.td-command').dataset.captureLabel = kind === 'note' ? '메모에 담기 · Enter' : 'InBox에 담기 · Enter';
     // 대시보드에서 남은 알림이 담기 미리보기 줄을 덮지 않게 닫는다. 되돌리기는 U 타임라인에 남아 있다.
     root.querySelector('.td-feedback').hidden = true;
     commandInput.value = ''; queueCommandQuery('', 0, true); clearCommandNotice(); commandInput.focus({ preventScroll:true });

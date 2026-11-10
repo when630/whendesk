@@ -55,7 +55,7 @@
 
     A('task.open','task','편집',['Mod+KeyE','Enter']),
     A('task.complete','task','완료',['Space']),
-    A('task.cancel','task','취소 (안 하기로 함)',['KeyC']),
+    A('task.cancel','task','안 하기 (취소)',['KeyC']),
     A('task.collapse','task','상세 편집 접기',['Mod+Enter']),
     A('task.title','task','제목',['KeyE']),
     A('task.due','task','마감',['KeyD']),
