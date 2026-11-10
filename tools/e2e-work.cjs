@@ -187,6 +187,20 @@ function setOwnedFixtureDoneDates(entries){
       assert.equal((await task(taskId)).project_id,secondProjectId);await screenshot('04-work-waiting');
     });
 
+    await test('InBox 마지막 항목을 숫자키로 프로젝트에 보내면 포커스는 InBox 탭에 남고 Tab으로 다음 분류로 넘어간다',async()=>{
+      // InBox를 이 항목 하나만 남게 한 뒤 되돌린다.
+      const others=(await state()).tasks.filter(item=>item.kind==='inbox'&&!item.done);
+      for(const item of others)await call('mutate',{type:'task.delete',payload:{id:item.id}});
+      const last=await call('mutate',{type:'task.create',payload:{title:'마지막 InBox '+runId}});
+      await gotoTab('inbox');await focusTask(last.id);await press('1');
+      await waitUntil(async()=>(await task(last.id))?.kind==='todo','숫자키로 프로젝트를 지정하지 못했습니다.');
+      await waitFocus('.td-work-nav [data-tab=inbox]');
+      await press('Tab');await waitUntil(async()=>await activeTab()==='todo','빈 InBox에서 Tab이 다음 분류로 넘어가지 않았습니다.');
+      assert.equal(await focusWithin('.td-quick'),false,'Tab이 InBox 입력칸으로 갔습니다.');
+      for(const item of others)await call('mutate',{type:'task.restore',payload:{id:item.id}});
+      await call('mutate',{type:'task.delete',payload:{id:last.id}});
+    });
+
     await test('두 할 일 연속 삭제를 빈 목록에서도 U로 역순 복원',async()=>{
       await gotoTab('waiting');await focusTask(taskId);await press('Delete');await waitUntil(async()=>!(await task(taskId)),'선택한 할 일이 삭제되지 않았습니다.');
       await focusTask(fixture.waitingId);await press('x');await waitUntil(async()=>!(await task(fixture.waitingId)),'X로 두 번째 할 일이 삭제되지 않았습니다.');

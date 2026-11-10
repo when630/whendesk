@@ -401,7 +401,7 @@
     return `<article class="td-task ${open ? 'selected' : ''} ${task.done ? 'done' : ''} ${task.cancelled ? 'cancelled' : ''}" data-task-row="${esc(task.id)}" ${open ? `data-editor="${esc(task.id)}"` : ''}><div class="td-row">${taskMark(task)}${open ? `<div class="td-task-open"><input class="td-row-title" data-field="title" aria-label="할 일 제목" value="${esc(task.title)}">${meta?`<small>${meta}</small>`:''}</div>` : `<button class="td-task-open" data-task="${esc(task.id)}" draggable="true" aria-expanded="false"><span>${esc(task.title)}</span>${meta?`<small>${meta}</small>`:''}</button>`}${state.tab==='done'&&task.doneAt?`<small class="td-done-at" title="${esc(task.doneAt)}">${esc(new Date(task.doneAt).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',hour12:false}))} ${task.cancelled?'취소':'완료'}</small>`:`<button class="td-due ${badge?.cls==='today'?'today':''} ${badge?.cls==='over'?'work-overdue':''}" data-edit-due="${esc(task.id)}" title="${esc(task.due||'마감 없음')}">${badge?esc(badge.text):'마감 없음'}</button>`}${open ? `<button class="td-drag-handle" data-task="${esc(task.id)}" draggable="true" aria-label="할 일 끌기">${icon('grip-vertical')}</button>` : ''}</div>${open ? taskEditor(task) : ''}</article>`;
   }
   function taskEditor(task,{modal=false}={}) {
-    return `<div class="td-inline"><div class="td-fields"><label class="td-field">상태${pickButton('data-field="kind" aria-label="할 일 상태"',task.kind,[{value:'inbox',label:'InBox'},{value:'todo',label:'ToDo'},{value:'waiting',label:'Waiting'}])}</label><label class="td-field">마감<input data-field="due" aria-label="할 일 마감" value="${esc(task.due)}" placeholder="오늘 / 내일 / +3 / 8-12" autocomplete="off" spellcheck="false"></label><label class="td-field">프로젝트${pickButton('data-field="project_id" aria-label="할 일 프로젝트"',task.project_id??'',projectOptions())}</label>${task.kind === 'waiting' ? `<label class="td-field">대기 상대<input data-field="waitingFor" aria-label="대기 상대" value="${esc(task.waitingFor)}"></label>` : ''}</div><textarea class="td-note" data-field="note" aria-label="할 일 상세 내용" placeholder="상세 내용" spellcheck="false">${esc(task.note)}</textarea><div class="td-inline-foot"><span data-save-status>수정 내용 자동 저장</span><div><button type="button" class="td-modal-delete" data-delete-task="${esc(task.id)}">삭제</button>${task.kind === 'waiting' ? `<button type="button" data-nudge="${esc(task.id)}">재촉 기록</button>` : ''}<button type="button" data-cancel-task="${esc(task.id)}" title="안 하기로 한 일 (C)">${task.cancelled ? '취소 해제' : '안 하기'}</button>${task.cancelled ? '' : `<button type="button" data-complete-task="${esc(task.id)}" title="완료 (Space)">${task.done ? '완료 해제' : '완료'}</button>`}${modal?'<button type="submit" class="td-primary">닫기</button>':`<button type="button" data-action="collapse">${icon('chevron-up')}접기</button>`}</div></div></div>`;
+    return `<div class="td-inline"><div class="td-fields"><label class="td-field">상태${pickButton('data-field="kind" aria-label="할 일 상태"',task.kind,[{value:'inbox',label:'InBox'},{value:'todo',label:'ToDo'},{value:'waiting',label:'Waiting'}])}</label><label class="td-field">마감<input data-field="due" aria-label="할 일 마감" value="${esc(task.due)}" placeholder="오늘 / 내일 / +3 / 8-12" autocomplete="off" spellcheck="false"></label><label class="td-field">프로젝트${pickButton('data-field="project_id" aria-label="할 일 프로젝트"',task.project_id??'',projectOptions())}</label>${task.kind === 'waiting' ? `<label class="td-field">대기 상대<input data-field="waitingFor" aria-label="대기 상대" value="${esc(task.waitingFor)}"></label>` : ''}</div><textarea class="td-note" data-field="note" aria-label="할 일 상세 내용" placeholder="상세 내용" spellcheck="false">${esc(task.note)}</textarea><div class="td-inline-foot"><span data-save-status>수정 내용 자동 저장</span><div><button type="button" class="td-modal-delete" data-delete-task="${esc(task.id)}">삭제</button>${task.kind === 'waiting' ? `<button type="button" data-nudge="${esc(task.id)}">재촉 기록</button>` : ''}<button type="button" data-cancel-task="${esc(task.id)}" title="취소 (C)">${task.cancelled ? '취소 해제' : '취소'}</button>${task.cancelled ? '' : `<button type="button" data-complete-task="${esc(task.id)}" title="완료 (Space)">${task.done ? '완료 해제' : '완료'}</button>`}${modal?'<button type="submit" class="td-primary">닫기</button>':`<button type="button" data-action="collapse">${icon('chevron-up')}접기</button>`}</div></div></div>`;
   }
   function home() {
     const tasks = state.tasks.filter(t => !t.done && t.kind === 'todo').sort((a,b) => (a.due || '9999').localeCompare(b.due || '9999'));
@@ -744,7 +744,7 @@
   async function toggleCancel(id) {
     const task=state.tasks.find(item=>item.id===id);if(!task)return;
     await mutate('task.cancel',{id,cancelled:!task.cancelled});
-    rememberWorkUndo(task.title,restoreClosure(task),task.cancelled?'취소를 해제했어요.':'안 하기로 했어요.');
+    rememberWorkUndo(task.title,restoreClosure(task),task.cancelled?'취소를 해제했어요.':'취소했어요.');
   }
   async function nudgeTask(id) {
     const task=state.tasks.find(item=>item.id===id);if(!task||task.kind!=='waiting')return;
@@ -1222,6 +1222,8 @@
   }
   function focusTask(id=taskCursor) {
     taskCursor=id;syncTaskCursor();if(taskCursor)workCursors.set(workCursorKey(),taskCursor);const row=body.querySelector(`[data-task-row="${CSS.escape(taskCursor||'')}"]`);row?.focus({preventScroll:true});row?.scrollIntoView({block:'nearest'});
+    // 마지막 항목을 옮기거나 지워 목록이 비면 포커스가 사라져 Tab이 InBox 입력칸으로 갔다. 지금 분류 탭에 두어 Tab으로 다른 분류로 넘어가게 한다.
+    if(!row&&state.view==='tasks'&&state.tab!=='projects'&&!body.contains(document.activeElement)&&modalLayer.hidden)root.querySelector('.td-work-nav [aria-selected=true]')?.focus({preventScroll:true});
   }
   function workCursorKey(){return `${state.tab}|${state.project??''}`;}
   /* 앱이 스스로 옮긴 포커스(화면 진입·펼치기)는 표시하지 않는다. 사용자가 키를 누르면 그때부터 보인다. */
@@ -1498,7 +1500,7 @@
     if (data.result !== undefined) return executeCommand({ key:data.resultKey });
     if (data.commandAction && command.actions) return executeCommand({ item:command.actions.item, query:command.actions.query, actionId:data.commandAction });
     if (data.deleteTask) { if (button.closest('.task-form')) { modalLayer.hidden = true; modalLayer.innerHTML = ''; taskModalKind = null; } return deleteTask(data.deleteTask); }
-    // 편집 대화상자의 완료·안 하기: 대화상자를 닫고(자동 저장 반영) 목록의 Space·C와 같은 동작을 한다.
+    // 편집 대화상자의 완료·취소: 대화상자를 닫고(자동 저장 반영) 목록의 Space·C와 같은 동작을 한다.
     if (data.completeTask || data.cancelTask) { const id=data.completeTask||data.cancelTask; if (button.closest('.task-form')) { closeModal(); await flushPending(); } const task=state.tasks.find(item=>item.id===id); if(!task)return; if(data.cancelTask)return toggleCancel(id); await mutate('task.complete',{id,done:!task.done}); rememberWorkUndo(task.title,restoreClosure(task),task.done?'완료를 해제했어요.':'완료했어요.'); return; }
     if (data.nudge) return nudgeTask(data.nudge);
     if (data.subToggle || data.subSync || data.subDelete) { const id=Number(data.subToggle||data.subSync||data.subDelete); await mutate(data.subToggle?'subscription.toggle':data.subSync?'subscription.sync':'subscription.delete',{id}); return subscriptions(); }

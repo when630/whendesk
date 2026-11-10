@@ -495,7 +495,7 @@ export function createCommand({ dataDir, domain, onMore, onLaunch, platform: pro
     } else if (action.type === 'task-cancel') {
       await domain.mutate('task.cancel', { id: action.id, cancelled: action.cancelled });
       const undo = action.cancelled && item.done ? { type: 'task.complete', payload: { id: action.id, done: true } } : { type: 'task.cancel', payload: { id: action.id, cancelled: !action.cancelled } };
-      result = { ok: true, clear: true, message: `${action.cancelled ? '안 하기로 했습니다' : '취소를 해제했습니다'} · ${item.title}`, undo };
+      result = { ok: true, clear: true, message: `${action.cancelled ? '취소했습니다' : '취소를 해제했습니다'} · ${item.title}`, undo };
     } else if (action.type === 'task-due') {
       const before = (domain.state().tasks || []).find(task => task.id === action.id);
       await domain.mutate('task.update', { id: action.id, due: dayKey(action.days) });

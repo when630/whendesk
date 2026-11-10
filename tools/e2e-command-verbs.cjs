@@ -93,7 +93,7 @@ async function closeApp(){
       const order=await page.locator('#command-actions [data-command-action]').evaluateAll(rows=>rows.map(row=>row.dataset.commandAction));
       for(let step=0;step<order.indexOf('cancel');step++)await press('ArrowDown');
       await press('Enter');await waitUntil(async()=>{const item=await task(target.id);return item.cancelled&&item.done;},'동작 목록의 취소가 실행되지 않았습니다.');
-      assert.match(await page.locator(commandInput).getAttribute('placeholder'),/안 하기로 했습니다/);
+      assert.match(await page.locator(commandInput).getAttribute('placeholder'),/취소했습니다/);
       await commandQuery('커맨드동사 '+runId,'커맨드동사 '+runId);await selectResult('커맨드동사 '+runId);
       await press('Alt+Enter');await page.locator('#command-actions [data-command-action=cancel]').waitFor();
       assert.match(await page.locator('#command-actions [data-command-action=cancel]').innerText(),/취소 해제/);

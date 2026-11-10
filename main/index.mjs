@@ -135,6 +135,13 @@ async function bootstrap(){
   shellMode=mode==='dashboard'?'dashboard':'command';return {mode:shellMode};
  }
  function showCommand(){summon({shell:'command'});}
+ /* 덱 키처럼 다른 프로세스가 부를 때: Windows는 앞에 있지 않은 프로세스의 focus()를 거절해, 다른 창 뒤에 떠 있던 대시보드가
+  * 그대로 뒤에 남았다(전역 단축키는 키 입력을 받은 쪽이라 괜찮다). 잠깐 맨 위로 올려 보이게 하고 포커스를 다시 청한다. */
+ function raiseWindow(){
+  if(!win||win.isDestroyed()||!win.isVisible()||win.isFocused())return;
+  win.setAlwaysOnTop(true,'screen-saver');win.moveTop();win.focus();
+  setTimeout(()=>{if(win&&!win.isDestroyed()&&shellMode==='dashboard')win.setAlwaysOnTop(false);},250);
+ }
  function showDashboard(route={}){if(!win||win.isDestroyed())return;if(win.isMinimized())win.restore();win.show();win.focus();setShell('dashboard');send('navigate',{shell:'dashboard',view:'dashboard',...route});}
  async function handleGlobalShortcut(field){
   if(win?.isVisible()&&win.isFocused()){
@@ -310,6 +317,7 @@ async function bootstrap(){
     else if(['inbox','todo','waiting'].includes(view))showDashboard(id?{view:'tasks',id}:{view:'tasks',tab:view});
     else if(view==='calendar')showDashboard(id?{view:'calendar',id:Number(id),date:/^\d{4}-\d{2}-\d{2}$/.test(date||'')?date:undefined}:{view:'calendar'});
     else showDashboard();
+    raiseWindow();
    },
   });
   deck.start();

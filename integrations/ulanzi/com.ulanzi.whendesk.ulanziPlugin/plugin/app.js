@@ -303,9 +303,22 @@ $UD.onKeyDown((jsn) => {
   pressing.set(ctx, p)
 })
 
+/** 열기·오늘·개수·다음 일정·담기 키: keyup과 run 중 먼저 온 것 하나로 한 번만 한다.
+ *  run에만 기대면 Studio가 run을 빠뜨린 누름이 그냥 사라졌다(할 일 키는 keyup으로 받아 잘 들었다). */
+function fire(ctx) {
+  const now = Date.now()
+  if (now - (lastHandled.get(ctx) || 0) < 700) return
+  lastHandled.set(ctx, now)
+  act(ctx)
+}
+
 $UD.onKeyUp((jsn) => {
   const p = pressing.get(jsn.context)
-  if (!p) return
+  if (!p) {
+    const k = keys.get(jsn.context)
+    if (k && k.kind !== 'task') fire(jsn.context)
+    return
+  }
   pressing.delete(jsn.context)
   clearTimeout(p.timer)
   if (!p.long) pressTask(jsn.context, false)
@@ -321,7 +334,7 @@ $UD.onRun((jsn) => {
     pressTask(jsn.context, false)
     return
   }
-  act(jsn.context)
+  fire(jsn.context)
 })
 
 $UD.onClear((jsn) => {
