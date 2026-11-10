@@ -11,6 +11,7 @@ import {createToast} from './toast.mjs';
 import {briefDecision,briefingLines,dayKey,STALE_WAITING_DAYS} from '../modules/work/main/brief.mjs';
 import {exportWorkspace,prepareRestore,prepareLegacy,installPrepared} from './data.mjs';
 import {DeckBridge,summarize as deckSummary,captureIntent} from './deck.mjs';
+import {createForeground} from './foreground.mjs';
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const argv=process.argv.slice(1);
 function option(name){const eq=argv.find(a=>a.startsWith(name+'='));if(eq)return eq.slice(name.length+1);const i=argv.indexOf(name);return i>=0?argv[i+1]:null;}
@@ -51,7 +52,7 @@ async function bootstrap(){
  function rememberDashboard(now=false){if(!win||win.isDestroyed()||shellMode!=='dashboard'||win.isMinimized()||win.isMaximized())return;dashboardBounds=win.getBounds();clearTimeout(dashboardSaveTimer);const save=()=>{if(!testMode)preferences.set({dashboardBounds});};if(now)save();else dashboardSaveTimer=setTimeout(save,400);}
  const rendererURL=pathToFileURL(path.join(ROOT,'renderer','index.html')).href;
  const send=(event,payload)=>{if(win&&!win.isDestroyed())win.webContents.send(event,payload);};
- let deck=null;
+ let deck=null,foreground=null;
  const changed=()=>{send('state.changed',{});deck?.changed();};
  async function requestQuit(){
   try{if(win&&!win.isDestroyed())await win.webContents.executeJavaScript('window.__whendeskFlush ? window.__whendeskFlush() : Promise.resolve()');}
@@ -139,6 +140,8 @@ async function bootstrap(){
   * 그대로 뒤에 남았다(전역 단축키는 키 입력을 받은 쪽이라 괜찮다). 잠깐 맨 위로 올려 보이게 하고 포커스를 다시 청한다. */
  function raiseWindow(){
   if(!win||win.isDestroyed()||!win.isVisible()||win.isFocused())return;
+  // 전경 도우미가 Windows의 전경 잠금을 넘어 실제로 앞으로 가져온다. 맨 위로 잠깐 올리는 것은 도우미를 못 쓸 때의 대비다.
+  foreground?.bring(win.getNativeWindowHandle());
   win.setAlwaysOnTop(true,'screen-saver');win.moveTop();win.focus();
   setTimeout(()=>{if(win&&!win.isDestroyed()&&shellMode==='dashboard')win.setAlwaysOnTop(false);},250);
  }
@@ -321,6 +324,8 @@ async function bootstrap(){
    },
   });
   deck.start();
+  // 덱 키로 창을 열 때 쓴다. 첫 컴파일이 1초 남짓이라 미리 띄워 둔다.
+  foreground=createForeground({log:(...args)=>console.error(...args)});foreground.start();
  }
  startDeck().catch(error=>console.error('덱 통로:',error.message));
  ipcMain.handle('desk:call',async(event,method,payload)=>{
@@ -328,7 +333,7 @@ async function bootstrap(){
   try{if(!Object.hasOwn(methods,method))throw new Error('허용하지 않는 요청입니다.');return {ok:true,value:await methods[method](payload)};}catch(error){console.error(method,error);return {ok:false,error:error.message||String(error),...(error.fields?{fields:error.fields}:{})};}
  });
  win.webContents.on('render-process-gone',(_event,details)=>{console.error('renderer stopped',details);});
- app.on('before-quit',()=>{quitting=true;deck?.stop();toast?.dispose();shortcutManager.dispose();clearInterval(mediaTimer);mediaControl?.stop();stopServices();tray?.destroy();});
+ app.on('before-quit',()=>{quitting=true;deck?.stop();foreground?.stop();toast?.dispose();shortcutManager.dispose();clearInterval(mediaTimer);mediaControl?.stop();stopServices();tray?.destroy();});
  await win.loadFile(path.join(ROOT,'renderer','index.html'));
  const hiddenStart=argv.includes('--hidden')||updatedQuietly;
  if(!argv.includes('--headless')&&!hiddenStart){win.show();win.focus();}
