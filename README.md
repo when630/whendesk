@@ -30,7 +30,7 @@ Command는 아이콘 바로 옆에 입력하는 한 줄 화면입니다. 연결�
 | 범위 | 조작 |
 | --- | --- |
 | 공통 키 | 목록에서 화면과 관계없이 같은 뜻: ↑↓·J/K 이동, Enter 열기, E 편집, N 새로, X·Delete 삭제, U·Ctrl+Z 되돌리기, / 검색, Tab 화면 안 분류 순환. 되돌리기는 화면을 넘나들어 가장 최근 작업부터 되돌립니다 |
-| 화면 이동 | Alt+H Dashboard, Alt+T Work/ToDo, Alt+I Work/InBox, Alt+W Work/Waiting, Alt+D Work/Done, Alt+N Note, Alt+C Calendar, Ctrl+, Settings. Ctrl+Tab·Ctrl+Shift+Tab 왼쪽 메뉴(Dashboard·Work·Note·Calendar) 순환 |
+| 화면 이동 | Ctrl+Tab·Ctrl+Shift+Tab 왼쪽 메뉴(Dashboard·Work·Note·Calendar) 순환, Ctrl+, Settings. Work 안 분류는 Tab으로 순환 |
 | Dashboard | ↑↓·J/K·Home/End 할 일과 Work·Note·Calendar 입구 사이 이동, Space 할 일 완료, U·Ctrl+Z 되돌리기, Enter 열기. 화면에 들어온 직후에는 선택 표시가 없고 키를 누르면 보입니다 |
 | 설정 | Ctrl+, 로 열면 **일반**(모양·시작과 알림·Command·업데이트·데이터), ←→로 **단축키**(전역 단축키 기록) 분류로 바꿉니다. 단축키 안내(Ctrl+/)는 지금 화면의 묶음을 맨 앞에 두고, 거기서 전역 단축키 설정으로 바로 갑니다 |
 | 프로젝트 번호·목록 상자 | 1~9는 Projects 탭 순서의 앞 9개 프로젝트입니다. InBox·ToDo·Waiting 아래 번호 띠, ToDo 묶음 제목·행의 번호 칩(색 점), Projects 탭 행 번호로 늘 보입니다. 필터·정렬·기간·상태·프로젝트는 목록 상자로 Enter·Space·↓ 열기, ↑↓·J/K 고르기, Enter 확정, Esc 닫기, 프로젝트 목록은 숫자키로 바로 고릅니다. M은 프로젝트 목록을 바로 엽니다 |
@@ -43,7 +43,7 @@ Command는 아이콘 바로 옆에 입력하는 한 줄 화면입니다. 연결�
 | 메모 | Ctrl+N 새 메모, Ctrl+F 검색, Ctrl+S 저장, Ctrl+E 미리보기, Ctrl+P 고정, Ctrl+Shift+A 보관·해제 |
 | 메모 목록 | 검색에서 ↓로 목록 진입. ↑↓·J/K 선택하면 오른쪽에 바로 보기, Enter 보기, E 편집(보기에서도 E), N 새 메모, / 검색, Tab·Shift+Tab 또는 Ctrl+Shift+M/B/T로 메모·보관함·휴지통, X·Delete 삭제, U 되돌리기, Ctrl+Shift+Z 휴지통에서 복원 |
 | 메모 파일 | Ctrl+Shift+I 이미지 선택, Ctrl+Shift+E Markdown 내보내기. 이미지 붙여넣기도 지원 |
-| 캘린더 | 오늘 보기로 열림. Tab·Shift+Tab 오늘·주·월 보기 순환. 월: 날짜 ←→ 하루·↑↓ 일주일, PageUp/Down 월 이동, Enter 날짜의 일정 목록. 오늘·주: ↑↓·J/K 일정 이동, ←→ 하루·한 주 이동. T 오늘, N·Ctrl+N 한 줄 입력(쓰는 동안 해석 미리보기, Enter 추가, Ctrl+Enter 자세히 편집), E 편집, X·Delete 삭제(반복 일정은 범위 선택), U 되돌리기 |
+| 캘린더 | 오늘 보기로 열림. Tab·Shift+Tab 오늘·주·월 보기 순환. 월: 날짜 ←→ 하루·↑↓ 일주일, PageUp/Down 월 이동, Enter 날짜의 일정 목록. 오늘·주: ↑↓·J/K 일정 이동, ←→ 하루·한 주 이동. T 오늘, N·Ctrl+N·일정 추가 버튼 한 줄 입력(쓰는 동안 해석 미리보기: 시작–종료·종일·여러 날·반복과 ＊ 짚은 점, Enter 추가, Ctrl+Enter 자세히 편집), E 제목 고치기(한 줄), D 날짜·시각 옮기기(한 줄, 제목은 그대로), Enter 자세히 편집(시작을 옮기면 종료가 따라옴, 자정을 넘는 일정·여러 날 종일), X·Delete 삭제, U 되돌리기. 반복 일정을 고치거나 지우면 1 이 회차만 · 2 이 회차부터 뒤 전부 · 3 전체 중에서 고릅니다(원본 WHENCALENDAR). 여러 날·자정을 넘는 일정은 걸친 날 모두에 보입니다 |
 | 대화상자 | Tab·Shift+Tab은 내부 순환, Ctrl+S 저장, Esc 닫기 |
 | 돌아가기 | Esc는 한 단계씩: 편집 → 검색·필터·보관함/휴지통 → 화면 기본 자리 → Command. Ctrl+K는 Command로 이동하며 일정 대화상자 초안은 닫지 않음 |
 

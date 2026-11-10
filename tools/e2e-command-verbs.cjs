@@ -82,7 +82,7 @@ async function closeApp(){
       for(let step=0;step<open.indexOf('due-tomorrow');step++)await press('ArrowDown');
       await press('Enter');await waitUntil(async()=>!!(await task(target.id)).due,'내일 마감이 저장되지 않았습니다.');
       measurements.dueFromCommand=(await task(target.id)).due;
-      await press('Tab');await page.locator('#cf-dashboard-panel').waitFor();await press('Alt+i');await waitWithin('.td-main');
+      await press('Tab');await page.locator('#cf-dashboard-panel').waitFor();await page.evaluate(section=>window.__whendeskGo(section),'inbox');await waitWithin('.td-main');
       await press('u');await waitUntil(async()=>!(await task(target.id)).due,'Command에서 정한 마감을 화면의 U로 되돌리지 못했습니다.');
       await press('Control+k');await page.locator('#cf-command-panel').waitFor();
     });
@@ -106,7 +106,7 @@ async function closeApp(){
       const title='치과 '+runId;
       await commandQuery('일정 추가 내일 오후 3시 '+title,title);
       const subtitle=await page.locator('.td-command-results [data-result-key="capture:event"]').innerText();
-      measurements.eventPreview=subtitle;assert.match(subtitle,/오후 3:00/,'추가 전에 시각 해석을 보여 주지 않았습니다: '+subtitle);
+      measurements.eventPreview=subtitle;assert.match(subtitle,/15:00 – 16:00/,'추가 전에 시각 해석(시작–종료)을 보여 주지 않았습니다: '+subtitle);assert.doesNotMatch(subtitle,/object Object/);
       await screenshot('01-event-preview');
       await press('Enter');await waitUntil(async()=>(await state()).events.some(event=>event.title===title),'일정이 추가되지 않았습니다.');
       assert.equal(await page.locator('#cf-command-panel').isVisible(),true,'일정 추가가 Command를 떠났습니다.');
@@ -135,7 +135,7 @@ async function closeApp(){
       await signal({shell:'command',capture:'task'});
       await waitUntil(async()=>await page.locator(commandInput).getAttribute('placeholder')==='InBox에 담기','할 일 담기 모드로 열리지 않았습니다.');
       await text('o 내일 오후 3시 접두일정 '+runId);
-      await waitUntil(async()=>/일정 · .*오후 3:00/.test(await page.locator('.command-capture-preview').innerText().catch(()=>'')),'일정 접두의 해석 미리보기가 보이지 않습니다.');
+      await waitUntil(async()=>/일정 · .*15:00 – 16:00/.test(await page.locator('.command-capture-preview').innerText().catch(()=>'')),'일정 접두의 해석 미리보기가 보이지 않습니다.');
       // 미리보기 줄만큼 창이 실제로 자라야 보인다.
       await waitUntil(async()=>(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].getBounds().height))>60,'미리보기 줄만큼 Command 창이 자라지 않았습니다.');
       measurements.capturePreview=await page.locator('.command-capture-preview').innerText();
@@ -174,7 +174,7 @@ async function closeApp(){
       const view=()=>page.locator('.cal-views [aria-selected=true]').getAttribute('data-cal-view');
       await press('Control+k');await page.locator('#cf-command-panel').waitFor();await press('Tab');await page.locator('#cf-dashboard-panel').waitFor();
       // 캘린더는 오늘 보기로 열린다. Shift+Tab으로 월 보기에 간 뒤 순환을 확인한다.
-      await press('Alt+c');await waitUntil(async()=>await view()==='today','캘린더가 오늘 보기로 열리지 않았습니다.');await waitUntil(()=>within('.cal-list'),'오늘 보기에 포커스가 없습니다.');
+      await page.evaluate(section=>window.__whendeskGo(section),'calendar');await waitUntil(async()=>await view()==='today','캘린더가 오늘 보기로 열리지 않았습니다.');await waitUntil(()=>within('.cal-list'),'오늘 보기에 포커스가 없습니다.');
       await press('Shift+Tab');await waitFocus('.td-main [data-date]');assert.equal(await view(),'month');
       await press('Tab');await waitUntil(async()=>await view()==='today','Tab이 오늘 보기로 가지 않았습니다.');
       await waitUntil(()=>within('.cal-list'),'오늘 보기의 기본 자리에 포커스가 없습니다.');
@@ -191,7 +191,7 @@ async function closeApp(){
       const title='정비 '+runId;
       await press('n');await page.locator('.quick-event-form').waitFor();await waitFocus('.quick-event-form [name=line]');
       await text('다음 주 월요일 오전 9시 '+title);
-      await waitUntil(async()=>/오전 9:00/.test(await page.locator('.quick-event-preview').innerText()),'한 줄 입력이 해석을 미리 보여 주지 않았습니다.');
+      await waitUntil(async()=>/09:00 – 10:00/.test(await page.locator('.quick-event-preview').innerText()),'한 줄 입력이 해석을 미리 보여 주지 않았습니다.');
       measurements.quickPreview=await page.locator('.quick-event-preview').innerText();await screenshot('04-quick-event');
       await press('Enter');await page.locator('.quick-event-form').waitFor({state:'hidden'});
       await waitUntil(async()=>(await state()).events.some(event=>event.title===title),'한 줄 입력이 일정을 추가하지 않았습니다.');

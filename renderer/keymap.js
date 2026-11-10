@@ -8,13 +8,6 @@
   const ACTIONS = Object.freeze([
     A('help.toggle','global','이 안내 열기 · 닫기',['Mod+Slash','Mod+/']),
     A('command.open','global','Command 열기',['Mod+KeyK']),
-    A('nav.dashboard','global','Dashboard',['Alt+KeyH'],{section:'dashboard'}),
-    A('nav.todo','global','Work · ToDo',['Alt+KeyT'],{section:'todo'}),
-    A('nav.inbox','global','Work · InBox',['Alt+KeyI'],{section:'inbox'}),
-    A('nav.waiting','global','Work · Waiting',['Alt+KeyW'],{section:'waiting'}),
-    A('nav.done','global','Work · Done',['Alt+KeyD'],{section:'done'}),
-    A('nav.notes','global','Note',['Alt+KeyN'],{section:'notes'}),
-    A('nav.calendar','global','Calendar',['Alt+KeyC'],{section:'calendar'}),
     A('nav.settings','global','Settings',['Mod+Comma'],{section:'settings'}),
     A('app.new','global','현재 화면에서 새 항목',['Mod+KeyN']),
     A('app.save','global','저장 · 대화상자 저장',['Mod+KeyS']),
@@ -108,7 +101,9 @@
     A('quickEvent.detail','dialog','한 줄 입력에서 자세히 편집',['Mod+Enter']),
     A('agenda.first','agenda','첫 일정',['Home']),
     A('agenda.last','agenda','마지막 일정',['End']),
-    A('event.edit','agenda','일정 편집',['Enter','KeyE']),
+    A('event.edit','agenda','자세히 편집',['Enter']),
+    A('event.rename','agenda','제목 고치기 (한 줄)',['KeyE']),
+    A('event.move','agenda','날짜·시각 옮기기 (한 줄)',['KeyD']),
     A('event.delete','agenda','선택 일정 삭제',['Delete','KeyX']),
     A('agenda.undo','agenda','되돌리기',['KeyU']),
     A('calendar.undo','calendar','되돌리기',['KeyU']),
@@ -183,7 +178,7 @@
   }
   /* 이 키 입력이 동작 id의 조합 중 하나인가. */
   function is(event, id) { return entry(id).parsed.some(spec => specMatches(event, spec)); }
-  /* 화면 이동(Alt+글자) 동작이면 대상 화면 이름. */
+  /* 화면으로 바로 가는 동작(설정 Ctrl+,)이면 대상 화면 이름. */
   function section(event) {
     for (const action of ACTIONS) if (action.section && is(event, action.id)) return action.section;
     return null;
@@ -207,8 +202,7 @@
       [null,['command.actions']],['검색어 전체 선택',['command.open']],['입력 지우기 → 창 숨기기',['back']],['빠른 담기: 담기 · 담고 열기 · 앱에서 열기',['capture.save','capture.saveOpen','capture.open']],['스크립트 출력: 다시 실행 · 열기 · 복사',['output.rerun','output.open','output.copy']],[null,['command.media'],{media:true}],
     ] },
     { title:'화면 이동', rows:[
-      [null,['nav.dashboard']],['Work · ToDo / InBox',['nav.todo','nav.inbox']],['Work · Waiting / Done',['nav.waiting','nav.done']],
-      ['Note / Calendar',['nav.notes','nav.calendar']],['왼쪽 메뉴 순환 (Dashboard · Work · Note · Calendar)',['nav.next','nav.prev']],[null,['nav.settings']],[null,['app.new']],[null,['app.save']],
+      ['왼쪽 메뉴 순환 (Dashboard · Work · Note · Calendar)',['nav.next','nav.prev']],[null,['nav.settings']],[null,['app.new']],[null,['app.save']],
       ['화면 안 분류 순환 (Work · 메모)',['work.tab.cycle']],['한 단계 뒤로 (편집 → 필터 → 화면 → Command)',['back']],
     ] },
     { title:'Dashboard', rows:[
@@ -231,7 +225,7 @@
     ] },
     { title:'캘린더', rows:[
       ['날짜 이동 · 달 이동',['date.prev','date.prevWeek','date.nextWeek','date.next','date.prevMonth','date.nextMonth']],
-      [null,['calendar.view']],['오늘 · 새 일정 (한 줄 입력)',['date.today','event.new','app.new']],[null,['quickEvent.detail']],['날짜의 일정 목록 · 편집',['date.open','event.edit']],['선택 일정 삭제 · 되돌리기',['event.delete','agenda.undo']],
+      [null,['calendar.view']],['오늘 · 새 일정 (한 줄 입력)',['date.today','event.new','app.new']],[null,['quickEvent.detail']],['날짜의 일정 목록 · 자세히 편집',['date.open','event.edit']],['제목 · 날짜·시각 한 줄로 고치기',['event.rename','event.move']],['선택 일정 삭제 · 되돌리기',['event.delete','agenda.undo']],
     ] },
     { title:'설정', rows:[
       ['설정 분류 (일반 · 단축키)',['settings.prev','settings.next']],[null,['nav.settings']],
@@ -257,7 +251,8 @@
     settingsShortcuts:[['settings.next','분류','← →'],['app.save','저장'],['help.toggle','단축키 전체']],
     calendarMonth:[['date.open','일정'],['event.new','새 일정'],['date.today','오늘'],['calendar.view','보기','Tab']],
     calendarList:[['agenda.new','새 일정'],['agenda.nextDay','이동','← →'],['agenda.today','오늘'],['calendar.view','보기','Tab']],
-    event:[['event.edit','편집'],['event.delete','삭제'],['agenda.undo','되돌리기'],['calendar.view','보기','Tab']],
+    event:[['event.rename','제목'],['event.move','옮기기'],['event.edit','자세히'],['event.delete','삭제'],['agenda.undo','되돌리기']],
+    lineEdit:[[null,'저장','Enter'],['back','닫기']],
     dialog:[['app.save','저장'],['back','닫기']],
     quickEvent:[[null,'추가','Enter'],['quickEvent.detail','자세히'],['back','닫기']],
     home:[['list.down','이동','↑↓'],['task.complete','완료'],[null,'열기','Enter'],['help.toggle','단축키 전체']],

@@ -166,7 +166,7 @@ function durableData(state) {
     await test('일정 초안 위 도움말: Esc는 도움말만 닫고 모달·제목·caret 유지', async () => {
       await page.locator('.td-command input').press('Tab');
       await page.locator('.td-nav [data-action=calendar]').click();
-      await page.locator('.td-main-head [data-action=new-event]').click();
+      await page.locator('.td-main-head [data-action=new-event]').click();await page.locator('.quick-event-form input').waitFor();await page.keyboard.press('Control+Enter');
       const form = page.locator('.event-form');
       const title = form.locator('[name=title]');
       const draft = '아직 저장하지 않은 일정 제목';
@@ -286,7 +286,7 @@ function durableData(state) {
         await page.locator(`[data-skin-pick=${skin}]`).click();
         await waitUntil(async () => (await call('preferences.get')).skin === skin, skin + ' 스킨 변경이 저장되지 않았습니다.');
         await screenshot('07-skin-' + skin);
-        await page.keyboard.press('Alt+h');
+        await page.evaluate(section=>window.__whendeskGo(section),'dashboard');
         await page.locator('.td-main h1').filter({ hasText: 'Dashboard' }).waitFor();
         await screenshot('07-skin-' + skin + '-dashboard');
         await page.keyboard.press('Control+k');

@@ -58,7 +58,7 @@ async function closeApp(){
 
     await test('메모 목록: 검색 ↓로 목록 진입, J/K와 즉시 미리보기, Enter 보기, E 편집, / 검색, N 새 메모',async()=>{
       await press('Tab');await page.locator('#cf-dashboard-panel').waitFor();
-      await press('Alt+n');await waitFocus('[data-note-search]');
+      await page.evaluate(section=>window.__whendeskGo(section),'notes');await waitFocus('[data-note-search]');
       // 목록이 그려지기 전의 ↓는 옮길 행이 없어 무시된다 — 행을 기다린 뒤 누른다(가끔 실패하던 원인).
       await page.locator('[data-note-list] [data-note-row]').first().waitFor();
       await press('ArrowDown');await waitWithin('[data-note-list]');
@@ -88,7 +88,7 @@ async function closeApp(){
       await press('Home');await waitWithin('[data-note-list]');
       const target=await selectedNote();
       await press('x');await waitUntil(async()=>(await note(target))?.deleted===true,'X가 메모를 삭제하지 않았습니다.');
-      await press('Alt+i');await waitWithin(`[data-task-row="${inboxTask.id}"]`);
+      await page.evaluate(section=>window.__whendeskGo(section),'inbox');await waitWithin(`[data-task-row="${inboxTask.id}"]`);
       await press('Space');await waitUntil(async()=>(await task(inboxTask.id)).done===true,'Space가 할 일을 완료하지 않았습니다.');
       await waitWithin('.td-main');
       await press('u');await waitUntil(async()=>(await task(inboxTask.id)).done===false,'첫 U가 가장 최근 작업(완료)을 되돌리지 않았습니다.');
@@ -99,7 +99,7 @@ async function closeApp(){
     });
 
     await test('접힌 할 일 행의 Ctrl+Enter는 완료하지 않고, Projects의 A는 보관함 보기·U는 되돌리기다',async()=>{
-      await press('Alt+i');await waitWithin(`[data-task-row="${inboxTask.id}"]`);
+      await page.evaluate(section=>window.__whendeskGo(section),'inbox');await waitWithin(`[data-task-row="${inboxTask.id}"]`);
       await press('Control+Enter');await page.waitForTimeout(400);
       assert.equal((await task(inboxTask.id)).done,false,'접힌 행의 Ctrl+Enter가 할 일을 완료했습니다.');
       for(let step=0;step<4;step++)await press('Tab');
@@ -116,7 +116,7 @@ async function closeApp(){
 
     await test('할 일 편집기의 마감 칸은 자연어로 입력하고, 잘못된 값은 되돌리며, U로 되돌린다',async()=>{
       const dayKey=offset=>page.evaluate(offset=>{const d=new Date();d.setDate(d.getDate()+offset);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');},offset);
-      await press('Alt+i');await waitWithin(`[data-task-row="${inboxTask.id}"]`);
+      await page.evaluate(section=>window.__whendeskGo(section),'inbox');await waitWithin(`[data-task-row="${inboxTask.id}"]`);
       await press('Enter');await waitFocus('[data-editor] [data-field=title]');
       for(let step=0;step<6&&!await focused('[data-editor] [data-field=due]');step++)await press('Tab');
       await waitFocus('[data-editor] [data-field=due]');
@@ -150,7 +150,7 @@ async function closeApp(){
 
     await test('스크롤바는 보이지 않고, 목록만 스크롤되며 제목·탭은 위에, 힌트는 맨 아래에 뒤가 비치지 않게 붙는다',async()=>{
       for(let index=1;index<=30;index++)await call('mutate',{type:'task.create',payload:{title:`스크롤 ${index} ${runId}`}});
-      await press('Alt+i');await waitWithin('.td-main');await page.waitForTimeout(300);
+      await page.evaluate(section=>window.__whendeskGo(section),'inbox');await waitWithin('.td-main');await page.waitForTimeout(300);
       const layout=await page.evaluate(()=>{
         const main=document.querySelector('.td-main'),scroller=document.querySelector('.td-main>.td-body'),head=document.querySelector('.td-main-head'),hints=document.querySelector('.td-hints');
         const headBefore=head.getBoundingClientRect().top;scroller.scrollTop=scroller.scrollHeight;
@@ -167,7 +167,7 @@ async function closeApp(){
     });
 
     await test('대시보드의 Tab은 버튼·체크박스를 건너뛰고, 창을 끄는 자리에 표시가 있다',async()=>{
-      await press('Alt+i');await waitWithin(`[data-task-row="${inboxTask.id}"]`);
+      await page.evaluate(section=>window.__whendeskGo(section),'inbox');await waitWithin(`[data-task-row="${inboxTask.id}"]`);
       await press('Enter');await waitFocus('[data-editor] [data-field=title]');
       const visited=[];
       for(let step=0;step<10;step++){await press('Tab');visited.push(await page.evaluate(()=>{const element=document.activeElement;return (element.matches('.td-pick')?'PICK':element.tagName+(element.type?':'+element.type:''))+(element.dataset.field?'#'+element.dataset.field:'');}));}
@@ -182,7 +182,7 @@ async function closeApp(){
 
     await test('Ctrl+Tab·Ctrl+Shift+Tab은 왼쪽 메뉴(Dashboard·Work·Note·Calendar)를 순환하고 Work는 보던 분류로 간다',async()=>{
       const title=()=>page.locator('.td-main h1').innerText();
-      await press('Alt+w');await waitUntil(async()=>/Waiting/.test(await title()),'Waiting으로 가지 않았습니다.');
+      await page.evaluate(section=>window.__whendeskGo(section),'waiting');await waitUntil(async()=>/Waiting/.test(await title()),'Waiting으로 가지 않았습니다.');
       const visited=[];
       for(const key of ['Control+Tab','Control+Tab','Control+Tab','Control+Tab','Control+Shift+Tab']){const before=await title();await press(key);await waitUntil(async()=>await title()!==before,key+'가 메뉴를 바꾸지 않았습니다.');visited.push(await title());}
       measurements.menuCycle=visited;
@@ -191,7 +191,7 @@ async function closeApp(){
 
     await test('화면에 들어온 직후에는 포커스 표시가 없고 키로 움직이면 생긴다',async()=>{
       const mark=()=>page.evaluate(()=>{const element=document.activeElement,style=getComputedStyle(element);return {quiet:document.getElementById('whendesk-command-first').classList.contains('focus-quiet'),tag:element.tagName,shown:(style.outlineStyle!=='none'&&parseFloat(style.outlineWidth)>0)||style.boxShadow!=='none'};});
-      for(const key of ['Alt+c','Control+Tab']){
+      for(const key of ['Control+Tab','Control+Shift+Tab']){
         await press(key);await page.waitForTimeout(150);const landed=await mark();
         assert.equal(landed.quiet,true,key+' 뒤 앱이 둔 포커스가 조용하지 않습니다.');assert.equal(landed.shown,false,key+' 뒤 포커스 표시가 바로 보입니다: '+JSON.stringify(landed));
       }
@@ -202,7 +202,7 @@ async function closeApp(){
 
     await test('대시보드는 ↑↓로 항목을 오가고 Space로 할 일을 완료한다',async()=>{
       for(const title of ['대시보드 첫째 '+runId,'대시보드 둘째 '+runId]){const created=await call('mutate',{type:'task.create',payload:{title}});await call('mutate',{type:'task.update',payload:{id:created.id,kind:'todo'}});}
-      await press('Alt+w');await press('Alt+h');await waitUntil(async()=>(await page.locator('.td-main h1').innerText())==='Dashboard','Dashboard로 가지 않았습니다.');
+      await page.evaluate(section=>window.__whendeskGo(section),'waiting');await page.evaluate(section=>window.__whendeskGo(section),'dashboard');await waitUntil(async()=>(await page.locator('.td-main h1').innerText())==='Dashboard','Dashboard로 가지 않았습니다.');
       const active=()=>page.evaluate(()=>{const element=document.activeElement;return element.dataset.reveal?'task:'+element.dataset.reveal:element.classList.contains('cf-entry')?'entry:'+element.dataset.action:element.tagName+'.'+element.className;});
       const tasks=await page.locator('.cf-home-task [data-reveal]').evaluateAll(elements=>elements.map(element=>element.dataset.reveal));
       assert.ok(tasks.length>0,'대시보드에 할 일이 없어 완료를 확인할 수 없습니다.');
@@ -219,15 +219,15 @@ async function closeApp(){
 
     await test('하단 힌트는 포커스 자리에 맞는 키를 보여 준다',async()=>{
       const hints=()=>page.locator('.td-hints').innerText();
-      await press('Alt+i');await waitWithin('.td-main');for(let step=0;step<4;step++)await press('Tab');
+      await page.evaluate(section=>window.__whendeskGo(section),'inbox');await waitWithin('.td-main');for(let step=0;step<4;step++)await press('Tab');
       await waitUntil(async()=>await page.locator('.td-work-nav [role=tab][aria-selected=true]').getAttribute('data-tab')==='projects','Projects 탭으로 가지 않았습니다.');
       await waitUntil(async()=>/보관함/.test(await hints()),'Projects 힌트가 아닙니다.');
-      await press('Alt+i');await waitWithin(`[data-task-row="${inboxTask.id}"]`);
+      await page.evaluate(section=>window.__whendeskGo(section),'inbox');await waitWithin(`[data-task-row="${inboxTask.id}"]`);
       await waitUntil(async()=>/Space\s*완료/.test(await hints())&&/1 ~ 9\s*프로젝트/.test(await hints()),'할 일 목록 힌트가 아닙니다.');
       await press('Enter');await waitFocus('[data-editor] [data-field=title]');
       await waitUntil(async()=>/저장 · 닫기/.test(await hints())&&/Esc\s*목록/.test(await hints()),'편집기 힌트가 아닙니다.');
       await screenshot('03-hints-editor');
-      await press('Escape');await press('Alt+n');await waitFocus('[data-note-search]');
+      await press('Escape');await page.evaluate(section=>window.__whendeskGo(section),'notes');await waitFocus('[data-note-search]');
       await waitUntil(async()=>/검색 지우기/.test(await hints()),'메모 검색 힌트가 아닙니다.');
       await press('ArrowDown');await waitWithin('[data-note-list]');
       await waitUntil(async()=>/새 메모/.test(await hints())&&/Tab\s*분류/.test(await hints()),'메모 목록 힌트가 아닙니다.');

@@ -37,8 +37,8 @@ async function tabTo(selector,{reverse=false,limit=100}={}){
  const actual=await page.evaluate(()=>({tag:document.activeElement?.tagName,label:document.activeElement?.getAttribute('aria-label'),html:document.activeElement?.outerHTML?.slice(0,300)}));
  assert.fail('Tab으로 도착할 수 없습니다: '+selector+' / '+JSON.stringify(actual));
 }
-const sections={home:{key:'h',title:'Dashboard'},todo:{key:'t',title:'Work · ToDo'},inbox:{key:'i',title:'Work · InBox'},waiting:{key:'w',title:'Work · Waiting'},done:{key:'d',title:'Work · Done'},notes:{key:'n',title:'Note'},calendar:{key:'c',title:'Calendar'},settings:{key:'s',title:'Settings'}};
-async function section(name){const target=sections[name];assert.ok(target,'알 수 없는 화면: '+name);await press(target.key==='s'?'Control+Comma':'Alt+'+target.key);if(name==='calendar'){await page.locator('.cal-views').waitFor();for(let step=0;step<3&&await page.locator('.cal-views [aria-selected=true]').getAttribute('data-cal-view')!=='month';step++)await page.keyboard.press('Tab');}await page.locator('.td-main h1').filter({hasText:target.title}).waitFor();await page.locator('#cf-dashboard-panel').waitFor();}
+const sections={home:{key:'h',go:'dashboard',title:'Dashboard'},todo:{key:'t',go:'todo',title:'Work · ToDo'},inbox:{key:'i',go:'inbox',title:'Work · InBox'},waiting:{key:'w',go:'waiting',title:'Work · Waiting'},done:{key:'d',go:'done',title:'Work · Done'},notes:{key:'n',go:'notes',title:'Note'},calendar:{key:'c',go:'calendar',title:'Calendar'},settings:{key:'s',title:'Settings'}};
+async function section(name){const target=sections[name];assert.ok(target,'알 수 없는 화면: '+name);if(target.key==='s')await press('Control+Comma');else await page.evaluate(section=>window.__whendeskGo(section),target.go);if(name==='calendar'){await page.locator('.cal-views').waitFor();for(let step=0;step<3&&await page.locator('.cal-views [aria-selected=true]').getAttribute('data-cal-view')!=='month';step++)await page.keyboard.press('Tab');}await page.locator('.td-main h1').filter({hasText:target.title}).waitFor();await page.locator('#cf-dashboard-panel').waitFor();}
 async function screenshot(name){await page.screenshot({path:path.join(shots,name+'.png')});}
 async function test(name,action){const started=Date.now();try{await action();results.push({name,ok:true,durationMs:Date.now()-started});}catch(error){results.push({name,ok:false,durationMs:Date.now()-started,error:error.message});throw error;}}
 function normalize(value){return String(value).replace(/\\"/g,'"').replace(/"/g,'').replace(/\\/g,'/').toLowerCase();}
@@ -61,13 +61,14 @@ async function closeApp(){
   identity=await app.evaluate(({app})=>({argv:[...process.argv],mainPid:process.pid,appPath:app.getAppPath()}));identity.childPid=app.process()?.pid;identity.dataDir=(await page.evaluate(()=>window.desk.call('app.info'))).dataDir;
   assert.equal(identity.dataDir,dataDir);assert.equal(normalize(identity.appPath),normalize(root));
 
-  await test('Command Tab과 Alt 문자로 모든 작업 화면 이동·이전 숫자 화면키 제거',async()=>{
+  await test('Command Tab으로 펼치고 모든 작업 화면에 들어가며, Alt 문자·숫자 화면키는 없다',async()=>{
    const info=await page.evaluate(()=>window.desk.call('app.info'));assert.equal(info.isPackaged,false);assert.equal(info.shortcutsEnabled,false);
    const initial=await state();assert.equal(initial.tasks.length,0);assert.equal(initial.notes.length,0);assert.equal(initial.events.length,0);
    await press('Tab');await page.locator('.td-main h1').filter({hasText:'Dashboard'}).waitFor();
    for(const name of ['todo','inbox','waiting','done','notes','calendar','settings','home'])await section(name);
    await press('Alt+6');await page.waitForTimeout(100);assert.equal(await page.locator('.td-main h1').textContent(),'Dashboard','이전 Alt+6 숫자 키가 메모 화면으로 이동했습니다.');
-   measurements.sectionKeys=Object.fromEntries(Object.entries(sections).map(([name,target])=>[name,'Alt+'+target.key.toUpperCase()]));
+   for(const key of ['Alt+t','Alt+i','Alt+n','Alt+c']){await press(key);await page.waitForTimeout(100);assert.equal(await page.locator('.td-main h1').textContent(),'Dashboard',key+'가 아직 화면을 옮깁니다(Alt 문자 화면 이동은 뺐습니다).');}
+   measurements.sectionKeys={settings:'Ctrl+,',menuCycle:'Ctrl+Tab · Ctrl+Shift+Tab'};
    await screenshot('01-dashboard-keyboard');
   });
 

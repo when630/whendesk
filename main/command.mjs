@@ -48,6 +48,14 @@ function eventWhen(parsed) {
   return parsed.allDay ? day : `${day} ${new Intl.DateTimeFormat('ko-KR', { hour: 'numeric', minute: '2-digit' }).format(start)}`;
 }
 
+/* 일정 해석 미리보기 한 줄(원본 WHENCALENDAR previewParse): 요약 · 제목 · ＊ 짚어 둔 점. 해석기는 제목이 없을 때만 실패한다. */
+export function eventPreviewLine(parsed) {
+  if (!parsed?.startsAt) return '날짜·시각·제목을 알아서 읽습니다';
+  const notes = (parsed.notes || []).map(note => `＊ ${note?.msg ?? note}`);
+  if (parsed.ok === false) return ['＊ 제목이 없습니다', ...notes].join(' · ');
+  return [parsed.summary || eventWhen(parsed), parsed.title, ...notes].filter(Boolean).join(' · ');
+}
+
 /* 문장에서 짚은 의도를 WHENDESK 안의 받을 곳으로 잇는다(원본 WHENCOMMAND SRCH-10·D-35). */
 const INTENT_CAPTURE = {
   todo:{ source:'tasks', title:'할 일 추가', icon:'circle-plus', type:'capture-task' },
@@ -257,8 +265,8 @@ export function createCommand({ dataDir, domain, onMore, onLaunch, platform: pro
       if (item.action?.type !== 'capture-event') continue;
       try {
         const parsed = await domain.mutate('calendar.parse', { text: item.action.text });
-        item.subtitle = parsed?.ok ? [eventWhen(parsed), parsed.title, ...(parsed.notes || [])].filter(Boolean).join(' · ') : '날짜와 시간을 더 적어 주세요';
-      } catch { item.subtitle = '날짜와 시간을 더 적어 주세요'; }
+        item.subtitle = eventPreviewLine(parsed);
+      } catch { item.subtitle = '일정을 읽지 못했습니다'; }
     }
     return items;
   }

@@ -22,7 +22,8 @@ async function waitFocus(selector){await waitUntil(()=>focused(selector),'포커
 async function waitTab(tab){await page.locator(`.td-work-nav [data-tab="${tab}"][aria-selected=true]`).waitFor();}
 async function waitRowFocus(id){await waitFocus(`[data-task-row="${id}"]`);}
 async function currentRow(){return page.evaluate(()=>document.activeElement?.closest('[data-task-row]')?.dataset.taskRow||null);}
-async function section(key,selector){await press(key==='s'?'Control+Comma':'Alt+'+key);if(key==='c'){await page.locator('.cal-views').waitFor();for(let step=0;step<3&&await page.locator('.cal-views [aria-selected=true]').getAttribute('data-cal-view')!=='month';step++)await page.keyboard.press('Tab');}await page.locator(selector).first().waitFor();}
+const SECTION_BY_KEY={h:'dashboard',t:'todo',i:'inbox',w:'waiting',d:'done',n:'notes',c:'calendar'};
+async function section(key,selector){if(key==='s')await press('Control+Comma');else await page.evaluate(section=>window.__whendeskGo(section),SECTION_BY_KEY[key]);if(key==='c'){await page.locator('.cal-views').waitFor();for(let step=0;step<3&&await page.locator('.cal-views [aria-selected=true]').getAttribute('data-cal-view')!=='month';step++)await page.keyboard.press('Tab');}await page.locator(selector).first().waitFor();}
 async function screenshot(name){const file=path.join(shots,name+'.png');await page.screenshot({path:file});screenshots.push(file);}
 async function test(name,run){const started=Date.now();try{await run();results.push({name,ok:true,durationMs:Date.now()-started});}catch(error){results.push({name,ok:false,durationMs:Date.now()-started,error:error.message});throw error;}}
 function normalize(value){return String(value).replace(/\\"/g,'"').replace(/"/g,'').replace(/\\/g,'/').toLowerCase();}

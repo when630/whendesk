@@ -44,7 +44,7 @@ async function expectTab(tab){await waitUntil(async()=>await activeTab()===tab,'
 async function gotoTab(tab){
   assert.ok(tabs.includes(tab),'알 수 없는 Work 탭: '+tab);
   // 초기 fixture InBox 행은 모든 테스트에서 남겨 두므로 확실히 목록 포커스로 진입한다.
-  await press('Alt+i'); await expectTab('inbox'); await waitWithin('[data-task-row]');
+  await page.evaluate(section=>window.__whendeskGo(section),'inbox'); await expectTab('inbox'); await waitWithin('[data-task-row]');
   for(let step=0;step<tabs.indexOf(tab);step++){
     await press('Tab'); await expectTab(tabs[step+1]);
     await waitUntil(()=>page.evaluate(()=>!!document.activeElement?.closest('[data-task-row],[data-work-project-row],[data-restore-project],[role=tab]')),'Tab 전환 뒤 목록이나 탭에 포커스가 없습니다.');

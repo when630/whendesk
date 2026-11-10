@@ -424,11 +424,17 @@
     restoreFocus(focus); icons();
     if(state.view==='tasks'){syncTaskCursor();syncProjectCursor();}
   }
+  /* 그날에 걸친 일정인가. 여러 날·자정을 넘는 일정은 걸친 날 모두에 보인다(원본 WHENCALENDAR daySpan). 끝은 배타적이다. */
+  function occursOn(event, key) {
+    if (event.date === key) return true;
+    if (!event.endsAt || key < event.date) return false;
+    return Date.parse(event.endsAt) > new Date(key + 'T00:00:00').getTime();
+  }
   function eventKey(event) { return encodeURIComponent(String(event.id) + '|' + (event.recurrenceId || event.startsAt || event.date)); }
   function findEvent(key) { return state.events.find(e => eventKey(e) === key || String(e.id) === String(key)); }
   function calendarMonth() {
     const first = new Date(state.year, state.month, 1), offset = (first.getDay()+6)%7, count = Math.ceil((offset + new Date(state.year,state.month+1,0).getDate())/7)*7;
-    return `<div class="td-cal-head"><h2>${state.year}년 ${state.month+1}월</h2><div><button data-month="-1" aria-label="이전 달">${icon('chevron-left')}</button><button data-action="today">오늘</button><button data-month="1" aria-label="다음 달">${icon('chevron-right')}</button></div></div><div class="td-month">${['월','화','수','목','금','토','일'].map(day => `<span class="td-weekday">${day}</span>`).join('')}${Array.from({ length:count }, (_,index) => { const date = new Date(state.year,state.month,1-offset+index), key = dateKey(date); const events = state.events.filter(e => e.date === key); const tasks = state.tasks.filter(t => !t.done && t.due === key); return `<button class="td-day ${key === today ? 'today' : ''} ${key === state.date ? 'selected' : ''} ${date.getMonth() !== state.month ? 'other' : ''}" data-date="${key}" tabindex="${key === state.date ? 0 : -1}" aria-pressed="${key === state.date}" aria-label="${key} 일정 ${events.length}개, 마감 ${tasks.length}개"><span>${date.getDate()}</span><span class="td-day-marks">${events.length ? '<i class="td-event-mark"></i>' : ''}${tasks.length ? '<i class="td-task-mark"></i>' : ''}</span></button>`; }).join('')}</div>`;
+    return `<div class="td-cal-head"><h2>${state.year}년 ${state.month+1}월</h2><div><button data-month="-1" aria-label="이전 달">${icon('chevron-left')}</button><button data-action="today">오늘</button><button data-month="1" aria-label="다음 달">${icon('chevron-right')}</button></div></div><div class="td-month">${['월','화','수','목','금','토','일'].map(day => `<span class="td-weekday">${day}</span>`).join('')}${Array.from({ length:count }, (_,index) => { const date = new Date(state.year,state.month,1-offset+index), key = dateKey(date); const events = state.events.filter(e => occursOn(e, key)); const tasks = state.tasks.filter(t => !t.done && t.due === key); return `<button class="td-day ${key === today ? 'today' : ''} ${key === state.date ? 'selected' : ''} ${date.getMonth() !== state.month ? 'other' : ''}" data-date="${key}" tabindex="${key === state.date ? 0 : -1}" aria-pressed="${key === state.date}" aria-label="${key} 일정 ${events.length}개, 마감 ${tasks.length}개"><span>${date.getDate()}</span><span class="td-day-marks">${events.length ? '<i class="td-event-mark"></i>' : ''}${tasks.length ? '<i class="td-task-mark"></i>' : ''}</span></button>`; }).join('')}</div>`;
   }
   /* 캘린더 보기: 오늘·주는 키보드로 훑기 빠른 목록, 월은 격자(원본 WHENCALENDAR). Tab·Shift+Tab으로 순환한다. */
   const CAL_VIEWS = [['today','오늘'],['week','주'],['month','월']];
@@ -437,7 +443,7 @@
   function dayLabel(date) { return new Date(date + 'T12:00:00').toLocaleDateString('ko-KR', { month:'long', day:'numeric', weekday:'short' }); }
   function calendarList() {
     const dates = state.calView === 'week' ? weekDates(state.date) : [state.date];
-    return `<div class="td-main-calendar-agenda cal-list" tabindex="-1" data-cal-home aria-label="${state.calView === 'week' ? '이번 주 일정' : '이날 일정'}">${dates.map(date => { const empty = !state.events.some(event => event.date === date); return `<section class="cal-list-day${date === today ? ' is-today' : ''}${date === state.date ? ' is-selected' : ''}${empty ? ' is-empty' : ''}" data-cal-day="${date}"><h2>${esc(dayLabel(date))}${empty ? '<small>일정 없음</small>' : ''}</h2>${empty ? '' : eventRows(date)}</section>`; }).join('')}</div>`;
+    return `<div class="td-main-calendar-agenda cal-list" tabindex="-1" data-cal-home aria-label="${state.calView === 'week' ? '이번 주 일정' : '이날 일정'}">${dates.map(date => { const empty = !state.events.some(event => occursOn(event, date)); return `<section class="cal-list-day${date === today ? ' is-today' : ''}${date === state.date ? ' is-selected' : ''}${empty ? ' is-empty' : ''}" data-cal-day="${date}"><h2>${esc(dayLabel(date))}${empty ? '<small>일정 없음</small>' : ''}</h2>${empty ? '' : eventRows(date)}</section>`; }).join('')}</div>`;
   }
   function setCalView(value) { if (!CAL_VIEWS.some(([view]) => view === value)) return; state.calView = value; renderMainView(); focusView(); }
   function focusEvent(id, date) {
@@ -453,24 +459,38 @@
     const day = start.toLocaleDateString('ko-KR', { month:'long', day:'numeric', weekday:'short' });
     return parsed.allDay ? day : `${day} ${start.toLocaleTimeString('ko-KR', { hour:'numeric', minute:'2-digit' })}`;
   }
+  /* 해석 미리보기(원본 WHENCALENDAR previewParse): 굵은 요약(시작–종료 · 종일 · 여러 날 · 반복) · 제목, 아래 줄마다 ＊ 짚어 둔 점.
+   * 해석기는 날짜를 말하지 않으면 오늘 종일로 읽으므로 실패는 제목이 없을 때뿐이다. */
+  function eventPreviewHtml(parsed) {
+    if (!parsed?.startsAt) return '<span class="quick-event-hint">날짜·시각·제목을 알아서 읽습니다</span>';
+    let html = [parsed.summary || eventWhen(parsed) ? `<b>${esc(parsed.summary || eventWhen(parsed))}</b>` : '', parsed.title ? esc(parsed.title) : ''].filter(Boolean).join(' · ');
+    if (parsed.ok === false) html += '<br><span class="quick-event-note">＊ 제목이 없습니다</span>';
+    for (const note of parsed.notes || []) html += `<br><span class="quick-event-note">＊ ${esc(note?.msg ?? note)}</span>`;
+    return html;
+  }
+  function eventPreviewText(parsed) {
+    if (!parsed?.startsAt) return '날짜·시각·제목을 알아서 읽습니다';
+    const notes = (parsed.notes || []).map(note => '＊ ' + (note?.msg ?? note));
+    return parsed.ok === false ? ['＊ 제목이 없습니다', ...notes].join(' · ') : [parsed.summary || eventWhen(parsed), parsed.title, ...notes].filter(Boolean).join(' · ');
+  }
   function quickEventModal() {
-    openModal(`<form class="td-modal quick-event-form" role="dialog" aria-modal="true" aria-label="일정 한 줄 입력"><input name="line" aria-label="일정 한 줄 입력" placeholder="예: 내일 오후 3시 치과 30분" autocomplete="off" spellcheck="false"><p class="quick-event-preview" aria-live="polite"></p></form>`);
+    openModal(`<form class="td-modal quick-event-form" role="dialog" aria-modal="true" aria-label="일정 한 줄 입력"><label class="quick-event-label" for="quick-event-line">새 일정 — 한 줄로 적으세요</label><input id="quick-event-line" name="line" aria-label="일정 한 줄 입력" placeholder="담주 화 3시 김부장 미팅 1시간" autocomplete="off" spellcheck="false" maxlength="200"><p class="quick-event-preview" aria-live="polite">${eventPreviewHtml(null)}</p><p class="quick-event-foot"><span><kbd>Enter</kbd> 등록</span><span><kbd>Ctrl</kbd>+<kbd>Enter</kbd> 자세히</span><span><kbd>Esc</kbd> 취소</span></p></form>`);
   }
   async function parseQuickEvent() {
     const form = modalLayer.querySelector('.quick-event-form'); if (!form) return null;
     const line = form.elements.line.value.trim(), seq = ++quickEventSeq, out = form.querySelector('.quick-event-preview');
-    if (!line) { out.textContent = ''; out.classList.remove('is-error'); return null; }
+    if (!line) { out.innerHTML = eventPreviewHtml(null); out.classList.remove('is-error'); return null; }
     const result = await call('mutate', { type:'calendar.parse', payload:{ text:line } }), parsed = result?.parsed || result;
     if (seq !== quickEventSeq || !out.isConnected) return null;
     const ok = parsed?.ok !== false && !!parsed?.startsAt;
-    out.textContent = ok ? [eventWhen(parsed), parsed.title, ...(parsed.notes || [])].filter(Boolean).join(' · ') : '날짜와 시간을 더 적어 주세요';
+    out.innerHTML = eventPreviewHtml(parsed);
     out.classList.toggle('is-error', !ok);
     return ok ? parsed : null;
   }
   async function submitQuickEvent({ detail = false } = {}) {
     clearTimeout(quickEventTimer);
     const parsed = await parseQuickEvent();
-    if (detail) { const line = modalLayer.querySelector('.quick-event-form [name=line]')?.value || ''; closeModal(); eventModal(null, parsed || null); if (!parsed && line) { const title = modalLayer.querySelector('.event-form [name=title]'); if (title) title.value = line; } return; }
+    if (detail) { const line = modalLayer.querySelector('.quick-event-form [name=line]')?.value.trim() || ''; closeModal(); eventModal(null, parsed || null); if (!parsed && line) { const title = modalLayer.querySelector('.event-form [name=title]'); if (title) title.value = line; } return; }
     if (!parsed) return;
     const created = await mutate('event.create', parsed);
     closeModal(); await selectDate(dateKey(new Date(parsed.startsAt)));
@@ -478,8 +498,10 @@
     if (!focusEvent(created.id)) focusView();
   }
   function eventRows(date) {
-    const events = state.events.filter(e => e.date === date).sort((a,b) => String(a.time).localeCompare(String(b.time)));
-    return events.map(e => `<button class="td-cal-event" data-event="${eventKey(e)}"><time>${e.allDay ? '종일' : esc(e.time)}</time><span>${esc(e.title)}<small>${e.allDay ? '종일 일정' : esc(e.time) + ' – ' + esc(e.end || '')}${e.location ? ' · ' + esc(e.location) : ''}${e.rrule ? ' · 반복' : ''}${e.readonly ? ' · 구독' : ''}</small></span></button>`).join('') || '<div class="td-empty" style="padding:15px 0">일정 없음</div>';
+    // 이어지는 날에는 시작 시각 대신 '종일'(종일 일정) 또는 '~끝 시각'(마지막 날)을 보인다.
+    const when = e => e.allDay || (e.date !== date && e.endDate !== date) ? '종일' : e.date === date ? e.time : '~' + e.end;
+    const events = state.events.filter(e => occursOn(e, date)).sort((a,b) => (a.date === date ? 1 : 0) - (b.date === date ? 1 : 0) || String(a.time).localeCompare(String(b.time)));
+    return events.map(e => `<button class="td-cal-event" data-event="${eventKey(e)}"><time>${esc(when(e))}</time><span>${esc(e.title)}<small>${e.allDay ? '종일 일정' : esc(e.time) + ' – ' + esc(e.end || '')}${e.location ? ' · ' + esc(e.location) : ''}${e.rrule ? ' · 반복' : ''}${e.readonly ? ' · 구독' : ''}</small></span></button>`).join('') || '<div class="td-empty" style="padding:15px 0">일정 없음</div>';
   }
   function renderCalendar() {
     const focused=root.querySelector('.td-calendar-side').contains(document.activeElement)?controlSelector(document.activeElement):null;
@@ -525,19 +547,125 @@
   function openModal(html) { modalDirty = false; discardArmedAt = 0; returnFocus = document.activeElement; modalReturnKey=controlSelector(returnFocus); modalReturnEditor=captureFocus(); modalLayer.hidden = false; modalLayer.innerHTML = html; (modalLayer.querySelector('input:not([type=checkbox]):not([readonly]),textarea:not([readonly]),select:not([disabled])')||modalLayer.querySelector('button'))?.focus(); icons(); }
   /* 입력한 내용이 있는 대화상자는 Esc 한 번에 버리지 않는다. 3초 안에 한 번 더 누르면 닫는다. */
   function closeModalSafely() {
-    if (modalLayer.querySelector('.task-form')) { closeModal(); return; }
+    // 할 일 편집은 자동 저장이고, 삭제 범위 고르기는 입력이 없어 Esc 한 번에 닫는다.
+    if (modalLayer.querySelector('.task-form,.scope-form')) { closeModal(); return; }
     if (modalDirty && modalLayer.querySelector('form') && Date.now() - discardArmedAt > 3000) { discardArmedAt = Date.now(); feedback('저장하지 않은 내용이 있어요. Esc를 한 번 더 누르면 버립니다.'); return; }
     closeModal();
   }
   function closeModal() { const editedTask = modalLayer.querySelector('.task-form')?.dataset.editor; if (editedTask) { modalLayer.hidden = true; modalLayer.innerHTML = ''; modalDirty = false; safe(() => afterTaskModal(editedTask)); return; } modalDirty = false; discardArmedAt = 0; modalLayer.hidden = true; modalLayer.innerHTML = ''; editingEvent = null; if (returnFocus?.isConnected && root.contains(returnFocus)) returnFocus.focus({ preventScroll:true }); else if(modalReturnEditor&&body.querySelector(`[data-editor="${CSS.escape(modalReturnEditor.id)}"] [data-field="${modalReturnEditor.field}"]`))restoreFocus(modalReturnEditor);else if(modalReturnKey&&root.querySelector(modalReturnKey)?.getClientRects().length)root.querySelector(modalReturnKey).focus({preventScroll:true});else focusView(); }
+  const pad2 = value => String(value).padStart(2, '0');
+  const clockOf = date => `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+  const shiftDateKey = (key, days) => { const date = new Date(key + 'T12:00:00'); date.setDate(date.getDate() + days); return dateKey(date); };
+  /* 폼 값: 시작 날짜·시각, 종료 날짜·시각. 종일의 종료 날짜는 마지막 날(포함)로 보이고 저장할 때 다음 날 0시(배타)로 바꾼다. */
+  function eventFormValues(event, parsed) {
+    const source = parsed || event;
+    if (!source?.startsAt) return { title:'', date:state.date, time:'09:00', endDate:state.date, end:'10:00', allDay:false, location:'', note:'', rrule:'' };
+    const start = new Date(source.startsAt), endAt = source.endsAt ? new Date(source.endsAt) : null, allDay = !!source.allDay;
+    const date = dateKey(start), time = allDay ? '09:00' : clockOf(start);
+    let endDate, end;
+    if (allDay) { endDate = endAt ? dateKey(new Date(endAt.getTime() - 1)) : date; end = '10:00'; if (endDate < date) endDate = date; }
+    else { const until = endAt || new Date(start.getTime() + 3600e3); endDate = dateKey(until); end = clockOf(until); }
+    return { title:source.title || '', date, time, endDate, end, allDay, location:event?.location || '', note:event?.note || '', rrule:source.rrule || '' };
+  }
   function eventModal(key = null, parsed = null) {
     if (state.shell !== 'dashboard') safe(() => shell('dashboard', false));
     const event = key ? findEvent(key) : null; editingEvent = event; lastEventKey = key;
-    let values = event || { title:'', date:state.date, time:'09:00', end:'10:00', allDay:false, location:'', note:'', rrule:'' };
-    if (parsed) { const start = new Date(parsed.startsAt), end = parsed.endsAt ? new Date(parsed.endsAt) : null; values = { ...values, ...parsed, date:dateKey(start), time:`${String(start.getHours()).padStart(2,'0')}:${String(start.getMinutes()).padStart(2,'0')}`, end:end ? `${String(end.getHours()).padStart(2,'0')}:${String(end.getMinutes()).padStart(2,'0')}` : '10:00' }; }
-    const readonly = !!event?.readonly;
-    openModal(`<form class="td-modal event-form" role="dialog" aria-modal="true" aria-label="일정 편집"><div class="td-modal-header"><h2>${readonly ? '구독 일정' : event ? '일정 수정' : '일정 추가'}</h2><button type="button" data-action="close-modal" aria-label="닫기">${icon('x')}</button></div><label class="td-field">제목<input name="title" aria-label="일정 제목" value="${esc(values.title)}" required ${readonly ? 'readonly' : ''}></label><label class="td-field">날짜<input type="date" name="date" aria-label="일정 날짜" value="${esc(values.date)}" required ${readonly ? 'readonly' : ''}></label><label class="all-day-label"><input type="checkbox" name="allDay" ${values.allDay ? 'checked' : ''} ${readonly ? 'disabled' : ''}>종일</label><div class="td-fields"><label class="td-field">시작<input type="time" name="time" aria-label="일정 시작" value="${esc(values.time || '09:00')}" ${readonly ? 'readonly' : ''}></label><label class="td-field">종료<input type="time" name="end" aria-label="일정 종료" value="${esc(values.end || '10:00')}" ${readonly ? 'readonly' : ''}></label></div><label class="td-field">장소<input name="location" aria-label="일정 장소" value="${esc(values.location)}" ${readonly ? 'readonly' : ''}></label><label class="td-field">반복<select name="rrule" aria-label="일정 반복" ${readonly ? 'disabled' : ''}>${[['','반복 안 함'],['FREQ=DAILY','매일'],['FREQ=WEEKLY','매주'],['FREQ=MONTHLY','매월']].concat(values.rrule && !['FREQ=DAILY','FREQ=WEEKLY','FREQ=MONTHLY'].includes(values.rrule) ? [[values.rrule,'기존 반복 규칙 유지']] : []).map(([value,label]) => `<option value="${esc(value)}" ${values.rrule === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label>${event?.rrule && !readonly ? '<label class="td-field">적용 범위<select name="scope" aria-label="반복 일정 적용 범위"><option value="all">전체 반복 일정</option><option value="one">이 회차만</option><option value="future">이 회차부터</option></select></label>' : ''}<label class="td-field">상세 내용<textarea name="note" class="td-note" aria-label="일정 상세 내용" ${readonly ? 'readonly' : ''}>${esc(values.note)}</textarea></label><div class="td-modal-actions">${event && !readonly ? '<button type="button" class="td-modal-delete" data-action="delete-event">일정 삭제</button>' : '<span></span>'}<div><button type="button" class="td-secondary" data-action="close-modal">${readonly ? '닫기' : '취소'}</button>${readonly ? '' : '<button type="submit" class="td-primary">저장</button>'}</div></div></form>`);
+    const values = eventFormValues(event, parsed);
+    const readonly = !!event?.readonly, ro = readonly ? 'readonly' : '', off = readonly || values.allDay ? 'disabled' : '';
+    const repeating = !!(event?.rrule || event?.recurrenceId) && !readonly;
+    openModal(`<form class="td-modal event-form" role="dialog" aria-modal="true" aria-label="일정 편집"><div class="td-modal-header"><h2>${readonly ? '구독 일정' : event ? '일정 수정' : '일정 추가'}</h2><button type="button" data-action="close-modal" aria-label="닫기">${icon('x')}</button></div><label class="td-field">제목<input name="title" aria-label="일정 제목" value="${esc(values.title)}" required ${ro}></label><label class="all-day-label"><input type="checkbox" name="allDay" ${values.allDay ? 'checked' : ''} ${readonly ? 'disabled' : ''}>종일</label><div class="td-fields"><label class="td-field">시작 날짜<input type="date" name="date" aria-label="일정 시작 날짜" value="${esc(values.date)}" required ${ro}></label><label class="td-field">시작 시각<input type="time" name="time" aria-label="일정 시작 시각" value="${esc(values.time)}" ${ro} ${off}></label></div><div class="td-fields"><label class="td-field">종료 날짜<input type="date" name="endDate" aria-label="일정 종료 날짜" value="${esc(values.endDate)}" required ${ro}></label><label class="td-field">종료 시각<input type="time" name="end" aria-label="일정 종료 시각" value="${esc(values.end)}" ${ro} ${off}></label></div><label class="td-field">장소<input name="location" aria-label="일정 장소" value="${esc(values.location)}" ${ro}></label><label class="td-field">반복<select name="rrule" aria-label="일정 반복" ${readonly ? 'disabled' : ''}>${[['','반복 안 함'],['FREQ=DAILY','매일'],['FREQ=WEEKLY','매주'],['FREQ=MONTHLY','매월']].concat(values.rrule && !['FREQ=DAILY','FREQ=WEEKLY','FREQ=MONTHLY'].includes(values.rrule) ? [[values.rrule,'기존 반복 규칙 유지']] : []).map(([value,label]) => `<option value="${esc(value)}" ${values.rrule === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label>${repeating ? '<label class="td-field">적용 범위<select name="scope" aria-label="반복 일정 적용 범위"><option value="one" selected>이 회차만</option><option value="future">이 회차부터 뒤 전부</option><option value="all">전체 반복 일정</option></select></label>' : ''}<label class="td-field">상세 내용<textarea name="note" class="td-note" aria-label="일정 상세 내용" ${ro}>${esc(values.note)}</textarea></label><div class="td-modal-actions">${event && !readonly ? '<button type="button" class="td-modal-delete" data-action="delete-event">일정 삭제</button>' : '<span></span>'}<div><button type="button" class="td-secondary" data-action="close-modal">${readonly ? '닫기' : '취소'}</button>${readonly ? '' : '<button type="submit" class="td-primary">저장</button>'}</div></div></form>`);
     editingEvent = event;
+    if (!readonly) wireEventForm(modalLayer.querySelector('.event-form'));
+  }
+  /* 시작을 옮기면 길이를 지킨 채 종료도 옮긴다. 종일이면 시각 칸을 끈다. */
+  function wireEventForm(form) {
+    if (!form) return;
+    const field = name => form.elements[name];
+    const at = (dateName, timeName) => new Date(`${field(dateName).value}T${field('allDay').checked ? '00:00' : field(timeName).value || '00:00'}:00`).getTime();
+    let lastStart = at('date', 'time');
+    const follow = () => {
+      const next = at('date', 'time'), delta = next - lastStart;
+      if (Number.isFinite(delta) && delta && field('endDate').value) {
+        const moved = new Date(at('endDate', 'end') + delta);
+        if (Number.isFinite(moved.getTime())) { field('endDate').value = dateKey(moved); if (!field('allDay').checked) field('end').value = clockOf(moved); }
+      }
+      if (Number.isFinite(next)) lastStart = next;
+    };
+    field('date').addEventListener('change', follow);
+    field('time').addEventListener('change', follow);
+    field('allDay').addEventListener('change', () => { const on = field('allDay').checked; field('time').disabled = on; field('end').disabled = on; lastStart = at('date', 'time'); });
+  }
+  /* 반복 일정 범위(원본 WHENCALENDAR 3지선다): 1 이 회차만 · 2 이 회차부터 뒤 전부 · 3 전체. 커서는 '이 회차만'에서 시작한다.
+   * 삭제·제목 고치기·옮기기가 같은 대화상자를 쓴다. 고른 범위로 run(일정, 범위)을 부른다. */
+  let scopeRun = null;
+  async function deleteSeries(item, scope) {
+    await mutate('event.delete',{id:item.id,scope,recurrenceId:item.recurrenceId||item.startsAt});
+    // 되돌리기는 전체 삭제(소프트 삭제)만 된다. 회차 제외·이후 자르기는 되돌릴 기록이 없어 알림만 남긴다(원본 WHENCALENDAR와 같다).
+    if(scope==='all')feedback('반복 일정을 모두 삭제했어요.',()=>mutate('event.restore',{id:item.id}));else feedback(scope==='one'?'이 회차를 삭제했어요.':'이 회차부터 뒤를 삭제했어요.');
+    focusView();
+  }
+  function scopeModal(item, { heading = '반복 일정 삭제', question = '', verb = '삭제', run = deleteSeries } = {}) {
+    openModal(`<form class="td-modal scope-form" role="dialog" aria-modal="true" aria-label="${esc(heading)} 범위" data-event="${eventKey(item)}"><div class="td-modal-header"><h2>${esc(heading)}</h2><button type="button" data-action="close-modal" aria-label="닫기">${icon('x')}</button></div><p class="scope-what">${esc(question || item.title)} · ${esc(dayLabel(item.date))}${item.allDay ? '' : ' ' + esc(item.time)}</p><div class="scope-choices">${[['one','이 회차만'],['future','이 회차부터 뒤 전부'],['all','전체 반복 일정']].map(([scope,label],index) => `<button type="button" class="scope-choice" data-action="pick-scope" data-scope="${scope}"><kbd>${index+1}</kbd>${label}</button>`).join('')}</div><p class="quick-event-foot"><span><kbd>1</kbd>~<kbd>3</kbd> · <kbd>↑</kbd><kbd>↓</kbd> 고르기</span><span><kbd>Enter</kbd> ${esc(verb)}</span><span><kbd>Esc</kbd> 취소</span></p></form>`);
+    scopeRun = run;
+    const form = modalLayer.querySelector('.scope-form'), choices = [...form.querySelectorAll('.scope-choice')];
+    choices[0].focus();
+    form.addEventListener('keydown', event => {
+      const digit = /^Digit([123])$/.exec(event.code)?.[1], index = choices.indexOf(document.activeElement);
+      if (digit) { event.preventDefault(); event.stopPropagation(); choices[Number(digit) - 1].click(); return; }
+      const step = event.key === 'ArrowDown' || event.code === 'KeyJ' ? 1 : event.key === 'ArrowUp' || event.code === 'KeyK' ? -1 : 0;
+      if (step) { event.preventDefault(); event.stopPropagation(); choices[(Math.max(index, 0) + step + choices.length) % choices.length].focus(); }
+    });
+  }
+  /* E 제목 고치기 · D 날짜·시각 옮기기 — 한 줄로(원본 WHENCALENDAR dlgMode title·when).
+   * 옮기기는 적은 줄 뒤에 제목을 붙여 일정 추가와 같은 해석기를 태운다(규칙이 두 벌이 되지 않게). 제목은 그대로다. */
+  const LINE_EDIT = {
+    title:{ label:'제목 고치기', hint:'Enter로 저장합니다', placeholder:'' },
+    when:{ label:'날짜·시각 옮기기 — 한 줄로', hint:'제목은 그대로 두고 시간만 바꿉니다', placeholder:'담주 화 3시 1시간' },
+  };
+  function lineEditModal(mode, key) {
+    const item = findEvent(key); if (!item) return;
+    if (item.readonly) { feedback(mode === 'title' ? '구독 일정은 고칠 수 없어요.' : '구독 일정은 옮길 수 없어요.'); return; }
+    const cfg = LINE_EDIT[mode], preset = mode === 'title' ? item.title : '';
+    openModal(`<form class="td-modal line-edit-form" data-mode="${mode}" data-event="${eventKey(item)}" role="dialog" aria-modal="true" aria-label="${esc(cfg.label)}"><label class="quick-event-label" for="line-edit-input">${esc(cfg.label)}</label><input id="line-edit-input" name="line" aria-label="${esc(cfg.label)}" value="${esc(preset)}" placeholder="${esc(cfg.placeholder)}" autocomplete="off" spellcheck="false" maxlength="200"><p class="quick-event-preview" aria-live="polite"><span class="quick-event-hint">${esc(mode === 'when' ? `${cfg.hint} · 지금 ${eventPreviewText({ ...item, ok:true, title:'', summary:null }) || ''}` : cfg.hint)}</span></p><p class="quick-event-foot"><span><kbd>Enter</kbd> 저장</span><span><kbd>Esc</kbd> 취소</span></p></form>`);
+    const input = modalLayer.querySelector('.line-edit-form [name=line]'); input.setSelectionRange(preset.length, preset.length);
+  }
+  async function parseLineEdit(form) {
+    const item = findEvent(form.dataset.event), line = form.elements.line.value.trim();
+    if (!item || !line) return { item, parsed:null };
+    const result = await call('mutate', { type:'calendar.parse', payload:{ text:`${line} ${item.title}` } });
+    return { item, parsed:result?.parsed || result };
+  }
+  async function previewLineEdit() {
+    const form = modalLayer.querySelector('.line-edit-form[data-mode=when]'); if (!form) return;
+    const seq = ++quickEventSeq, { parsed } = await parseLineEdit(form), out = form.querySelector('.quick-event-preview');
+    if (seq !== quickEventSeq || !out.isConnected) return;
+    out.innerHTML = parsed ? eventPreviewHtml(parsed) : `<span class="quick-event-hint">${esc(LINE_EDIT.when.hint)}</span>`;
+  }
+  async function submitLineEdit(form) {
+    clearTimeout(quickEventTimer);
+    const mode = form.dataset.mode, item = findEvent(form.dataset.event), line = form.elements.line.value.trim();
+    if (!item || !line) return;
+    let patch, done;
+    if (mode === 'title') {
+      if (line === item.title) { closeModal(); return; }
+      patch = { title:line }; done = '제목을 바꿨어요.';
+    } else {
+      const { parsed } = await parseLineEdit(form);
+      if (!parsed?.startsAt) { form.querySelector('.quick-event-preview').innerHTML = '<span class="quick-event-note">＊ 날짜·시각을 읽지 못했습니다</span>'; return; }
+      patch = { startsAt:parsed.startsAt, endsAt:parsed.endsAt ?? null, allDay:!!parsed.allDay }; done = `옮겼어요 — ${parsed.summary || eventWhen(parsed)}`;
+    }
+    const land = async (id, startsAt) => { await selectDate(dateKey(new Date(startsAt))); if (!focusEvent(id, dateKey(new Date(startsAt)))) focusView(); };
+    if (item.rrule || item.recurrenceId) {
+      closeModal();
+      scopeModal(item, { heading: mode === 'title' ? '반복 일정 제목 고치기' : '반복 일정 옮기기', question: mode === 'title' ? `제목을 "${line}"(으)로` : done.replace(/^옮겼어요 — /, ''), verb: mode === 'title' ? '바꾸기' : '옮기기',
+        run: async (selected, scope) => { await mutate('event.update', { id:selected.id, recurrenceId:selected.recurrenceId || selected.startsAt, scope, ...patch }); feedback(done); await land(selected.id, patch.startsAt || selected.startsAt); } });
+      return;
+    }
+    const previous = mode === 'title' ? { title:item.title } : { startsAt:item.startsAt, endsAt:item.endsAt ?? null, allDay:!!item.allDay };
+    await mutate('event.update', { id:item.id, ...patch });
+    closeModal();
+    feedback(done, () => mutate('event.update', { id:item.id, ...previous }));
+    await land(item.id, patch.startsAt || item.startsAt);
   }
   function projectModal(id = null) {
     const project = state.projects.find(p => p.id === id);
@@ -638,7 +766,7 @@
   function hintContext() {
     if (state.shell !== 'dashboard' || helpOpen) return null;
     const active = document.activeElement;
-    if (!modalLayer.hidden) return active?.closest('.quick-event-form') ? 'quickEvent' : active?.closest('.task-form') ? 'taskEditor' : 'dialog';
+    if (!modalLayer.hidden) return active?.closest('.line-edit-form') ? 'lineEdit' : active?.closest('.quick-event-form') ? 'quickEvent' : active?.closest('.task-form') ? 'taskEditor' : 'dialog';
     if (pick) return pick.options.some(option => option.num) ? 'pickNumbered' : 'pick';
     if (state.view === 'tasks') {
       if (active?.closest('[data-editor]')) return 'taskEditor';
@@ -894,8 +1022,8 @@
     event:{ label:'일정에 담았습니다', undo:item => ({ type:'event.delete', payload:{ id:item.id, scope:'all' } }), open:item => ({ view:'calendar', id:item.id, date:item.date }),
       async save(text) {
         const result = await call('mutate', { type:'calendar.parse', payload:{ text } }), parsed = result?.parsed || result;
-        if (parsed?.ok === false || !parsed?.startsAt) throw new Error('일정의 날짜와 시간을 해석하지 못했습니다. 예: o 내일 오후 3시 치과');
-        return { item:await mutate('event.create', parsed), line:[eventWhen(parsed), parsed.title].filter(Boolean).join(' ') };
+        if (parsed?.ok === false || !parsed?.startsAt) throw new Error('일정의 제목이 없습니다. 예: o 내일 오후 3시 치과');
+        return { item:await mutate('event.create', parsed), line:[parsed.summary || eventWhen(parsed), parsed.title].filter(Boolean).join(' ') };
       } },
   };
   function enterCapture(kind) {
@@ -913,7 +1041,7 @@
     let line = '';
     if (rapid?.kind === 'event') {
       const result = await call('mutate', { type:'calendar.parse', payload:{ text:rapid.text } }).catch(() => null), when = result?.parsed || result;
-      line = when?.ok !== false && when?.startsAt ? [eventWhen(when), when.title].filter(Boolean).join(' · ') : '날짜와 시간을 더 적어 주세요';
+      line = when ? eventPreviewText(when) : '일정을 읽지 못했습니다';
     } else if (rapid) line = rapid.text.split('\n')[0];
     if (seq !== capturePreviewSeq || !command.capture) return;
     const [label, glyph] = RAPID_PREVIEW[rapid?.kind] || [];
@@ -1160,8 +1288,9 @@
   }
   /* 반복 없는 일정은 바로 지우고 되돌리기를 남긴다. 반복 일정은 범위를 고르는 대화상자로 간다. */
   async function deleteEventByKey(id) {
-    const item=findEvent(id);if(!item||item.readonly)return;
-    if(item.recurrence||item.recurrenceId){eventModal(id);const scope=modalLayer.querySelector('[name=scope]');if(scope)scope.value='one';modalLayer.querySelector('[data-action=delete-event]')?.focus();return;}
+    const item=findEvent(id);if(!item)return;
+    if(item.readonly){feedback('구독 일정은 지울 수 없어요. 원본 캘린더에서 지워 주세요.');return;}
+    if(item.rrule||item.recurrence||item.recurrenceId){scopeModal(item);return;}
     // 삭제 뒤 목록을 다시 그리므로 영역은 그 뒤에 다시 찾는다.
     const side=!!document.activeElement?.closest('.td-calendar-side'),container=()=>side?root.querySelector('.td-calendar-side'):body;
     const index=[...container().querySelectorAll('[data-event]')].findIndex(row=>row.dataset.event===String(id));
@@ -1275,7 +1404,7 @@
     if(day){
       const dayMove=Object.keys(DAY_MOVES).find(id=>K.is(event,id)),side=!!day.closest('.td-calendar-side');
       if(dayMove){event.preventDefault();const [days,months]=DAY_MOVES[dayMove];safe(()=>moveCalendarDate(days,months,side,dayMove==='date.today'));return true;}
-      if(K.is(event,'date.open')){event.preventDefault();const area=side?root.querySelector('.td-calendar-side'):body;const first=area.querySelector('[data-event]');if(first)first.focus();else eventModal();return true;}
+      if(K.is(event,'date.open')){event.preventDefault();const area=side?root.querySelector('.td-calendar-side'):body;const first=area.querySelector('[data-event]');if(first)first.focus();else quickEventModal();return true;}
       if(K.is(event,'event.new')){event.preventDefault();quickEventModal();return true;}
       if(K.is(event,'calendar.undo')){event.preventDefault();if(!event.repeat)safe(undoLastAction);return true;}
     }
@@ -1284,6 +1413,7 @@
       const step=K.is(event,'agenda.up')?-1:K.is(event,'agenda.down')?1:K.is(event,'agenda.first')?'first':K.is(event,'agenda.last')?'last':0;
       if(step){event.preventDefault();const area=eventButton.closest('.td-main-calendar-agenda,.td-day-detail')||body;const rows=[...area.querySelectorAll('[data-event]')],index=rows.indexOf(eventButton);const next=step==='first'?0:step==='last'?rows.length-1:(index+(step===1?1:rows.length-1))%rows.length;rows[next]?.focus();return true;}
       if(K.is(event,'event.edit')){event.preventDefault();eventModal(eventButton.dataset.event);return true;}
+      if(K.is(event,'event.rename')||K.is(event,'event.move')){event.preventDefault();lineEditModal(K.is(event,'event.rename')?'title':'when',eventButton.dataset.event);return true;}
       if(K.is(event,'event.delete')){event.preventDefault();if(!event.repeat)safe(()=>deleteEventByKey(eventButton.dataset.event));return true;}
       if(K.is(event,'agenda.undo')){event.preventDefault();if(!event.repeat)safe(undoLastAction);return true;}
     }
@@ -1355,9 +1485,10 @@
       case 'work-project-trash': state.workTrash=!state.workTrash;projectCursor=null;renderMainView();focusWorkProject();break;
       case 'clear-work-search': clearWorkSearch();break;
       case 'today': {const side=!!button.closest('.td-calendar-side');await moveCalendarDate(0,0,side,true);break;}
-      case 'new-event': eventModal(); break;
+      case 'new-event': quickEventModal(); break;
       case 'close-modal': closeModal(); break;
-      case 'delete-event': { const selected=editingEvent; if (!selected || selected.readonly) return; const scope=modalLayer.querySelector('[name=scope]')?.value || 'all'; await mutate('event.delete',{id:selected.id,scope,recurrenceId:selected.recurrenceId||selected.startsAt}); closeModal(); feedback('일정을 삭제했어요.',()=>mutate('event.restore',{id:selected.id})); break; }
+      case 'delete-event': { const selected=editingEvent; if (!selected || selected.readonly) return; if(selected.rrule||selected.recurrenceId){closeModal();scopeModal(selected);break;} await mutate('event.delete',{id:selected.id,scope:'all'}); closeModal(); feedback('일정을 삭제했어요.',()=>mutate('event.restore',{id:selected.id})); break; }
+      case 'pick-scope': { const form=modalLayer.querySelector('.scope-form'),selected=form&&findEvent(form.dataset.event),scope=button.dataset.scope,run=scopeRun; if(!selected||!run||!['one','future','all'].includes(scope))return; scopeRun=null; closeModal(); await run(selected,scope); break; }
       case 'undo': { const action=undoAction; if(action){ const index=undoTimeline.lastIndexOf(action); if(index>=0)undoTimeline.splice(index,1); undoAction=null; root.querySelector('.td-feedback').hidden=true; await action(); } break; }
       case 'dismiss': root.querySelector('.td-feedback').hidden=true; break;
       case 'settings': await flushPending(); state.prefs=await call('preferences.get'); state.info=await call('app.info'); state.view='settings'; renderNav(); renderMainView(); await shell('dashboard',false); focusView();break;
@@ -1378,6 +1509,7 @@
     const element=event.target;
     if (element===commandInput) { if (!command.capture) queueCommandQuery(element.value); else previewCapture(); return; }
     if (element.matches('.quick-event-form [name=line]')) { clearTimeout(quickEventTimer); quickEventTimer = setTimeout(() => safe(parseQuickEvent), 120); return; }
+    if (element.matches('.line-edit-form[data-mode=when] [name=line]')) { clearTimeout(quickEventTimer); quickEventTimer = setTimeout(() => safe(previewLineEdit), 120); return; }
     if (element.matches('[data-shortcut]')) { shortcutErrors(); return; }
     if (element.matches('[data-work-search]')) {state.workQuery=element.value;state.selected=null;taskCursor=null;projectCursor=null;if(!event.isComposing&&!workComposing)renderMainView();return;}
     if (element.matches('[data-field]') && ['title','note','waitingFor'].includes(element.dataset.field)) {
@@ -1422,7 +1554,7 @@
     }
   }));
   root.addEventListener('submit',event=>{
-    if(!event.target.matches('.td-quick,.event-form,.project-form,.subscription-form,.preferences-form,.quick-event-form,.work-due-form,.work-waiting-form,.work-archive-form,.task-form'))return;
+    if(!event.target.matches('.td-quick,.event-form,.project-form,.subscription-form,.preferences-form,.quick-event-form,.line-edit-form,.work-due-form,.work-waiting-form,.work-archive-form,.task-form'))return;
     event.preventDefault();
     const submittingForm=event.target;if(submittingForm.dataset.submitting==='true')return;
     submittingForm.dataset.submitting='true';const submitButton=submittingForm.querySelector('[type=submit]');if(submitButton)submitButton.disabled=true;
@@ -1448,8 +1580,11 @@
         rememberWorkUndo(project.name,()=>mutate('project.restore',{id,movedItemIds:result.movedItemIds}),'프로젝트를 보관했어요.');workUndo.at(-1).projectId=id;return;
       }
       if(form.matches('.event-form')){
-        const payload={...values,allDay:form.querySelector('[name=allDay]').checked};
-        if(!payload.allDay && payload.end<=payload.time){const end=form.querySelector('[name=end]');end.setCustomValidity('종료 시간을 시작 시간 이후로 정해주세요.');end.reportValidity();end.addEventListener('input',()=>end.setCustomValidity(''),{once:true});return;}
+        const allDay=form.querySelector('[name=allDay]').checked,payload={...values,allDay};
+        // 종료는 날짜와 시각을 함께 본다 — 자정을 넘는 일정(23:00 → 다음 날 01:00)도 저장된다. 종일의 종료 날짜는 마지막 날이라 다음 날 0시로 넘긴다.
+        const startAt=new Date(`${values.date}T${allDay?'00:00':values.time}:00`).getTime(),endAt=new Date(`${values.endDate}T${allDay?'00:00':values.end}:00`).getTime();
+        if(!(allDay?endAt>=startAt:endAt>startAt)){const end=form.querySelector(allDay?'[name=endDate]':'[name=end]');end.setCustomValidity(allDay?'종료 날짜를 시작 날짜와 같거나 뒤로 정해 주세요.':'종료를 시작 이후로 정해 주세요.');end.reportValidity();form.addEventListener('input',()=>end.setCustomValidity(''),{once:true});return;}
+        if(allDay){payload.endDate=shiftDateKey(values.endDate,1);delete payload.time;delete payload.end;}
         if(editingEvent){payload.id=editingEvent.id;payload.recurrenceId=editingEvent.recurrenceId||editingEvent.startsAt;}
         const result=await mutate(editingEvent?'event.update':'event.create',payload);await selectDate(payload.date);closeModal();feedback('일정을 저장했어요.');return result;
       }
@@ -1457,6 +1592,7 @@
       if(form.matches('.subscription-form')){const result=await mutate('subscription.add',{url:values.url});await subscriptions();if(result?.error)feedback(result.error,null,true);return;}
       if(form.matches('.preferences-form')){const submit=form.querySelector('[type=submit]'),field=document.activeElement?.name;submit.disabled=true;try{state.prefs=await call('preferences.set',values);state.info=await call('app.info');renderMainView();(field?body.querySelector(`.preferences-form [name="${CSS.escape(field)}"]`):body.querySelector('.preferences-form [type=submit]'))?.focus();feedback('단축키를 저장했어요.');}catch(error){shortcutErrors(error.fields||{});form.querySelector('[aria-invalid=true]')?.focus();feedback(error.message,null,true);}finally{if(submit.isConnected)submit.disabled=false;}return;}
       if(form.matches('.quick-event-form')){await submitQuickEvent();return;}
+      if(form.matches('.line-edit-form')){await submitLineEdit(form);return;}
     }).finally(()=>{delete submittingForm.dataset.submitting;if(submitButton?.isConnected)submitButton.disabled=false;});
   });
   commandInput.addEventListener('focus',()=>{if(command.renderedQuery!==commandInput.value&&!command.request&&!command.timer&&!command.composing)safe(()=>queryCommand(commandInput.value,true));});
@@ -1552,6 +1688,8 @@
     }catch(error){commandBox.innerHTML=`<div class="command-empty" role="alert">시작하지 못했습니다.<br>${esc(error.message)}</div>`;showError(error);resizeCommand();}
   }
   Object.defineProperty(window,'__whendeskFlush',{value:flushPending});
+  // 화면으로 바로 가는 통로(e2e·덱 등 키 입력이 아닌 호출용). 키보드에는 Ctrl+Tab 순환과 Ctrl+,만 둔다.
+  Object.defineProperty(window,'__whendeskGo',{value:section=>goSection(section)});
   Object.defineProperty(window,'__whendeskRecordShortcut',{value:accelerator=>{
     const input=document.activeElement;
     if(helpOpen||state.shell!=='dashboard'||!input?.matches('[data-shortcut]')||typeof accelerator!=='string')return false;

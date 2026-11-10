@@ -37,13 +37,13 @@ test('잘못된 키·동일 조합·앱 내부 예약 단축키는 필드별 오
  assert.equal(normalizeShortcutValues({hotkey:'Control+Shift+K',captureHotkey:''}).hotkey,'Control+Shift+K');
 });
 
-test('문자 화면 이동·메모 보기 키를 예약하고 해제된 숫자 조합의 사용자 설정은 허용한다',()=>{
- const reserved=['Alt+H','Alt+T','Alt+I','Alt+W','Alt+D','Alt+N','Alt+C','Alt+S','Ctrl+Shift+M','Ctrl+Shift+B','Ctrl+Shift+T'];
+test('메모 보기 키를 예약하고 화면 이동에서 뺀 Alt+글자·숫자 조합의 사용자 설정은 허용한다',()=>{
+ const reserved=['Ctrl+Shift+M','Ctrl+Shift+B','Ctrl+Shift+T'];
  for(const value of reserved){
   assert.throws(()=>normalizeShortcutValues({hotkey:value,captureHotkey:''}),error=>!!error.fields.hotkey&&error.fields.hotkey.includes('앱 내부'));
   assert.throws(()=>normalizeShortcutValues({hotkey:'',captureHotkey:value}),error=>!!error.fields.captureHotkey&&error.fields.captureHotkey.includes('앱 내부'));
  }
- for(const value of ['Ctrl+1','Ctrl+8','Alt+0','Alt+6','Alt+7','Ctrl+Shift+1','Ctrl+Shift+2','Ctrl+Shift+3']){
+ for(const value of ['Alt+H','Alt+T','Alt+I','Alt+W','Alt+D','Alt+N','Alt+C','Alt+S','Ctrl+1','Ctrl+8','Alt+0','Alt+6','Alt+7','Ctrl+Shift+1','Ctrl+Shift+2','Ctrl+Shift+3']){
   assert.equal(normalizeShortcutValues({hotkey:value,captureHotkey:''}).hotkey,normalizeAccelerator(value));
  }
  for(const value of ['Command+Shift+M','Command+Shift+B','Command+Shift+T'])assert.throws(()=>normalizeShortcutValues({hotkey:value,captureHotkey:''}),error=>!!error.fields.hotkey);

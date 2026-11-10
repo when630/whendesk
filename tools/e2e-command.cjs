@@ -267,7 +267,7 @@ async function closeHarness() {
     });
 
     await test('일정 모달 Ctrl+K 초안 보존·Tab 순환·Ctrl+/ 도움말 우선순위',async()=>{
-      await page.locator('.td-nav [data-action=calendar]').click();await page.locator('.td-main-head [data-action=new-event]').click();
+      await page.locator('.td-nav [data-action=calendar]').click();await page.locator('.td-main-head [data-action=new-event]').click();await page.locator('.quick-event-form input').waitFor();await page.keyboard.press('Control+Enter');
       const title=page.locator('.event-form [name=title]');await title.fill('저장하지 않은 키보드 검증 일정');
       await title.evaluate(element=>{window.__commandDraftNode=element;element.setSelectionRange(2,8);element.dispatchEvent(new KeyboardEvent('keydown',{key:'ㅏ',code:'KeyK',ctrlKey:true,bubbles:true,cancelable:true}));});
       assert.equal(await page.locator('.event-form').isVisible(),true);assert.equal(await title.inputValue(),'저장하지 않은 키보드 검증 일정');assert.equal(await title.evaluate(element=>element===window.__commandDraftNode),true);

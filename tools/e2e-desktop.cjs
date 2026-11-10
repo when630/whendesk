@@ -80,7 +80,7 @@ async function test(name,fn){await fn();results.push({name,ok:true});}
   });
   let eventId;
   await test('실제 Calendar 생성·수정·삭제·복원',async()=>{
-   await page.locator('.td-nav [data-action=calendar]').click();await page.locator('.td-main-head [data-action=new-event]').click();
+   await page.locator('.td-nav [data-action=calendar]').click();await page.locator('.td-main-head [data-action=new-event]').click();await page.locator('.quick-event-form input').waitFor();await page.keyboard.press('Control+Enter');
    await page.locator('.event-form [name=title]').fill('E2E 개인 일정');await page.locator('.event-form [type=submit]').click();
    await page.locator('.event-form').waitFor({state:'hidden'});let state=await call('state',{});let event=state.events.find(e=>e.title==='E2E 개인 일정');assert.ok(event);eventId=event.id;
    await page.locator('.td-main-calendar-agenda [data-event]').filter({hasText:'E2E 개인 일정'}).click();await page.locator('.event-form [name=title]').fill('E2E 일정 수정');await page.locator('.event-form [type=submit]').click();await page.locator('.event-form').waitFor({state:'hidden'});

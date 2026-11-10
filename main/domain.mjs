@@ -8,7 +8,7 @@ import { createStore as createWorkStore } from '../modules/work/main/store.mjs';
 import { createQueue } from '../modules/work/main/queue.mjs';
 import { parseDue } from '../modules/work/main/parse.mjs';
 import { createStore as createCalendarStore } from '../modules/calendar/main/store.mjs';
-import { parseLine } from '../modules/calendar/main/parse.mjs';
+import { parseLine, describe } from '../modules/calendar/main/parse.mjs';
 import { parseIcs, buildIcs, isCancelled } from '../modules/calendar/main/ics.mjs';
 import { syncCalendar, syncAll } from '../modules/calendar/main/sync.mjs';
 import { createStore as createNoteStore } from '../modules/note/main/store.mjs';
@@ -473,7 +473,9 @@ export function createDomain({ dataDir, fetchImpl = globalThis.fetch } = {}) {
       case 'calendar.parse': {
         const now = payload.now == null ? new Date() : new Date(payload.now);
         if (!Number.isFinite(now.getTime())) throw new Error('기준 날짜가 올바르지 않습니다.');
-        return parseLine(text(payload.text, '일정 입력', { limit: 10_000 }), now);
+        // 원본 WHENCALENDAR ipc.mjs처럼 사람이 읽는 한 줄(시작–종료 · 종일 · 여러 날 · 반복)을 붙여 돌려준다.
+        const parsed = parseLine(text(payload.text, '일정 입력', { limit: 10_000 }), now);
+        return { ...parsed, summary: describe(parsed) };
       }
       case 'subscription.list': return calendar.listCalendars().filter(item => item.kind === 'subscription');
       case 'subscription.add': {

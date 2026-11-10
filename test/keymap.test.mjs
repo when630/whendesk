@@ -25,7 +25,8 @@ test('물리 키·수식키를 정확히 판정하고 한글 입력 상태에서
   assert.ok(K.is(key('KeyK', { key:'ㅏ', ctrlKey:true }), 'command.open'), '한글 자판의 Ctrl+K');
   assert.ok(K.is(key('KeyK', { key:'k', metaKey:true }), 'command.open'), '⌘도 Mod');
   assert.equal(K.is(key('KeyK', { key:'k', ctrlKey:true, shiftKey:true }), 'command.open'), false, '적지 않은 수식키는 거부');
-  assert.equal(K.section(key('KeyH', { key:'ㅗ', altKey:true })), 'dashboard');
+  assert.equal(K.section(key('Comma', { key:',', ctrlKey:true })), 'settings');
+  assert.equal(K.section(key('KeyH', { key:'ㅗ', altKey:true })), null, 'Alt+글자 화면 이동은 없다');
   assert.equal(K.section(key('KeyH', { key:'h' })), null);
   assert.ok(K.is(key('Tab', { key:'Tab', shiftKey:true }), 'work.tab.cycle'));
   assert.ok(K.is(key('Escape', { key:'Escape', ctrlKey:true, shiftKey:true }), 'back'), '?수식키는 눌려도 된다');

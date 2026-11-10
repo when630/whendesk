@@ -37,7 +37,7 @@ export function normalizeShortcutValues(values, options) {
   for (const field of FIELDS) {
     try { normalized[field] = normalizeAccelerator(values[field] ?? '', options); }
     catch (error) { fields[field] = error.message; }
-    if (/^(?:(?:Control|Command)\+(?:[KNSFEPZ]|\/|,|Tab|Return|Shift\+(?:[NAZIEMBT]|Tab))|Alt\+(?:Return|[HTIWDNCS]))$/.test(normalized[field] || '')) fields[field] = '앱 내부 단축키와 겹칩니다. 다른 조합을 지정해 주세요.';
+    if (/^(?:(?:Control|Command)\+(?:[KNSFEPZ]|\/|,|Tab|Return|Shift\+(?:[NAZIEMBT]|Tab))|Alt\+Return)$/.test(normalized[field] || '')) fields[field] = '앱 내부 단축키와 겹칩니다. 다른 조합을 지정해 주세요.';
   }
   if (!Object.keys(fields).length) {
     for (const field of FIELDS) for (const other of FIELDS) if (field !== other && normalized[field] && normalized[field] === normalized[other]) fields[field] = '서로 다른 단축키를 지정해 주세요.';

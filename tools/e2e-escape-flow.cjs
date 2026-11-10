@@ -114,7 +114,7 @@ async function closeApp(){
 
     await test('메모의 Tab은 메모·보관함·휴지통을 순환하고 Esc는 메모로 돌아온 뒤 창을 숨긴다',async()=>{
       await press('Tab');await page.locator('#cf-dashboard-panel').waitFor();
-      await press('Alt+n');await waitUntil(()=>within('.desk-notes-browser'),'메모 목록에 포커스가 없습니다.');
+      await page.evaluate(section=>window.__whendeskGo(section),'notes');await waitUntil(()=>within('.desk-notes-browser'),'메모 목록에 포커스가 없습니다.');
       const scope=page.locator('[data-note-scope]');
       assert.equal(await scope.inputValue(),'active');
       await press('Tab');await waitUntil(async()=>await scope.inputValue()==='archived','Tab이 보관함으로 가지 않았습니다.');
@@ -130,7 +130,7 @@ async function closeApp(){
 
     await test('입력한 대화상자는 Esc 한 번에 버리지 않고, 입력이 없으면 한 번에 닫는다',async()=>{
       await press('Tab');await page.locator('#cf-dashboard-panel').waitFor();
-      await press('Alt+c');await page.locator('.cal-views').waitFor();for(let step=0;step<3&&await page.locator('.cal-views [aria-selected=true]').getAttribute('data-cal-view')!=='month';step++)await page.keyboard.press('Tab');await waitUntil(()=>focused('.td-main [data-date]'),'캘린더 날짜에 포커스가 없습니다.');
+      await page.evaluate(section=>window.__whendeskGo(section),'calendar');await page.locator('.cal-views').waitFor();for(let step=0;step<3&&await page.locator('.cal-views [aria-selected=true]').getAttribute('data-cal-view')!=='month';step++)await page.keyboard.press('Tab');await waitUntil(()=>focused('.td-main [data-date]'),'캘린더 날짜에 포커스가 없습니다.');
       await press('n');await page.locator('.quick-event-form').waitFor();
       await press('Escape');await page.locator('.quick-event-form').waitFor({state:'hidden'});
       await waitUntil(()=>focused('.td-main [data-date]'),'빈 대화상자를 닫은 뒤 날짜로 돌아가지 않았습니다.');
