@@ -138,10 +138,12 @@ async function bootstrap(){
  /* 덱 키처럼 다른 프로세스가 부를 때(WHENTERMINAL showFromBackground와 같은 방식). Windows는 사용자가 다른 앱에서 막 입력하던 중이면
   * 입력을 받지 않은 프로세스의 show·focus·setAlwaysOnTop·moveTop을 모두 거절해 창이 뒤에 남는다(2026-11-10 실측: 셋 다 실패).
   * 최소화했다가 복원하면 Windows가 활성화를 허용한다. 전역 단축키·트레이는 그 순간 활성화 권한이 있어 필요 없다.
-  * 복원 뒤 Chromium이 화면을 다시 그리지 못해 빈 채로 남을 때가 있어 다시 그리게 한다. */
+  * 복원 뒤 Chromium이 화면을 다시 그리지 못해 빈 채로 남을 때가 있어 다시 그리게 한다.
+  * "이미 앞에 있으면 건너뛰기"는 하지 않는다: 거절된 focus() 뒤에는 isFocused()와 focus 이벤트가 둘 다 앞에 있다고 잘못 말한다
+  * (2026-11-10 실측, WHENDESK와 같은 창 설정). 그 판정 때문에 0.3.25에서 다른 창 뒤의 대시보드가 그대로 남았다. */
  let forcingFront=false;
  function raiseWindow(){
-  if(!win||win.isDestroyed()||!win.isVisible()||win.isFocused()||process.platform!=='win32')return;
+  if(!win||win.isDestroyed()||!win.isVisible()||process.platform!=='win32')return;
   forcingFront=true;setTimeout(()=>{forcingFront=false;},600); // 최소화 중의 blur가 Command를 숨기지 않게
   win.minimize();win.restore();win.focus();
   for(const ms of [50,300])setTimeout(()=>{if(win&&!win.isDestroyed()&&win.isVisible()&&!win.isMinimized())win.webContents.invalidate();},ms);
