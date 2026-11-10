@@ -11,7 +11,6 @@ import {createToast} from './toast.mjs';
 import {briefDecision,briefingLines,dayKey,STALE_WAITING_DAYS} from '../modules/work/main/brief.mjs';
 import {exportWorkspace,prepareRestore,prepareLegacy,installPrepared} from './data.mjs';
 import {DeckBridge,summarize as deckSummary,captureIntent} from './deck.mjs';
-import {createForeground} from './foreground.mjs';
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const argv=process.argv.slice(1);
 function option(name){const eq=argv.find(a=>a.startsWith(name+'='));if(eq)return eq.slice(name.length+1);const i=argv.indexOf(name);return i>=0?argv[i+1]:null;}
@@ -52,7 +51,7 @@ async function bootstrap(){
  function rememberDashboard(now=false){if(!win||win.isDestroyed()||shellMode!=='dashboard'||win.isMinimized()||win.isMaximized())return;dashboardBounds=win.getBounds();clearTimeout(dashboardSaveTimer);const save=()=>{if(!testMode)preferences.set({dashboardBounds});};if(now)save();else dashboardSaveTimer=setTimeout(save,400);}
  const rendererURL=pathToFileURL(path.join(ROOT,'renderer','index.html')).href;
  const send=(event,payload)=>{if(win&&!win.isDestroyed())win.webContents.send(event,payload);};
- let deck=null,foreground=null;
+ let deck=null;
  const changed=()=>{send('state.changed',{});deck?.changed();};
  async function requestQuit(){
   try{if(win&&!win.isDestroyed())await win.webContents.executeJavaScript('window.__whendeskFlush ? window.__whendeskFlush() : Promise.resolve()');}
@@ -136,14 +135,16 @@ async function bootstrap(){
   shellMode=mode==='dashboard'?'dashboard':'command';return {mode:shellMode};
  }
  function showCommand(){summon({shell:'command'});}
- /* 덱 키처럼 다른 프로세스가 부를 때: Windows는 앞에 있지 않은 프로세스의 focus()를 거절해, 다른 창 뒤에 떠 있던 대시보드가
-  * 그대로 뒤에 남았다(전역 단축키는 키 입력을 받은 쪽이라 괜찮다). 잠깐 맨 위로 올려 보이게 하고 포커스를 다시 청한다. */
+ /* 덱 키처럼 다른 프로세스가 부를 때(WHENTERMINAL showFromBackground와 같은 방식). Windows는 사용자가 다른 앱에서 막 입력하던 중이면
+  * 입력을 받지 않은 프로세스의 show·focus·setAlwaysOnTop·moveTop을 모두 거절해 창이 뒤에 남는다(2026-11-10 실측: 셋 다 실패).
+  * 최소화했다가 복원하면 Windows가 활성화를 허용한다. 전역 단축키·트레이는 그 순간 활성화 권한이 있어 필요 없다.
+  * 복원 뒤 Chromium이 화면을 다시 그리지 못해 빈 채로 남을 때가 있어 다시 그리게 한다. */
+ let forcingFront=false;
  function raiseWindow(){
-  if(!win||win.isDestroyed()||!win.isVisible()||win.isFocused())return;
-  // 전경 도우미가 Windows의 전경 잠금을 넘어 실제로 앞으로 가져온다. 맨 위로 잠깐 올리는 것은 도우미를 못 쓸 때의 대비다.
-  foreground?.bring(win.getNativeWindowHandle());
-  win.setAlwaysOnTop(true,'screen-saver');win.moveTop();win.focus();
-  setTimeout(()=>{if(win&&!win.isDestroyed()&&shellMode==='dashboard')win.setAlwaysOnTop(false);},250);
+  if(!win||win.isDestroyed()||!win.isVisible()||win.isFocused()||process.platform!=='win32')return;
+  forcingFront=true;setTimeout(()=>{forcingFront=false;},600); // 최소화 중의 blur가 Command를 숨기지 않게
+  win.minimize();win.restore();win.focus();
+  for(const ms of [50,300])setTimeout(()=>{if(win&&!win.isDestroyed()&&win.isVisible()&&!win.isMinimized())win.webContents.invalidate();},ms);
  }
  function showDashboard(route={}){if(!win||win.isDestroyed())return;if(win.isMinimized())win.restore();win.show();win.focus();setShell('dashboard');send('navigate',{shell:'dashboard',view:'dashboard',...route});}
  async function handleGlobalShortcut(field){
@@ -181,7 +182,7 @@ async function bootstrap(){
  win.webContents.on('will-navigate',(event,url)=>{if(url!==rendererURL)event.preventDefault();});
  win.webContents.session.setPermissionRequestHandler((_contents,_permission,callback)=>callback(false));
  win.on('close',event=>{if(!quitting){event.preventDefault();hideWindow();}});
- win.on('hide',()=>{idleSince=Date.now();});win.on('show',()=>{idleSince=0;});win.on('blur',()=>{if(shellMode!=='command'||quitting||testMode||!win.isVisible()||win.getOpacity()<1)return;setTimeout(()=>{if(!win.isDestroyed()&&!win.isFocused()&&win.isVisible()&&shellMode==='command')hideWindow();},60);});
+ win.on('hide',()=>{idleSince=Date.now();});win.on('show',()=>{idleSince=0;});win.on('blur',()=>{if(shellMode!=='command'||quitting||testMode||forcingFront||!win.isVisible()||win.getOpacity()<1)return;setTimeout(()=>{if(!win.isDestroyed()&&!win.isFocused()&&win.isVisible()&&shellMode==='command')hideWindow();},60);});
  win.on('moved',()=>{if(!win.isVisible()||win.getOpacity()<1)return;if(shellMode==='dashboard'){rememberDashboard();return;}if(!testMode){const [x,y]=win.getPosition();preferences.set({commandPosition:{x,y}});}});
  win.on('resize',()=>{if(shellMode==='dashboard'&&win.isVisible())rememberDashboard();});
  app.on('second-instance',()=>showCommand());
@@ -324,8 +325,6 @@ async function bootstrap(){
    },
   });
   deck.start();
-  // 덱 키로 창을 열 때 쓴다. 첫 컴파일이 1초 남짓이라 미리 띄워 둔다.
-  foreground=createForeground({log:(...args)=>console.error(...args)});foreground.start();
  }
  startDeck().catch(error=>console.error('덱 통로:',error.message));
  ipcMain.handle('desk:call',async(event,method,payload)=>{
@@ -333,7 +332,7 @@ async function bootstrap(){
   try{if(!Object.hasOwn(methods,method))throw new Error('허용하지 않는 요청입니다.');return {ok:true,value:await methods[method](payload)};}catch(error){console.error(method,error);return {ok:false,error:error.message||String(error),...(error.fields?{fields:error.fields}:{})};}
  });
  win.webContents.on('render-process-gone',(_event,details)=>{console.error('renderer stopped',details);});
- app.on('before-quit',()=>{quitting=true;deck?.stop();foreground?.stop();toast?.dispose();shortcutManager.dispose();clearInterval(mediaTimer);mediaControl?.stop();stopServices();tray?.destroy();});
+ app.on('before-quit',()=>{quitting=true;deck?.stop();toast?.dispose();shortcutManager.dispose();clearInterval(mediaTimer);mediaControl?.stop();stopServices();tray?.destroy();});
  await win.loadFile(path.join(ROOT,'renderer','index.html'));
  const hiddenStart=argv.includes('--hidden')||updatedQuietly;
  if(!argv.includes('--headless')&&!hiddenStart){win.show();win.focus();}
