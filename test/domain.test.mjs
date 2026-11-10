@@ -112,6 +112,32 @@ test('반복을 이 회차부터 나누어도 COUNT가 늘어나거나 앞부분
   assert.equal(events.length, 5);
 });
 
+test('매주 화요일 회의를 이 회차부터 수요일로 옮기면 반복 요일도 수요일로 옮겨 회차가 사라지지 않는다', async t => {
+  const { domain } = setup(t);
+  const november = { year: 2026, month: 10 };
+  const event = await domain.mutate('event.create', { title: '주간회의', date: '2026-10-27', time: '10:30', end: '11:30', rrule: 'FREQ=WEEKLY;BYDAY=TU' });
+  const today = domain.state(november).events.find(item => item.id === event.id && item.date === '2026-11-10');
+  assert.ok(today, '11/10(화) 회차가 있어야 한다');
+  const moved = await domain.mutate('event.update', { id: event.id, recurrenceId: today.recurrenceId, scope: 'future', startsAt: new Date('2026-11-11T10:30:00').toISOString(), endsAt: new Date('2026-11-11T11:30:00').toISOString(), allDay: false });
+  const events = domain.state(november).events;
+  const after = events.filter(item => item.id === moved.id).map(item => item.date);
+  assert.deepEqual(after.slice(0, 3), ['2026-11-11', '2026-11-18', '2026-11-25'], '옮긴 회차(수)부터 매주 수요일');
+  assert.match(domain.calendar.getEvent(moved.id).rrule, /BYDAY=WE/);
+  const before = events.filter(item => item.id === event.id).map(item => item.date);
+  assert.ok(before.includes('2026-11-03') && !before.includes('2026-11-10'), '앞 시리즈는 11/3까지');
+  // 전체를 옮겨도 요일이 따라간다(시리즈 시작일은 그대로 같은 주의 수요일로).
+  const series = await domain.mutate('event.create', { title: '전체 이동', date: '2026-11-02', time: '09:00', end: '10:00', rrule: 'FREQ=WEEKLY;BYDAY=MO' });
+  const monday = domain.state(november).events.find(item => item.id === series.id && item.date === '2026-11-09');
+  await domain.mutate('event.update', { id: series.id, recurrenceId: monday.recurrenceId, scope: 'all', startsAt: new Date('2026-11-11T09:00:00').toISOString(), endsAt: new Date('2026-11-11T10:00:00').toISOString(), allDay: false });
+  const days = domain.state(november).events.filter(item => item.id === series.id).map(item => new Date(item.startsAt).getDay());
+  assert.ok(days.length > 2 && days.every(day => day === 3), '전체 이동 뒤 모든 회차가 수요일');
+  // 이 회차만 옮기면 규칙은 그대로다.
+  const once = await domain.mutate('event.create', { title: '한 번만', date: '2026-11-03', time: '14:00', end: '15:00', rrule: 'FREQ=WEEKLY;BYDAY=TU' });
+  const occurrence = domain.state(november).events.find(item => item.id === once.id && item.date === '2026-11-10');
+  await domain.mutate('event.update', { id: once.id, recurrenceId: occurrence.recurrenceId, scope: 'one', startsAt: new Date('2026-11-12T14:00:00').toISOString(), endsAt: new Date('2026-11-12T15:00:00').toISOString(), allDay: false });
+  assert.match(domain.calendar.getEvent(once.id).rrule, /BYDAY=TU/);
+});
+
 test('구독 일정은 수정·삭제할 수 없고 동기화 실패에도 기존 내용이 남는다', async t => {
   let fail = false;
   const { domain } = setup(t, { fetchImpl: async () => fail ? { ok: false, status: 503 } : { ok: true, status: 200, text: async () => sampleIcs, headers: { get: () => null } } });

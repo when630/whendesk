@@ -56,6 +56,32 @@ function recurrence(value) {
   } catch { throw new Error('반복 규칙이 올바르지 않습니다.'); }
   return clean;
 }
+/* 반복 일정의 회차를 다른 날로 옮기면 반복 규칙의 요일·날짜도 같이 옮긴다.
+ * 그러지 않으면 시작만 수요일로 가고 규칙은 BYDAY=TU로 남아, 옮긴 회차가 사라지고 다음 화요일부터 이어진다. */
+const RRULE_DAYS = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+export function localDayShift(fromISO, toISO) {
+  const from = new Date(fromISO), to = new Date(toISO);
+  if (!Number.isFinite(from.getTime()) || !Number.isFinite(to.getTime())) return 0;
+  return Math.round((new Date(to.getFullYear(), to.getMonth(), to.getDate(), 12) - new Date(from.getFullYear(), from.getMonth(), from.getDate(), 12)) / 86_400_000);
+}
+export function shiftRrule(rrule, days, startsAt) {
+  if (!rrule || !days) return rrule;
+  const start = new Date(startsAt);
+  return String(rrule).split(';').map(part => {
+    const [key, value] = part.split('=');
+    if (key?.toUpperCase() === 'BYDAY' && value) {
+      return `${key}=${value.split(',').map(token => {
+        const match = /^([+-]?\d*)([A-Z]{2})$/i.exec(token.trim());
+        const index = match ? RRULE_DAYS.indexOf(match[2].toUpperCase()) : -1;
+        return index < 0 ? token : match[1] + RRULE_DAYS[(((index + days) % 7) + 7) % 7];
+      }).join(',')}`;
+    }
+    // 매월 며칠(하나)이면 옮긴 날짜의 일로 맞춘다. 여러 날짜는 사람이 정한 규칙이라 그대로 둔다.
+    if (key?.toUpperCase() === 'BYMONTHDAY' && /^\d+$/.test(value || '') && Number.isFinite(start.getTime())) return `${key}=${start.getDate()}`;
+    return part;
+  }).join(';');
+}
+
 function normalizeEvent(event) {
   return {
     ...event,
@@ -431,6 +457,11 @@ export function createDomain({ dataDir, fetchImpl = globalThis.fetch } = {}) {
           ? { ...current, startsAt: occurrenceId, endsAt: duration == null ? null : new Date(Date.parse(occurrenceId) + duration).toISOString() }
           : current;
         const fields = eventFields(payload, base);
+        // 반복 규칙을 직접 바꾸지 않았는데 회차를 다른 날로 옮겼으면 규칙의 요일·날짜도 같은 만큼 옮긴다(이 회차만은 예외 회차라 규칙과 무관).
+        if (fields.rrule && !owns(payload, 'rrule') && payload.scope !== 'one') {
+          const days = localDayShift(base.startsAt, fields.startsAt);
+          if (days) fields.rrule = shiftRrule(fields.rrule, days, fields.startsAt);
+        }
         if (occurrenceId && payload.scope === 'all') {
           const offset = Date.parse(current.startsAt) - Date.parse(occurrenceId);
           fields.startsAt = new Date(Date.parse(fields.startsAt) + offset).toISOString();
