@@ -188,3 +188,11 @@
 /* Journey: 시안처럼 달 칸을 여러 열로 놓는다(넓으면 두 열 이상, 좁으면 한 열). */
 #whendesk-command-first .td-app .cal-future{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:24px 40px;align-items:start}
 #whendesk-command-first .td-app .cal-future .future-month{margin:0}
+/* 탭의 선택은 옅은 배경 알약(목록에서 고른 행과 같은 색)이고, 키보드 포커스는 아래 밑줄이다 — 둘이 같은 모양으로 겹치지 않게.
+ * 머리의 화면 탭과 설정 분류 탭이 같은 모양을 쓴다. 모서리는 스킨의 둥글기(--td-radius)를 따르고, 각진 스킨은 각진 칸이 된다. */
+#whendesk-command-first .td-app :is(.td-tabs,.cal-views){gap:4px}
+#whendesk-command-first .td-app :is(.td-tabs,.cal-views) [role=tab]{padding:5px 12px;margin-bottom:0;border:0;border-radius:var(--td-radius,999px);background:none;color:var(--td-muted)}
+#whendesk-command-first .td-app:not([data-skin=tui]):not([data-skin=poster]) :is(.td-tabs,.cal-views) [role=tab]{border-radius:999px}
+#whendesk-command-first .td-app :is(.td-tabs,.cal-views) [role=tab][aria-selected=true]{background:var(--td-sel);color:var(--td-text);font-weight:500;border-bottom-color:transparent}
+#whendesk-command-first .td-app :is(.td-tabs,.cal-views) [role=tab]:focus-visible{box-shadow:inset 0 -2px 0 var(--td-text)}
+#whendesk-command-first .td-app .cal-views{padding-bottom:10px;border-bottom:0}
