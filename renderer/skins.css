@@ -178,3 +178,13 @@
 #whendesk-command-first .td-app .td-main-head{position:relative}
 #whendesk-command-first .td-app .head-grip{top:-22px;left:50%;transform:translateX(-50%);width:28px;height:12px}
 #whendesk-command-first .td-app .head-grip svg{width:14px;height:14px}
+/* 머리는 메인 밖 맨 위 전체 폭이다: 제목은 왼쪽 끝, 화면 탭(과 설정)은 오른쪽 끝. 아래 메인·달력만 스크롤한다. */
+#whendesk-command-first #cf-dashboard-panel:not([hidden]){display:flex;flex-direction:column}
+#whendesk-command-first #cf-dashboard-panel>.td-layout{flex:1;height:auto;min-height:0}
+#whendesk-command-first .td-app .td-main-head{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px 24px;margin:0;padding:24px 28px 14px;border-bottom:1px solid var(--td-line);background:var(--td-surface)}
+#whendesk-command-first .td-app .td-main-head>div:first-child{flex:0 1 auto;min-width:0}
+#whendesk-command-first .td-app .td-main-head .td-tabs{margin-left:auto}
+#whendesk-command-first .td-app .head-grip{top:5px;left:6px;transform:none}
+/* Journey: 시안처럼 달 칸을 여러 열로 놓는다(넓으면 두 열 이상, 좁으면 한 열). */
+#whendesk-command-first .td-app .cal-future{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:24px 40px;align-items:start}
+#whendesk-command-first .td-app .cal-future .future-month{margin:0}

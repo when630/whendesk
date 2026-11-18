@@ -137,7 +137,7 @@ function durableData(state) {
     await test('Tab/Ctrl+K 2회 왕복 뒤 대시보드 native 크기와 검색 선택영역 보존', async () => {
       await page.locator('.td-command input').press('Tab');
       await page.locator('#cf-dashboard-panel').waitFor();
-      await page.locator('.td-main h1').filter({ hasText: 'Today' }).waitFor();
+      await page.locator('.td-main-head h1').filter({ hasText: 'Today' }).waitFor();
       await waitUntil(async () => (await bounds()).width >= 800, '대시보드 native 창이 확장되지 않았습니다.');
       const initial = await bounds();
       measurements.dashboardBounds = { initial, returns: [] };
@@ -286,7 +286,7 @@ function durableData(state) {
         await waitUntil(async () => (await call('preferences.get')).skin === skin, skin + ' 스킨 변경이 저장되지 않았습니다.');
         await screenshot('07-skin-' + skin);
         await page.evaluate(section=>window.__whendeskGo(section),'dashboard');
-        await page.locator('.td-main h1').filter({ hasText: 'Today' }).waitFor();
+        await page.locator('.td-main-head h1').filter({ hasText: 'Today' }).waitFor();
         await screenshot('07-skin-' + skin + '-dashboard');
         await page.keyboard.press('Control+k');
         await page.waitForFunction(() => document.activeElement === document.querySelector('.td-command input'));
@@ -347,7 +347,7 @@ function durableData(state) {
       // 대시보드로 돌아오면 편집 대화상자가 그대로 열려 있다. Esc로 닫고 메뉴로 간다.
       await page.locator('.task-form').waitFor();await page.keyboard.press('Escape');await page.locator('.task-form').waitFor({ state: 'detached' });
       await page.locator('.td-tabs [data-top-tab=today]').click();
-      await page.locator('.td-main h1').filter({ hasText: 'Today' }).waitFor();
+      await page.locator('.td-main-head h1').filter({ hasText: 'Today' }).waitFor();
       await page.locator('.cf-home-task').filter({ hasText: finalTitle }).waitFor();
       await noPersistentKeycaps('데이터가 있는 대시보드');
       await screenshot('10-dashboard-with-data');

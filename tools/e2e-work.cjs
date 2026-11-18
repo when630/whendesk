@@ -45,7 +45,7 @@ async function expectTab(tab){await waitUntil(async()=>await activeTab()===tab,'
 async function gotoInbox(){await page.evaluate(()=>window.__whendeskGo('inbox'));await expectTab('inbox');await waitWithin('[data-task-row]');}
 async function gotoToday(){await page.evaluate(()=>window.__whendeskGo('dashboard'));await expectTab('today');}
 async function gotoProjects(){await page.evaluate(()=>window.__whendeskGo('projects'));await page.locator('[data-settings-tab=projects][aria-selected=true]').waitFor();}
-async function gotoDone(){await page.evaluate(()=>window.__whendeskGo('done'));await page.locator('.td-main h1').filter({hasText:'완료 기록'}).waitFor();}
+async function gotoDone(){await page.evaluate(()=>window.__whendeskGo('done'));await page.locator('.td-main-head h1').filter({hasText:'완료 기록'}).waitFor();}
 async function focusToday(id){await gotoToday();const row=page.locator(`.cf-home-task [data-reveal="${id}"]`);await row.waitFor();await row.focus();await waitFocus(`[data-reveal="${id}"]`);}
 async function focusRow(selector,idAttribute,id){
   const ids = await page.locator(selector).evaluateAll((rows,attribute)=>rows.map(row=>row.getAttribute(attribute)),idAttribute);
@@ -170,8 +170,8 @@ function setOwnedFixtureDoneDates(entries){
     await test('Today의 W 대기 상대를 저장하고 P·R 재촉 중복 방지와 U 연속 되돌림을 원본 규칙으로 처리',async()=>{
       await press('w');await page.locator('.work-waiting-form').waitFor();await waitFocus('.work-waiting-form [name=waitingFor]');await text(waitForName);await press('Control+s');await page.locator('.work-waiting-form').waitFor({state:'hidden'});
       await waitUntil(async()=>{const item=await task(taskId);return item?.kind==='waiting'&&item.waitingFor===waitForName;},'대기 상대와 대기 분류가 저장되지 않았습니다.');await expectTab('today');await waitWithin(`[data-reveal="${taskId}"]`);
-      // 앞 시나리오에서 마감을 미뤘으므로 기호 우선순위(> 가 … 보다 앞)대로 > 다.
-      assert.equal((await page.locator(`.cf-home-task:has([data-reveal="${taskId}"]) .task-mark`).textContent()).trim(),'>','미룬 대기 일이 > 기호가 아닙니다.');
+      // 마감이 있는 일은 대기 중이어도 < 다(마감이 대기보다 앞).
+      assert.equal((await page.locator(`.cf-home-task:has([data-reveal="${taskId}"]) .task-mark`).textContent()).trim(),'<','마감 있는 대기 일이 < 기호가 아닙니다.');
       await press('p');await waitUntil(async()=>(await task(taskId))?.nudgeCount===1,'P 재촉이 기록되지 않았습니다.');const first=await task(taskId);assert.ok(first.nudgedAt);
       await page.waitForTimeout(45);await press('r');await waitUntil(async()=>(await task(taskId))?.nudgedAt!==first.nudgedAt,'R 재촉 기록이 갱신되지 않았습니다.');assert.equal((await task(taskId)).nudgeCount,1,'30분 내 재촉 횟수가 중복 증가했습니다.');
       await press('u');await waitUntil(async()=>{const item=await task(taskId);return item?.nudgedAt===first.nudgedAt&&item.nudgeCount===1;},'최근 재촉을 되돌리지 못했습니다.');
@@ -250,7 +250,7 @@ function setOwnedFixtureDoneDates(entries){
       for(const entry of dates)entry.id=await createFixture('완료 기록 '+entry.days+'일 '+runId,{kind:'todo',done:true});
       setOwnedFixtureDoneDates(dates);
       for(const entry of dates)assert.equal((await task(entry.id)).doneAt,entry.iso);
-      await focusToday(fixture.todoA);await press('h');await page.locator('.td-main h1').filter({hasText:'완료 기록'}).waitFor();
+      await focusToday(fixture.todoA);await press('h');await page.locator('.td-main-head h1').filter({hasText:'완료 기록'}).waitFor();
       assert.deepEqual(JSON.parse(await page.locator('[data-work-range]').getAttribute('data-options')).map(option=>option.value),['7','30','']);
       await page.locator('[data-work-range]').focus();await waitFocus('[data-work-range]');
       const expectHistory=async(expected)=>{
@@ -267,12 +267,12 @@ function setOwnedFixtureDoneDates(entries){
       assert.equal(errors.length,0);await screenshot('09-work-done-history');
     });
 
-    await test('불릿 기호(Today): < 미래 마감 · 마감을 미루면 > · C 취소 줄 긋기 · Space ×, U로 되돌리고 설정에서 체크박스로 바꾼다',async()=>{
+    await test('불릿 기호(Today): 마감 있으면 < · 미루면 미룸 n회 · C 취소 줄 긋기 · Space ×, U로 되돌리고 설정에서 체크박스로 바꾼다',async()=>{
       const id=await createFixture('기호 검증 '+runId,{kind:'todo',project_id:fixture.projectA,due:await dateAfter(1)});
       const mark=()=>page.locator(`.cf-home-task:has([data-reveal="${id}"]) .task-mark`);
       await gotoToday();await waitUntil(async()=>await mark().textContent()==='<','마감이 남은 일이 < 기호가 아닙니다.');
       await call('mutate',{type:'task.update',payload:{id,due:await dateAfter(2)}});await gotoToday();
-      await waitUntil(async()=>await mark().textContent()==='>','마감을 미룬 일이 > 기호가 아닙니다.');
+      await waitUntil(async()=>await mark().textContent()==='<','마감을 미룬 일도 < 기호여야 합니다.');
       assert.ok((await page.locator(`.cf-home-task [data-reveal="${id}"] small`).textContent()).includes('미룸 1회'),'미룬 횟수가 줄에 보이지 않습니다.');
       await focusToday(id);await press('c');
       await waitUntil(async()=>{const item=await task(id);return item?.cancelled&&item.done;},'C로 취소하지 못했습니다.');

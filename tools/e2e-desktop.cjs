@@ -33,7 +33,7 @@ async function test(name,fn){await fn();results.push({name,ok:true});}
   });
   await test('Tab native확장·Esc 숨김 뒤 빈 Command로 다시 부르기',async()=>{
    const input=page.locator('.td-command input');await input.fill('123+456');await page.waitForFunction(()=>document.querySelector('.td-command-results')?.textContent.includes('579'));
-   await input.evaluate(el=>el.setSelectionRange(1,4));await input.press('Tab');await page.locator('.td-main h1').filter({hasText:'Today'}).waitFor();
+   await input.evaluate(el=>el.setSelectionRange(1,4));await input.press('Tab');await page.locator('.td-main-head h1').filter({hasText:'Today'}).waitFor();
    const bounds=await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].getBounds());assert.ok(bounds.width>=800);
    await page.keyboard.press('Escape');for(let attempt=0;attempt<40&&await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isVisible());attempt++)await page.waitForTimeout(50);
    assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isVisible()),false,'대시보드의 Esc가 창을 숨기지 않았습니다.');

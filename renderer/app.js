@@ -383,18 +383,19 @@
   }
   /* 불릿 저널 상태 기호. 닫힌 일(완료 ×·취소 줄 긋기)이 먼저고, 열린 일은 미룸 > · 대기 … · 미래 마감 < · 그 밖 • 순서로 하나만 보인다. */
   /* journal: 대시보드 저널에서는 그날이 된 일이 그날의 할 일 •이다(불릿 저널의 < 는 '그날로 잡아 둔 일'). 목록·앞으로·월 보기에서는 마감이 있으면 < 다. */
-  function taskGlyph(task,{journal=false}={}) {
+  /* 불릿 기호: 닫힌 일(완료 ×·취소 줄 긋기)이 먼저다. 열린 일은 마감이 있으면 어디서나 < (미룸·대기보다 먼저 — 미룬 횟수는 줄의 '미룸 n회'가 말한다),
+   * 마감 없이 기다리는 일은 …, 나머지는 •. */
+  function taskGlyph(task) {
     if(task.cancelled)return {glyph:'•',cls:'is-cancelled',label:'취소함'};
     if(task.done)return {glyph:'×',cls:'is-done',label:'완료'};
-    if(task.postponed)return {glyph:'>',cls:'is-postponed',label:`${task.postponed}번 미룸`};
+    if(task.due)return {glyph:'<',cls:task.due>today?'is-scheduled':'is-due',label:task.due>today?'예정':task.due===today?'오늘 마감':'마감 지남'};
     if(task.kind==='waiting')return {glyph:'…',cls:'is-waiting',label:'대기'};
-    if(task.due&&(!journal||task.due>today))return {glyph:'<',cls:task.due>today?'is-scheduled':'is-due',label:task.due>today?'예정':task.due===today?'오늘 마감':'마감 지남'};
     return {glyph:'•',cls:'is-open',label:'할 일'};
   }
   /* 설정의 '할 일 표시'에 따라 기호 버튼 또는 체크박스. 어느 쪽이든 누르면 완료·해제이고 키보드는 Space(완료)·C(취소)다. */
-  function taskMark(task,{journal=false}={}) {
+  function taskMark(task) {
     if(state.prefs?.taskMarker==='checkbox')return `<input type="checkbox" data-check="${esc(task.id)}" aria-label="${esc(task.title)} 완료" ${task.done ? 'checked' : ''}>`;
-    const mark=taskGlyph(task,{journal});
+    const mark=taskGlyph(task);
     return `<button type="button" class="task-mark ${mark.cls}" data-mark="${esc(task.id)}" tabindex="-1" aria-pressed="${task.done}" aria-label="${esc(task.title)} 완료" title="${esc(mark.label)}">${mark.glyph}</button>`;
   }
   /* 세 번 넘게 미룬 일은 버릴지 정할 때다(이관의 뜻) — 눈에 띄게 둔다. */
@@ -447,14 +448,14 @@
       if (kind === 'event') return `<div class="cf-home-task journal-row is-event" data-journal="event"><b class="journal-glyph" aria-hidden="true">○</b><button data-event="${eventKey(item)}"><span>${esc(item.title)}</span>${item.location ? `<small>${esc(item.location)}</small>` : ''}</button>${right(row)}</div>`;
       if (kind === 'note') return `<div class="cf-home-task journal-row is-note" data-journal="note"><b class="journal-glyph" aria-hidden="true">–</b><button data-reveal="${esc(item.id)}"><span>${esc(item.title)}</span></button>${right(row)}</div>`;
       const late = !item.done && item.due && item.due < day;
-      return `<div class="cf-home-task journal-row${item.done ? ' done' : ''}${item.cancelled ? ' cancelled' : ''}${late ? ' is-late' : ''}" data-journal="task">${taskMark(item, { journal:true })}<button data-reveal="${esc(item.id)}"><span>${esc(item.title)}</span>${sub(item) ? `<small>${sub(item)}</small>` : ''}</button>${right(row)}</div>`;
+      return `<div class="cf-home-task journal-row${item.done ? ' done' : ''}${item.cancelled ? ' cancelled' : ''}${late ? ' is-late' : ''}" data-journal="task">${taskMark(item)}<button data-reveal="${esc(item.id)}"><span>${esc(item.title)}</span>${sub(item) ? `<small>${sub(item)}</small>` : ''}</button>${right(row)}</div>`;
     };
     const rows = todayRows(day), groups = [];
     for (const project of state.projects) { const list = rows.filter(row => row.pid === project.id); if (list.length) groups.push({ pid:project.id, label:project.name, list }); }
     const loose = rows.filter(row => row.pid == null || !state.projects.some(project => project.id === row.pid));
     if (loose.length) groups.push({ pid:null, label:'프로젝트 없음', list:loose });
     const holiday = holidayNames(day);
-    return `${holiday.length ? `<p class="today-holiday is-holiday">${esc(holiday.join(' · '))}</p>` : ''}${groups.map(group => `<section class="cf-home-section today-group" data-today-project="${group.pid ?? ''}"><h2 class="work-group">${group.pid == null ? esc(group.label) : projectChip(group.pid, group.label)}<small>${group.list.length}</small></h2>${group.list.map(line).join('')}</section>`).join('') || '<div class="cf-home-empty">오늘 할 일이 없어요. InBox에 담고 프로젝트를 정하면 여기에 모입니다.</div>'}<p class="today-legend">• 할 일 · ○ 일정 · – 메모 · … 기다리는 일 · &lt; 마감 있음 · &gt; 미룬 일 · × 오늘 마친 일 — 붉은 D+n은 지난 마감(T로 오늘로)</p>`;
+    return `${holiday.length ? `<p class="today-holiday is-holiday">${esc(holiday.join(' · '))}</p>` : ''}${groups.map(group => `<section class="cf-home-section today-group" data-today-project="${group.pid ?? ''}"><h2 class="work-group">${group.pid == null ? esc(group.label) : projectChip(group.pid, group.label)}<small>${group.list.length}</small></h2>${group.list.map(line).join('')}</section>`).join('') || '<div class="cf-home-empty">오늘 할 일이 없어요. InBox에 담고 프로젝트를 정하면 여기에 모입니다.</div>'}<p class="today-legend">• 할 일 · ○ 일정 · – 메모 · … 기다리는 일 · &lt; 마감 있음 · × 오늘 마친 일 — 붉은 D+n은 지난 마감(T로 오늘로)</p>`;
   }
   /* 머리의 탭: Today · InBox · Journey · Note. 왼쪽 메뉴는 없다. Ctrl+Tab·Ctrl+Shift+Tab으로 돈다. */
   const TOP_TABS = [['today','Today'],['inbox','InBox'],['journey','Journey'],['note','Note']];
@@ -474,7 +475,8 @@
     notes?.setActive(state.view === 'notes' && state.shell === 'dashboard');
     // 오른쪽 작은 달력은 네 탭 모두에 있다. 설정(프로젝트 관리 포함)에만 없다.
     const settingsLike = state.view === 'settings' || state.view === 'tasks' && state.tab === 'projects';
-    app.classList.toggle('is-calendar', settingsLike);
+    // Note는 긴 글이라 오른쪽 달력 없이 폭을 다 쓴다.
+    app.classList.toggle('is-calendar', settingsLike || state.view === 'notes');
     renderWorkTabs(); renderWorkLegend();
     root.querySelector('.td-quick').hidden = state.view !== 'tasks' || state.tab !== 'inbox';
     const title = settingsLike ? 'Settings' : state.view === 'dashboard' ? 'Today' : state.view === 'calendar' ? 'Journey' : state.view === 'notes' ? 'Note' : state.tab === 'done' ? '완료 기록' : state.projects.find(p => p.id === state.project)?.name || 'InBox';
@@ -962,7 +964,7 @@
     const shortcutFields = SHORTCUT_UI, tab = state.settingsTab;
     const tabs = settingsTabsBar();
     if (tab === 'shortcuts') return tabs + `<form class="preferences-form"><section class="settings-section"><h2>어디서나 쓰는 단축키</h2><p class="settings-lead">다른 앱을 쓰는 중에도 바로 부르는 전역 단축키입니다. 칸을 고른 뒤 조합을 누르면 바로 저장되고, Delete는 해제, Esc는 저장된 값으로 되돌립니다.</p>${shortcutFields.map(([field,label,aria,fallback]) => `<label class="td-field">${label}<input name="${field}" data-shortcut="${field}" aria-label="${aria}" aria-describedby="shortcut-error-${field}" aria-invalid="${!!state.info.shortcutErrors?.[field]}" value="${esc(hotkey(state.prefs[field] ?? fallback))}" placeholder="사용 안 함" autocomplete="off" spellcheck="false"><span id="shortcut-error-${field}" class="settings-warning" data-shortcut-error="${field}" ${state.info.shortcutErrors?.[field] ? '' : 'hidden'}>${esc(state.info.shortcutErrors?.[field])}</span></label>`).join('')}<div class="settings-actions"><button class="td-secondary" type="button" data-action="help">앱 안 단축키 보기 (Ctrl+/)</button></div></section></form>`;
-    return tabs + `<section class="settings-section theme-section"><h2>모양</h2>${themeCards()}<h3>앱 아이콘</h3>${iconCards()}<h3>할 일 표시</h3><label class="td-field settings-marker">완료 표시 방식${pickButton('data-pref="taskMarker" aria-label="할 일 완료 표시 방식"',state.prefs.taskMarker||'symbol',[{value:'symbol',label:'불릿 저널 기호 (• × > < …)'},{value:'checkbox',label:'체크박스'}])}</label><small class="settings-path">기호: • 할 일 · × 완료 · 줄 그음 취소(C) · &gt; 미룬 일 · &lt; 마감이 남은 일 · … 대기. 어느 쪽이든 Space는 완료, C는 취소입니다.</small></section>
+    return tabs + `<section class="settings-section theme-section"><h2>모양</h2>${themeCards()}<h3>앱 아이콘</h3>${iconCards()}<h3>할 일 표시</h3><label class="td-field settings-marker">완료 표시 방식${pickButton('data-pref="taskMarker" aria-label="할 일 완료 표시 방식"',state.prefs.taskMarker||'symbol',[{value:'symbol',label:'불릿 저널 기호 (• × < …)'},{value:'checkbox',label:'체크박스'}])}</label><small class="settings-path">기호: • 할 일 · × 완료 · 줄 그음 취소(C) · &lt; 마감 있음(미룬 횟수는 줄에 표시) · … 대기. 어느 쪽이든 Space는 완료, C는 취소입니다.</small></section>
     <section class="settings-section"><h2>시작과 알림</h2><label class="settings-check"><input type="checkbox" data-pref="launchAtLogin" ${state.prefs.launchAtLogin ? 'checked' : ''} ${state.info.launchAtLoginSupported ? '' : 'disabled'}>로그인할 때 트레이에 숨겨 실행</label>${state.info.launchAtLoginSupported ? '' : '<small class="settings-path">배포본에서만 설정할 수 있습니다.</small>'}<label class="settings-check"><input type="checkbox" data-pref="briefEnabled" ${state.prefs.briefEnabled !== false ? 'checked' : ''}>아침 브리핑 알림</label><label class="td-field settings-time">브리핑 시각<input type="time" data-pref="briefAt" aria-label="아침 브리핑 시각" value="${esc(state.prefs.briefAt || '09:00')}"></label><small class="settings-path">하루 한 번, 정한 시각부터 3시간 안에 켜져 있으면 오늘 마감·지연·일정·Waiting·InBox를 알립니다.</small></section>
     <section class="settings-section"><h2>업데이트</h2><p class="settings-update" data-update-line role="status">${esc(state.update?.line || '')}</p><div class="settings-actions"><button class="td-secondary" type="button" data-action="update-check" ${state.update?.supported ? '' : 'disabled'}>지금 확인</button><button class="td-secondary" type="button" data-action="update-install" ${state.update?.status === 'ready' ? '' : 'disabled'}>재시작해 설치</button></div></section>
     <section class="settings-section"><h2>데이터</h2><div class="settings-actions"><button class="td-secondary" data-data="importLegacy">기존 데이터 복사해 가져오기</button><button class="td-secondary" data-data="export">백업 내보내기</button><button class="td-secondary" data-data="restore">백업 복원</button><button class="td-secondary" data-data="openFolder">저장 폴더 열기</button></div><small class="settings-path">${esc(state.info.dataDir)}</small></section><section class="settings-section"><h2>WHENCOMMAND</h2><label class="settings-check"><input type="checkbox" data-pref="clipboardRow" ${state.prefs.clipboardRow !== false ? 'checked' : ''}>빈 입력에 클립보드로 할 수 있는 것 보이기</label><button class="td-secondary" data-action="refresh-command">검색 목록 새로고침</button></section><section class="settings-section"><h2>WHENDESK ${esc(state.info.version || '')}</h2><button class="td-secondary" data-action="quit">앱 종료</button></section>`;
@@ -1429,7 +1431,8 @@
   function workKeys(event) {
     if(state.view!=='tasks')return false;
     const target=event.target,mod=event.ctrlKey||event.metaKey,main=root.querySelector('.td-main');
-    if(!main.contains(target))return false;
+    // 머리(탭·설정)는 메인 밖 위쪽에 있다. 거기 선 포커스에서도 목록 키(U 등)를 받는다.
+    if(!main.contains(target)&&!root.querySelector('.td-main-head').contains(target))return false;
     const tab=target.closest('.td-work-nav [data-tab]'),row=target.closest('[data-task-row]'),projectRow=target.closest('[data-work-project-row]');
     if(target.matches('[data-work-search]')) {
       if(K.is(event,'work.search.leave')){event.preventDefault();focusView();return true;}

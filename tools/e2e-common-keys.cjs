@@ -181,7 +181,7 @@ async function closeApp(){
     });
 
     await test('Ctrl+Tab·Ctrl+Shift+Tab은 머리 탭(Today·InBox·Journey·Note)을 순환한다',async()=>{
-      const title=()=>page.locator('.td-main h1').innerText();
+      const title=()=>page.locator('.td-main-head h1').innerText();
       await page.evaluate(section=>window.__whendeskGo(section),'inbox');await waitUntil(async()=>(await title())==='InBox','InBox로 가지 않았습니다.');
       const visited=[];
       for(const key of ['Control+Tab','Control+Tab','Control+Tab','Control+Tab','Control+Shift+Tab']){const before=await title();await press(key);await waitUntil(async()=>await title()!==before,key+'가 탭을 바꾸지 않았습니다.');visited.push(await title());}
@@ -206,7 +206,7 @@ async function closeApp(){
       // – 한 줄 메모는 Work 항목이다(긴 글의 Note 문서는 저널에 오르지 않는다).
       const memo=await call('mutate',{type:'task.create',payload:{title:'저널 메모 '+runId,kind:'note'}});
       const ids=[];for(const title of ['대시보드 첫째 '+runId,'대시보드 둘째 '+runId]){const created=await call('mutate',{type:'task.create',payload:{title}});await call('mutate',{type:'task.update',payload:{id:created.id,kind:'todo'}});ids.push(created.id);}
-      await page.evaluate(section=>window.__whendeskGo(section),'inbox');await page.evaluate(section=>window.__whendeskGo(section),'dashboard');await waitUntil(async()=>(await page.locator('.td-main h1').innerText())==='Today','Today로 가지 않았습니다.');
+      await page.evaluate(section=>window.__whendeskGo(section),'inbox');await page.evaluate(section=>window.__whendeskGo(section),'dashboard');await waitUntil(async()=>(await page.locator('.td-main-head h1').innerText())==='Today','Today로 가지 않았습니다.');
       const active=()=>page.evaluate(()=>{const element=document.activeElement;return element.dataset.reveal?(element.closest('.is-note')?'note:':'task:')+element.dataset.reveal:element.classList.contains('cf-entry')?'entry:'+element.dataset.action:element.tagName+'.'+element.className;});
       const items=await page.evaluate(()=>[...document.querySelectorAll('.cf-home-task :is([data-reveal],[data-event],[data-open-note]),.cf-entry')].map(element=>element.dataset.reveal?(element.closest('.is-note')?'note:':'task:')+element.dataset.reveal:element.dataset.event?'event:'+element.dataset.event:'entry:'+element.dataset.action));
       for(const id of ids)assert.ok(items.includes('task:'+id),'오늘 담은 할 일이 오늘 칸에 없습니다.');
@@ -249,14 +249,14 @@ async function closeApp(){
       await press('Escape');
     });
 
-    await test('마감이 있는 할 일은 오른쪽 달력의 마감 줄에서 < 이고, Today에서는 그날이 된 일이라 • 이다',async()=>{
+    await test('마감이 있는 할 일은 오른쪽 달력의 마감 줄과 Today 모두에서 < 다',async()=>{
       const d=new Date(),today=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
       const due=await call('mutate',{type:'task.create',payload:{title:'오늘 마감 기호 '+runId}});await call('mutate',{type:'task.update',payload:{id:due.id,kind:'todo',due:today}});
       await page.evaluate(section=>window.__whendeskGo(section),'inbox');await page.evaluate(section=>window.__whendeskGo(section),'dashboard');
       const sideMark=page.locator(`.td-calendar-side .td-deadline[data-reveal="${due.id}"] .td-deadline-glyph`);await sideMark.waitFor();
       assert.equal((await sideMark.innerText()).trim(),'<','달력의 마감 줄에서 마감 있는 일이 < 가 아닙니다.');
       const journalMark=page.locator(`.cf-home-task:has([data-reveal="${due.id}"]) .task-mark`);await journalMark.waitFor();
-      assert.equal((await journalMark.innerText()).trim(),'•','Today에서 오늘 마감인 일이 • 가 아닙니다.');
+      assert.equal((await journalMark.innerText()).trim(),'<','Today에서 오늘 마감인 일이 < 가 아닙니다.');
     });
 
     await test('지난 마감: 프로젝트 묶음 안 맨 앞에 붉은 D+n으로 서고, T로 오늘로 넘기면 미룸이 세지고 U로 돌아온다',async()=>{

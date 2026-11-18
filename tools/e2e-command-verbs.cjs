@@ -179,7 +179,7 @@ async function closeApp(){
       for(const next of ['inbox','journey','note','today']){await press('Control+Tab');await waitUntil(async()=>await tab()===next,'Ctrl+Tab이 '+next+'로 가지 않았습니다.');}
       await press('Control+Shift+Tab');await waitUntil(async()=>await tab()==='note','Ctrl+Shift+Tab이 거꾸로 가지 않았습니다.');
       await press('Control+Shift+Tab');await waitUntil(async()=>await tab()==='journey','Ctrl+Shift+Tab이 Journey로 가지 않았습니다.');
-      assert.equal(await page.locator('.td-main h1').innerText(),'Journey');
+      assert.equal(await page.locator('.td-main-head h1').innerText(),'Journey');
       await waitUntil(()=>within('.cal-future'),'Journey 기본 자리에 포커스가 없습니다.');
       await screenshot('03-journey');
       const title='정비 '+runId;
