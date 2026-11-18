@@ -385,18 +385,19 @@
     return `<button type="button" class="td-pick" ${attrs} value="${esc(current?.value??'')}" aria-haspopup="listbox" aria-expanded="false" data-options="${esc(JSON.stringify(options))}"><span class="td-pick-label">${pickLabel(current)}</span>${icon('chevron-down')}</button>`;
   }
   /* 불릿 저널 상태 기호. 닫힌 일(완료 ×·취소 줄 긋기)이 먼저고, 열린 일은 미룸 > · 대기 … · 미래 마감 < · 그 밖 • 순서로 하나만 보인다. */
-  function taskGlyph(task) {
+  /* journal: 대시보드 저널에서는 그날이 된 일이 그날의 할 일 •이다(불릿 저널의 < 는 '그날로 잡아 둔 일'). 목록·앞으로·월 보기에서는 마감이 있으면 < 다. */
+  function taskGlyph(task,{journal=false}={}) {
     if(task.cancelled)return {glyph:'•',cls:'is-cancelled',label:'취소함'};
     if(task.done)return {glyph:'×',cls:'is-done',label:'완료'};
     if(task.postponed)return {glyph:'>',cls:'is-postponed',label:`${task.postponed}번 미룸`};
     if(task.kind==='waiting')return {glyph:'…',cls:'is-waiting',label:'대기'};
-    if(task.due&&task.due>today)return {glyph:'<',cls:'is-scheduled',label:'예정'};
+    if(task.due&&(!journal||task.due>today))return {glyph:'<',cls:task.due>today?'is-scheduled':'is-due',label:task.due>today?'예정':task.due===today?'오늘 마감':'마감 지남'};
     return {glyph:'•',cls:'is-open',label:'할 일'};
   }
   /* 설정의 '할 일 표시'에 따라 기호 버튼 또는 체크박스. 어느 쪽이든 누르면 완료·해제이고 키보드는 Space(완료)·C(취소)다. */
-  function taskMark(task) {
+  function taskMark(task,{journal=false}={}) {
     if(state.prefs?.taskMarker==='checkbox')return `<input type="checkbox" data-check="${esc(task.id)}" aria-label="${esc(task.title)} 완료" ${task.done ? 'checked' : ''}>`;
-    const mark=taskGlyph(task);
+    const mark=taskGlyph(task,{journal});
     return `<button type="button" class="task-mark ${mark.cls}" data-mark="${esc(task.id)}" tabindex="-1" aria-pressed="${task.done}" aria-label="${esc(task.title)} 완료" title="${esc(mark.label)}">${mark.glyph}</button>`;
   }
   /* 세 번 넘게 미룬 일은 버릴지 정할 때다(이관의 뜻) — 눈에 띄게 둔다. */
@@ -440,7 +441,7 @@
     const day = dateKey(), clock = iso => new Date(iso).toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit', hour12:false });
     const badgeOf = t => { const badge = workRules.dueBadge(t.due); return `<button type="button" class="td-due ${badge?.cls === 'today' ? 'today' : ''} ${badge?.cls === 'over' ? 'work-overdue' : ''}" data-edit-due="${esc(t.id)}" tabindex="-1" title="${esc(t.due || '마감 없음')} · 마감 바꾸기 (D)">${esc(badge?.text || '마감 없음')}</button>`; };
     const sub = t => [t.project ? esc(t.project) : '', postponedMeta(t)].filter(Boolean).join(' · ');
-    const taskLine = (t, right) => `<div class="cf-home-task journal-row${t.done ? ' done' : ''}${t.cancelled ? ' cancelled' : ''}" data-journal="task">${taskMark(t)}<button data-reveal="${esc(t.id)}"><span>${esc(t.title)}</span>${sub(t) ? `<small>${sub(t)}</small>` : ''}</button>${right}</div>`;
+    const taskLine = (t, right) => `<div class="cf-home-task journal-row${t.done ? ' done' : ''}${t.cancelled ? ' cancelled' : ''}" data-journal="task">${taskMark(t, { journal:true })}<button data-reveal="${esc(t.id)}"><span>${esc(t.title)}</span>${sub(t) ? `<small>${sub(t)}</small>` : ''}</button>${right}</div>`;
     const late = lateTasks(day), open = state.migrateOpen !== false;
     const migrate = late.length ? `<section class="cf-home-section journal-migrate"><div class="cf-home-head"><h2>넘길 일 <small>${late.length}개</small></h2><button type="button" data-action="toggle-migrate" aria-expanded="${open}">${open ? '접기' : '펼치기'}</button></div>${open ? late.map(t => taskLine(t, `${badgeOf(t)}<button type="button" class="journal-today" data-migrate-today="${esc(t.id)}" tabindex="-1" title="오늘로 넘기기 (T)">오늘로</button>`)).join('') + '<p class="journal-tip">T 오늘로 · D 다른 날 · C 취소 · Space 완료</p>' : ''}</section>` : '';
     const rows = journalRows(day).map(({ kind, item }) => {

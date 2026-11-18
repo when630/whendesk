@@ -249,6 +249,17 @@ async function closeApp(){
       await press('Escape');
     });
 
+    await test('마감이 있는 할 일은 Work 목록에서 < 이고, 대시보드 저널에서는 그날이 된 일이라 • 이다',async()=>{
+      const d=new Date(),today=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      const due=await call('mutate',{type:'task.create',payload:{title:'오늘 마감 기호 '+runId}});await call('mutate',{type:'task.update',payload:{id:due.id,kind:'todo',due:today}});
+      await page.evaluate(section=>window.__whendeskGo(section),'todo');
+      const listMark=page.locator(`[data-task-row="${due.id}"] .task-mark`);await listMark.waitFor();
+      assert.equal((await listMark.innerText()).trim(),'<','Work 목록에서 마감 있는 일이 < 가 아닙니다.');
+      await page.evaluate(section=>window.__whendeskGo(section),'dashboard');
+      const journalMark=page.locator(`.journal-today .cf-home-task:has([data-reveal="${due.id}"]) .task-mark`);await journalMark.waitFor();
+      assert.equal((await journalMark.innerText()).trim(),'•','저널에서 오늘 마감인 일이 • 가 아닙니다.');
+    });
+
     await test('넘길 일: 마감이 지난 일은 맨 위에 모이고 T로 오늘로 넘기면 미룸이 세지고 U로 돌아온다',async()=>{
       const key=offset=>{const d=new Date();d.setDate(d.getDate()+offset);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
       const late=await call('mutate',{type:'task.create',payload:{title:'넘길 일 '+runId}});await call('mutate',{type:'task.update',payload:{id:late.id,kind:'todo',due:key(-2)}});
