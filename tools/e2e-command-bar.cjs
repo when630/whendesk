@@ -129,19 +129,16 @@ const playing=session('fixture-playing','재생 중인 아주 긴 노래 제목 
       await screenshot('04-target-removed');
     });
 
-    await test('최상위 네 메뉴·Work 화면 내부 다섯 탭과 키보드·외관 유지',async()=>{
+    await test('머리의 화면 탭 네 개(Today·InBox·Journey·Note)만 있고 왼쪽 메뉴·Work 분류 탭은 없으며 키보드·외관 유지',async()=>{
       await input().press('Tab');await page.locator('#cf-dashboard-panel').waitFor();assert.equal(await page.locator('.td-chrome').count(),0);
-      assert.deepEqual((await page.locator('.td-nav > button').allTextContents()).map(text=>text.trim()),['Dashboard','Work','Note']);
-      assert.equal(await page.locator('.td-sidebar [data-tab]').count(),0,'Work 분류가 왼쪽 주 메뉴에 남아 있습니다.');
-      assert.equal(await page.locator('.td-main > .td-work-nav').isVisible(),false,'Dashboard에서 Work 탭이 표시됩니다.');
+      const tabs=()=>page.locator('.td-main-head .td-tabs [data-top-tab]').evaluateAll(list=>list.map(tab=>tab.dataset.topTab));
+      assert.deepEqual(await tabs(),['today','inbox','journey','note']);
+      assert.equal(await page.locator('.td-sidebar').isVisible(),false,'왼쪽 메뉴가 보입니다.');
+      assert.equal(await page.locator('.td-main > .td-work-nav').isVisible(),false,'Today에서 Work 분류 탭이 보입니다.');
       await screenshot('05-dashboard-no-header');
-      await page.evaluate(section=>window.__whendeskGo(section),'inbox');await page.locator('.td-main h1').filter({hasText:'Work · InBox'}).waitFor();
-      assert.equal(await page.locator('.td-main > .td-work-nav[role=tablist]').isVisible(),true);
-      assert.deepEqual((await page.locator('.td-main > .td-work-nav [data-tab] > span').allTextContents()).map(text=>text.trim()),['InBox','ToDo','Waiting','Done','Projects']);
-      assert.equal(await page.locator('.td-work-nav [role=tab]').count(),5);
-      assert.equal(await page.locator('.td-work-nav [aria-selected=true]').getAttribute('data-tab'),'inbox');
-      assert.equal(await page.locator('.td-work-nav [tabindex="0"]').count(),1,'현재 Work 탭만 기본 포커스 순서에 있어야 합니다.');
-      assert.equal(await page.locator('.td-nav > [data-action=work]').getAttribute('aria-current'),'page');
+      await page.evaluate(section=>window.__whendeskGo(section),'inbox');await page.locator('.td-main h1').filter({hasText:'InBox'}).waitFor();
+      assert.equal(await page.locator('.td-main > .td-work-nav').isVisible(),false,'InBox에서 Work 분류 탭이 보입니다.');
+      assert.equal(await page.locator('.td-tabs [aria-selected=true]').getAttribute('data-top-tab'),'inbox');
       await page.evaluate(section=>window.__whendeskGo(section),'notes');await page.locator('.td-main h1').filter({hasText:'Note'}).waitFor();
       assert.equal(await page.locator('.td-main > .td-work-nav').isVisible(),false,'Note에서 Work 탭이 표시됩니다.');
       await page.keyboard.press('Control+k');await page.waitForFunction(()=>document.querySelector('.td-command input')===document.activeElement);assert.equal(await input().inputValue(),'ListSpec');

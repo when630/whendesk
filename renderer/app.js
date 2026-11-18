@@ -25,7 +25,7 @@
     if (state.date === previous) { state.date = today; state.year = now.getFullYear(); state.month = now.getMonth(); }
     return true;
   }
-  const state = { shell:'command', view:'dashboard', tab:'todo', calView:'month',settingsTab:'general', selected:null, project:null, dueOnly:false, year:new Date().getFullYear(), month:new Date().getMonth(), date:today, theme:'zen-sage', tasks:[], projects:[], events:[], holidays:{}, info:{}, prefs:{}, media:{ sessions:[] } };
+  const state = { shell:'command', view:'dashboard', tab:'todo', calView:'future',settingsTab:'general', selected:null, project:null, dueOnly:false, year:new Date().getFullYear(), month:new Date().getMonth(), date:today, theme:'zen-sage', tasks:[], projects:[], events:[], holidays:{}, info:{}, prefs:{}, media:{ sessions:[] } };
   // 스킨·테마 목록은 themes.js(WHENTERMINAL과 같은 목록). 스킨은 모양, 테마는 그 스킨의 색
   const { SKINS, THEMES, APP_ICONS, themesOf } = window.WhendeskThemes;
   const themeById = id => THEMES.find(theme => theme.id === id) || THEMES[0];
@@ -140,7 +140,7 @@
     cancelCommandActivation();
     const row = (label, keys) => `<div><dt>${esc(label)}</dt><dd>${keys.map(key => `<kbd>${esc(key)}</kbd>`).join('')}</dd></div>`;
         /* 묶음을 카드로 두 줄 배치한다. 지금 화면의 묶음을 맨 앞에, 그다음 화면 이동, 나머지는 정의 순서. */
-    const current = state.shell === 'command' ? 'WHENCOMMAND' : ({ dashboard:'Dashboard', tasks:state.tab === 'projects' ? 'Projects' : '할 일 목록', notes:'메모', calendar:'Work 월 · 앞으로', settings:'설정' })[state.view];
+    const current = state.shell === 'command' ? 'WHENCOMMAND' : ({ dashboard:'Today', tasks:state.tab === 'projects' ? '설정 · 프로젝트' : 'InBox', notes:'메모', calendar:'Journey · 작은 달력', settings:'설정' })[state.view];
     const rowsOf = group => group.rows.filter(([, , when]) => !when?.media || state.media.sessions?.length).map(([label, ids]) => row(label || K.find(ids[0]).label, ids.map(K.format))).join('');
     const card = (title, rows) => `<section class="help-group${title === current ? ' is-current' : ''}"><h3>${esc(title)}${title === current ? '<small>지금 화면</small>' : ''}</h3><dl>${rows}</dl></section>`;
     const titled = K.HELP.filter(group => group.title), rank = group => group.title === current ? 0 : group.title === '화면 이동' ? 1 : 2;
@@ -222,7 +222,9 @@
   }
   function workGroups() {
     const cutoff=Date.now()-12*3600_000;
-    let list=state.tasks.filter(task=>(state.tab==='done' ? task.done && (state.workRange==null||Date.parse(task.doneAt)>Date.now()-state.workRange*86400_000) : task.kind===state.tab&&(!task.done||Date.parse(task.doneAt)>cutoff))&&workMatches(task)&&(!state.dueOnly||state.tab!=='todo'||task.due||task.done)).map(workItem);
+    // InBox에서 검색어를 쓰면 열린 할 일 전체(InBox·ToDo·Waiting)를 찾는다 — ToDo·Waiting 목록은 Today로 합쳐져 따로 없다.
+    const searchAll=state.tab==='inbox'&&!!state.workQuery.trim();
+    let list=state.tasks.filter(task=>(state.tab==='done' ? task.done && (state.workRange==null||Date.parse(task.doneAt)>Date.now()-state.workRange*86400_000) : (searchAll?['inbox','todo','waiting'].includes(task.kind):task.kind===state.tab)&&(!task.done||Date.parse(task.doneAt)>cutoff))&&workMatches(task)&&(!state.dueOnly||state.tab!=='todo'||task.due||task.done)).map(workItem);
     const querySort=workRules.parseQuery(state.workQuery).sort;
     list=workRules.sortItems(list,querySort||(state.workSort==='project'?'due':state.workSort));
     if(state.tab==='done')return workRules.historyDays({items:list,commits:[]}).map(group=>({key:group.key,label:workRules.dayLabel(group.key),items:group.items}));
@@ -328,24 +330,19 @@
   document.addEventListener('keydown',pickKeys,true);
   document.addEventListener('pointerdown',event=>{if(pick&&!pick.menu.contains(event.target)&&event.target.closest('.td-pick')!==pick.button)closePick(false);},true);
   window.addEventListener('blur',()=>closePick(false));
+  /* 왼쪽 메뉴는 없다. 탭은 머리(renderMainView)에 있고, 여기서는 그 탭 줄만 새 상태로 바꾼다. */
   function renderNav() {
-    const focused=root.querySelector('.td-sidebar').contains(document.activeElement)?controlSelector(document.activeElement):null;
-    // 월·앞으로 보기는 Work의 보기다(V로 전환). 메뉴는 Dashboard · Work · Note 세 칸이다.
-    const workActive=state.view === 'tasks' || state.view === 'calendar';
-    const page=active=>active?'aria-current="page"':'';
-    root.querySelector('.td-sidebar').innerHTML = `<span class="drag-grip sidebar-grip" aria-hidden="true" title="끌어서 창 옮기기">${icon('grip-horizontal')}</span><nav class="td-nav" aria-label="주 메뉴">
-      <button data-action="home" class="${state.view === 'dashboard' ? 'active' : ''}" ${page(state.view === 'dashboard')}>${icon('panels-top-left')}<span>Dashboard</span></button>
-      <button data-action="work" class="${workActive ? 'active' : ''}" ${page(workActive)}>${icon('briefcase-business')}<span>Work</span></button>
-      <button data-action="notes" class="${state.view === 'notes' ? 'active' : ''}" ${page(state.view === 'notes')}>${icon('notebook-pen')}<span>Note</span></button>
-    </nav><div class="td-sidebar-bottom"><button data-action="settings">${icon('settings-2')}<span>Settings</span></button></div>`; icons();
+    root.querySelector('.td-sidebar').innerHTML = '';
+    const tabs = root.querySelector('.td-main-head .td-tabs'), focused = tabs?.contains(document.activeElement) ? document.activeElement.dataset.topTab : null;
+    if (tabs) { tabs.outerHTML = topTabs(); if (focused) root.querySelector(`.td-main-head [data-top-tab="${focused}"]`)?.focus({ preventScroll:true }); }
     renderWorkTabs();
-    if(focused)root.querySelector('.td-sidebar').querySelector(focused)?.focus({preventScroll:true});
   }
   const workTabs = [['inbox','InBox'],['todo','ToDo'],['waiting','Waiting'],['done','Done'],['projects','Projects']];
   function renderWorkTabs() {
     let tabs=root.querySelector('.td-main>.td-work-nav');
     if(!tabs){tabs=document.createElement('div');tabs.id='td-work-nav';tabs.className='td-work-nav';tabs.setAttribute('role','tablist');tabs.setAttribute('aria-label','Work 분류');root.querySelector('.td-quick').before(tabs);}
-    tabs.hidden=state.view!=='tasks';
+    // 분류 탭(InBox·ToDo·Waiting·Done·Projects)은 없어졌다 — 할 일은 Today, 프로젝트 관리는 설정에 있다. 요소만 남겨 둔다.
+    tabs.hidden=true;
     if(tabs.hidden){body.removeAttribute('role');body.removeAttribute('aria-labelledby');return;}
     const focused=tabs.contains(document.activeElement)?document.activeElement?.closest('[data-tab]')?.dataset.tab:null;
     const inProject=task=>!state.project||(state.project==='unassigned'?task.project_id==null:task.project_id===state.project);
@@ -416,64 +413,81 @@
     if(task.kind==='note')return `<div class="td-inline"><div class="td-fields"><label class="td-field">프로젝트${pickButton('data-field="project_id" aria-label="메모 프로젝트"',task.project_id??'',projectOptions())}</label></div><textarea class="td-note" data-field="note" aria-label="메모 상세 내용" placeholder="상세 내용" spellcheck="false">${esc(task.note)}</textarea><div class="td-inline-foot"><span data-save-status>수정 내용 자동 저장</span><div><button type="button" class="td-modal-delete" data-delete-task="${esc(task.id)}">삭제</button>${modal?'<button type="submit" class="td-primary">닫기</button>':''}</div></div></div>`;
     return `<div class="td-inline"><div class="td-fields"><label class="td-field">상태${pickButton('data-field="kind" aria-label="할 일 상태"',task.kind,[{value:'inbox',label:'InBox'},{value:'todo',label:'ToDo'},{value:'waiting',label:'Waiting'}])}</label><label class="td-field">마감<input data-field="due" aria-label="할 일 마감" value="${esc(task.due)}" placeholder="오늘 / 내일 / +3 / 8-12" autocomplete="off" spellcheck="false"></label><label class="td-field">프로젝트${pickButton('data-field="project_id" aria-label="할 일 프로젝트"',task.project_id??'',projectOptions())}</label>${task.kind === 'waiting' ? `<label class="td-field">대기 상대<input data-field="waitingFor" aria-label="대기 상대" value="${esc(task.waitingFor)}"></label>` : ''}</div><textarea class="td-note" data-field="note" aria-label="할 일 상세 내용" placeholder="상세 내용" spellcheck="false">${esc(task.note)}</textarea><div class="td-inline-foot"><span data-save-status>수정 내용 자동 저장</span><div><button type="button" class="td-modal-delete" data-delete-task="${esc(task.id)}">삭제</button>${task.kind === 'waiting' ? `<button type="button" data-nudge="${esc(task.id)}">재촉 기록</button>` : ''}<button type="button" data-cancel-task="${esc(task.id)}" title="취소 (C)">${task.cancelled ? '취소 해제' : '취소'}</button>${task.cancelled ? '' : `<button type="button" data-complete-task="${esc(task.id)}" title="완료 (Space)">${task.done ? '완료 해제' : '완료'}</button>`}${modal?'<button type="submit" class="td-primary">닫기</button>':`<button type="button" data-action="collapse">${icon('chevron-up')}접기</button>`}</div></div></div>`;
   }
-  /* 대시보드 = 불릿 저널의 오늘 칸. 할 일이 어느 날에 놓이는지는 마감(due) 하나로 정한다.
-   * 맨 위 '넘길 일'은 마감이 지난 열린 일 — 하나씩 오늘로(T·>), 다른 날로(D), 취소(C), 완료(Space) 한다.
-   * 그 아래 오늘 칸은 그날의 일정 ○, 오늘 마감·오늘 담은 할 일 •, 오늘 마친 일 ×, 오늘 만든 메모 – 를 시각 순으로 모은다.
+  /* Today: 불릿 저널의 하루. 칸(넘길 일·오늘·대기·할 일)을 나누지 않고 프로젝트로만 묶는다 — 상태는 앞의 불릿과 오른쪽 배지가 말한다.
+   * 들어오는 것: 분류한 열린 할 일(ToDo·Waiting), 오늘 일정, 오늘 적은 메모, 오늘 마친 일. InBox는 분류 전이라 InBox 탭에 있다.
+   * 한 프로젝트 안 순서: 지난 마감 → 오늘 일정 → 오늘 마감 → 대기 → 미래 마감 → 마감 없음 → 메모 → 오늘 마친 일.
    * 앱은 자정을 넘겨 켜져 있으므로 오늘은 그릴 때마다 새로 구한다. */
-  function lateTasks(day = dateKey()) { return state.tasks.filter(t => !t.done && t.due && t.due < day).sort((a, b) => a.due.localeCompare(b.due) || String(a.capturedAt).localeCompare(String(b.capturedAt))); }
-  function journalRows(day = dateKey()) {
+  function todayRows(day = dateKey()) {
     const localDay = iso => iso ? dateKey(new Date(iso)) : '';
     const rows = [];
-    // 정렬 열쇠: 종일 일정 0 → 전부터 오늘 마감으로 잡혀 있던 일 1 → 나머지는 시각.
-    for (const e of (state.todayEvents || []).filter(e => occursOn(e, day))) rows.push({ kind:'event', at:e.allDay || e.date !== day ? 0 : Date.parse(e.startsAt), item:e });
+    for (const e of (state.todayEvents || []).filter(e => occursOn(e, day))) rows.push({ kind:'event', rank:1, at:e.allDay || e.date !== day ? 0 : Date.parse(e.startsAt), pid:e.project_id ?? null, item:e });
     for (const t of state.tasks) {
-      const closedToday = t.done && localDay(t.doneAt) === day;
-      const capturedToday = !t.done && localDay(t.capturedAt) === day && !(t.due && t.due < day);
-      const dueToday = !t.done && t.due === day;
-      if (t.kind === 'note') { if (localDay(t.capturedAt) === day) rows.push({ kind:'note', at:Date.parse(t.capturedAt), item:t }); continue; }
-      if (closedToday) rows.push({ kind:'task', at:Date.parse(t.doneAt), item:t });
-      else if (capturedToday) rows.push({ kind:'task', at:Date.parse(t.capturedAt), item:t });
-      else if (dueToday) rows.push({ kind:'task', at:1, item:t });
+      if (t.deleted) continue;
+      if (t.kind === 'note') { if (localDay(t.capturedAt) === day) rows.push({ kind:'note', rank:6, at:Date.parse(t.capturedAt), pid:t.project_id ?? null, item:t }); continue; }
+      if (t.done) { if (localDay(t.doneAt) === day) rows.push({ kind:'task', rank:7, at:Date.parse(t.doneAt), pid:t.project_id ?? null, item:t }); continue; }
+      if (t.kind === 'inbox') continue;
+      const rank = t.due && t.due < day ? 0 : t.due === day ? 2 : t.kind === 'waiting' ? 3 : t.due ? 4 : 5;
+      rows.push({ kind:'task', rank, at:rank === 4 || rank === 0 ? Date.parse(t.due + 'T00:00:00') : Date.parse(t.capturedAt), pid:t.project_id ?? null, item:t });
     }
-    return rows.sort((a, b) => a.at - b.at);
+    return rows.sort((a, b) => a.rank - b.rank || a.at - b.at);
   }
   function home() {
     const day = dateKey(), clock = iso => new Date(iso).toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit', hour12:false });
-    const badgeOf = t => { const badge = workRules.dueBadge(t.due); return `<button type="button" class="td-due ${badge?.cls === 'today' ? 'today' : ''} ${badge?.cls === 'over' ? 'work-overdue' : ''}" data-edit-due="${esc(t.id)}" tabindex="-1" title="${esc(t.due || '마감 없음')} · 마감 바꾸기 (D)">${esc(badge?.text || '마감 없음')}</button>`; };
-    const sub = t => [t.project ? esc(t.project) : '', postponedMeta(t)].filter(Boolean).join(' · ');
-    const taskLine = (t, right) => `<div class="cf-home-task journal-row${t.done ? ' done' : ''}${t.cancelled ? ' cancelled' : ''}" data-journal="task">${taskMark(t, { journal:true })}<button data-reveal="${esc(t.id)}"><span>${esc(t.title)}</span>${sub(t) ? `<small>${sub(t)}</small>` : ''}</button>${right}</div>`;
-    const late = lateTasks(day), open = state.migrateOpen !== false;
-    const migrate = late.length ? `<section class="cf-home-section journal-migrate"><div class="cf-home-head"><h2>넘길 일 <small>${late.length}개</small></h2><button type="button" data-action="toggle-migrate" aria-expanded="${open}">${open ? '접기' : '펼치기'}</button></div>${open ? late.map(t => taskLine(t, `${badgeOf(t)}<button type="button" class="journal-today" data-migrate-today="${esc(t.id)}" tabindex="-1" title="오늘로 넘기기 (T)">오늘로</button>`)).join('') + '<p class="journal-tip">T 오늘로 · D 다른 날 · C 취소 · Space 완료</p>' : ''}</section>` : '';
-    const rows = journalRows(day).map(({ kind, item }) => {
-      if (kind === 'event') return `<div class="cf-home-task journal-row is-event" data-journal="event"><b class="journal-glyph" aria-hidden="true">○</b><button data-event="${eventKey(item)}"><span>${esc(item.title)}</span>${item.location ? `<small>${esc(item.location)}</small>` : ''}</button><small class="journal-at">${item.allDay || item.date !== day ? '종일' : esc(item.time)}</small></div>`;
-      if (kind === 'note') return `<div class="cf-home-task journal-row is-note" data-journal="note"><b class="journal-glyph" aria-hidden="true">–</b><button data-reveal="${esc(item.id)}"><span>${esc(item.title)}</span>${item.project ? `<small>${esc(item.project)}</small>` : ''}</button><small class="journal-at">${esc(clock(item.capturedAt))}</small></div>`;
-      if (item.done) return taskLine(item, `<small class="journal-at">${esc(clock(item.doneAt))} ${item.cancelled ? '취소' : '완료'}</small>`);
-      return taskLine(item, item.due && item.due !== day ? badgeOf(item) : item.due === day ? '<small class="journal-at today">오늘 마감</small>' : `<small class="journal-at">${esc(clock(item.capturedAt))}</small>`);
-    }).join('');
-    const count = kind => state.tasks.filter(t => !t.done && t.kind === kind).length;
-    const entry = (action, iconName, label, value, note) => `<button class="cf-entry" data-action="${action}">${icon(iconName)}<span>${label}${note ? `<small>${esc(note)}</small>` : ''}</span><b>${value}</b>${icon('chevron-right')}</button>`;
-    return `${migrate}<section class="cf-home-section journal-today"><div class="cf-home-head"><h2>오늘${holidayNames(day).length ? `<small class="is-holiday">${esc(holidayNames(day).join(' · '))}</small>` : ''}</h2><button data-action="calendar">월 보기 →</button></div>${rows || '<div class="cf-home-empty">오늘 기록이 없어요. Ctrl+N으로 할 일을 담거나, 빠른 담기에서 o 일정 · - 메모로 적으세요.</div>'}</section>${entry('todo','list-todo','ToDo',count('todo'),'해야 할 일 전체')}${entry('inbox','inbox','InBox',count('inbox'),'분류할 일')}${entry('waiting','hourglass','Waiting',count('waiting'),'답을 기다리는 일')}`;
+    const dueBadge = t => { const badge = workRules.dueBadge(t.due); return `<button type="button" class="td-due ${badge?.cls === 'today' ? 'today' : ''} ${badge?.cls === 'over' ? 'work-overdue' : ''}" data-edit-due="${esc(t.id)}" tabindex="-1" title="${esc(t.due || '마감 없음')} · 마감 바꾸기 (D)">${esc(badge?.text || '마감 없음')}</button>`; };
+    const sub = t => [t.kind === 'waiting' && t.waitingFor ? esc(t.waitingFor) : '', t.nudgeCount ? `재촉 ${t.nudgeCount}회` : '', postponedMeta(t)].filter(Boolean).join(' · ');
+    const right = ({ kind, item }) => {
+      if (kind === 'event') return `<small class="journal-at">${item.allDay || item.date !== day ? '종일' : esc(item.time)}</small>`;
+      if (kind === 'note') return `<small class="journal-at">${esc(clock(item.capturedAt))}</small>`;
+      if (item.done) return `<small class="journal-at">${esc(clock(item.doneAt))} ${item.cancelled ? '취소' : '완료'}</small>`;
+      if (item.kind === 'waiting' && !item.due) { const wait = workRules.waitMeta(workItem(item)); return `<small class="journal-at ${wait?.hot ? 'work-overdue' : ''}">${esc(wait?.label || '대기')}</small>`; }
+      return item.due ? dueBadge(item) : '<small class="journal-at">마감 없음</small>';
+    };
+    const line = row => {
+      const { kind, item } = row;
+      if (kind === 'event') return `<div class="cf-home-task journal-row is-event" data-journal="event"><b class="journal-glyph" aria-hidden="true">○</b><button data-event="${eventKey(item)}"><span>${esc(item.title)}</span>${item.location ? `<small>${esc(item.location)}</small>` : ''}</button>${right(row)}</div>`;
+      if (kind === 'note') return `<div class="cf-home-task journal-row is-note" data-journal="note"><b class="journal-glyph" aria-hidden="true">–</b><button data-reveal="${esc(item.id)}"><span>${esc(item.title)}</span></button>${right(row)}</div>`;
+      const late = !item.done && item.due && item.due < day;
+      return `<div class="cf-home-task journal-row${item.done ? ' done' : ''}${item.cancelled ? ' cancelled' : ''}${late ? ' is-late' : ''}" data-journal="task">${taskMark(item, { journal:true })}<button data-reveal="${esc(item.id)}"><span>${esc(item.title)}</span>${sub(item) ? `<small>${sub(item)}</small>` : ''}</button>${right(row)}</div>`;
+    };
+    const rows = todayRows(day), groups = [];
+    for (const project of state.projects) { const list = rows.filter(row => row.pid === project.id); if (list.length) groups.push({ pid:project.id, label:project.name, list }); }
+    const loose = rows.filter(row => row.pid == null || !state.projects.some(project => project.id === row.pid));
+    if (loose.length) groups.push({ pid:null, label:'프로젝트 없음', list:loose });
+    const holiday = holidayNames(day);
+    return `${holiday.length ? `<p class="today-holiday is-holiday">${esc(holiday.join(' · '))}</p>` : ''}${groups.map(group => `<section class="cf-home-section today-group" data-today-project="${group.pid ?? ''}"><h2 class="work-group">${group.pid == null ? esc(group.label) : projectChip(group.pid, group.label)}<small>${group.list.length}</small></h2>${group.list.map(line).join('')}</section>`).join('') || '<div class="cf-home-empty">오늘 할 일이 없어요. InBox에 담고 프로젝트를 정하면 여기에 모입니다.</div>'}<p class="today-legend">• 할 일 · ○ 일정 · – 메모 · … 기다리는 일 · &lt; 마감 있음 · &gt; 미룬 일 · × 오늘 마친 일 — 붉은 D+n은 지난 마감(T로 오늘로)</p>`;
+  }
+  /* 머리의 탭: Today · InBox · Journey · Note. 왼쪽 메뉴는 없다. Ctrl+Tab·Ctrl+Shift+Tab으로 돈다. */
+  const TOP_TABS = [['today','Today'],['inbox','InBox'],['journey','Journey'],['note','Note']];
+  function currentTopTab() { return state.view === 'dashboard' ? 'today' : state.view === 'tasks' && state.tab === 'inbox' ? 'inbox' : state.view === 'calendar' ? 'journey' : state.view === 'notes' ? 'note' : null; }
+  function topTabs() {
+    const now = currentTopTab(), inbox = state.tasks.filter(t => !t.done && !t.deleted && t.kind === 'inbox').length;
+    return `<nav class="td-tabs" role="tablist" aria-label="화면 (Ctrl+Tab)">${TOP_TABS.map(([key, label]) => `<button type="button" role="tab" data-top-tab="${key}" aria-selected="${now === key}" tabindex="-1">${label}${key === 'inbox' && inbox ? `<small>${inbox}</small>` : ''}</button>`).join('')}</nav>`;
+  }
+  async function setTopTab(key) {
+    if (key === 'journey') { await flushPending(); state.view = 'calendar'; state.project = null; state.selected = null; renderNav(); await setCalView('future'); await shell('dashboard', false); return; }
+    return goSection({ today:'dashboard', inbox:'inbox', note:'notes' }[key]);
   }
   function renderMainView() {
     syncDay();
     if (pick && !pick.button.isConnected) closePick(false);
     const focus = captureFocus();
     notes?.setActive(state.view === 'notes' && state.shell === 'dashboard');
-    app.classList.toggle('is-calendar', state.view === 'calendar' || state.view === 'settings' || state.view === 'notes');
+    // 오른쪽 작은 달력은 네 탭 모두에 있다. 설정(프로젝트 관리 포함)에만 없다.
+    const settingsLike = state.view === 'settings' || state.view === 'tasks' && state.tab === 'projects';
+    app.classList.toggle('is-calendar', settingsLike);
     renderWorkTabs(); renderWorkLegend();
-    root.querySelector('.td-quick').hidden = state.view !== 'tasks' || state.tab === 'projects';
-    const workTitle=state.tab==='projects'?'Projects':state.projects.find(p => p.id === state.project)?.name || ({todo:'ToDo',inbox:'InBox',waiting:'Waiting',done:'Done'})[state.tab] || 'InBox';
-    const title = state.view === 'dashboard' ? 'Dashboard' : state.view === 'calendar' ? `Work · ${state.calView === 'future' ? '앞으로' : '월'}` : state.view === 'settings' ? 'Settings' : state.view === 'notes' ? 'Note' : `Work · ${workTitle}`;
-    root.querySelector('.td-main-head').innerHTML = `<div><h1>${esc(title)}</h1><p>${state.view === 'dashboard' ? new Date().toLocaleDateString('ko-KR', { year:'numeric', month:'long', day:'numeric', weekday:'long' }) : state.view === 'calendar' ? '일정 ○ 과 할 일의 마감 · V로 보기 전환' : state.view === 'settings' ? '외관 · 단축키 · 데이터' : ({ todo:'해야 할 일을 하나씩 정리하세요.', inbox:'담아둔 일을 분류하세요.', waiting:'답변과 진행 상황을 기다리는 일.', done:'마친 일의 기록을 확인하세요.' })[state.tab]}</p></div><div class="td-main-actions">${state.view === 'calendar' || state.view === 'tasks' && state.tab !== 'projects' ? workViews() : ''}${state.view === 'calendar' ? `<button class="td-primary" data-action="new-event">${icon('plus')}일정 추가</button>` : state.view === 'tasks' && Number.isInteger(state.project) ? `<button class="td-secondary" data-edit-project="${state.project}">프로젝트 관리</button>` : ''}</div>`;
+    root.querySelector('.td-quick').hidden = state.view !== 'tasks' || state.tab !== 'inbox';
+    const title = settingsLike ? 'Settings' : state.view === 'dashboard' ? 'Today' : state.view === 'calendar' ? 'Journey' : state.view === 'notes' ? 'Note' : state.tab === 'done' ? '완료 기록' : state.projects.find(p => p.id === state.project)?.name || 'InBox';
+    const subtitle = settingsLike ? '외관 · 프로젝트 · 단축키' : state.view === 'dashboard' ? new Date().toLocaleDateString('ko-KR', { year:'numeric', month:'long', day:'numeric', weekday:'long' }) : state.view === 'calendar' ? '앞으로 여섯 달 · 반복 일정 제외' : state.view === 'notes' ? '긴 글 · 한 줄 메모는 Today에 –로' : state.tab === 'done' ? '마친 일의 기록 · Esc로 Today' : '담아둔 일을 분류하세요';
+    const actions = `${state.view === 'notes' ? `<button class="td-primary" data-action="new-note">${icon('plus')}Note</button>` : ''}${state.view === 'tasks' && Number.isInteger(state.project) ? `<button class="td-secondary" data-edit-project="${state.project}">프로젝트 관리</button>` : ''}<button class="td-settings-button" data-action="settings" aria-label="설정 (Ctrl+,)" title="설정 (Ctrl+,)">${icon('settings-2')}</button>`;
+    root.querySelector('.td-main-head').innerHTML = `<span class="drag-grip head-grip" aria-hidden="true" title="끌어서 창 옮기기">${icon('grip-horizontal')}</span><div><h1>${esc(title)}</h1><p>${esc(subtitle)}</p></div>${topTabs()}<div class="td-main-actions">${actions}</div>`;
     if (state.view === 'dashboard') body.innerHTML = home();
     else if (state.view === 'settings') body.innerHTML = settingsView();
     else if (state.view === 'notes') notes?.mount(body);
     else if (state.view === 'calendar') {
-      // 월 보기는 고른 날의 일정·마감을 격자 바로 아래에 둔다.
-      const monthAgenda = () => { const deadlines = deadlineRows(state.date), holiday = holidayNames(state.date); return `<div class="td-main-calendar-agenda"><h2>${esc(dayLabel(state.date))}${holiday.length ? `<small class="is-holiday">${esc(holiday.join(' · '))}</small>` : ''}</h2>${eventRows(state.date)}${deadlines ? `<div class="cal-deadlines"><small>마감</small>${deadlines}</div>` : ''}</div>`; };
-      body.innerHTML = `<section class="td-full-calendar">${state.calView === 'future' ? futureLog() : calendarMonth({ full:true }) + monthAgenda()}</section>`;
+      body.innerHTML = `<section class="td-full-calendar">${futureLog()}</section>`;
     }
-    else body.innerHTML = workView();
+    else body.innerHTML = (state.tab === 'projects' ? settingsTabsBar() : '') + workView();
     restoreFocus(focus); icons();
     if(state.view==='tasks'){syncTaskCursor();syncProjectCursor();}
   }
@@ -496,18 +510,8 @@
   function deadlineRows(date) {
     return deadlineTasks(date).map(t => { const glyph = state.prefs?.taskMarker === 'checkbox' ? { glyph:'□' } : taskGlyph(t), late = t.due < today; return `<button class="td-deadline${late ? ' is-late' : ''}" data-reveal="${esc(t.id)}"><b class="td-deadline-glyph" aria-hidden="true">${glyph.glyph}</b><span>${esc(t.title)}</span>${late ? `<small class="work-overdue">${esc(workRules.dueBadge(t.due)?.text || '지남')}</small>` : ''}</button>`; }).join('');
   }
-  /* Work의 보기: 목록(분류 탭) · 월 · 앞으로. V·Shift+V로 돌고, 월·앞으로 사이는 Tab으로도 오간다. 오늘·주는 대시보드 저널이 맡는다. */
-  const CAL_VIEWS = [['month','월'],['future','앞으로']];
-  const WORK_VIEWS = [['list','목록'],['month','월'],['future','앞으로']];
-  function currentWorkView() { return state.view === 'calendar' ? state.calView : 'list'; }
-  function workViews() { const now = currentWorkView(); return `<div class="work-views" role="tablist" aria-label="Work 보기 (V)">${WORK_VIEWS.map(([value,label]) => `<button role="tab" data-work-view="${value}" aria-selected="${now === value}" tabindex="-1">${label}</button>`).join('')}</div>`; }
-  async function setWorkView(value) {
-    if (!WORK_VIEWS.some(([view]) => view === value)) return;
-    await flushPending();
-    if (value === 'list') { state.view = 'tasks'; if (state.tab === 'projects') state.tab = 'todo'; renderNav(); renderMainView(); focusView(); return; }
-    state.view = 'calendar'; renderNav(); await setCalView(value);
-  }
-  function cycleWorkView(step) { const order = WORK_VIEWS.map(([view]) => view), index = order.indexOf(currentWorkView()); return setWorkView(order[(index + step + order.length) % order.length]); }
+  /* 큰 월 격자는 없다. 오른쪽 작은 달력이 날짜를, Journey(앞으로 여섯 달)가 큰 그림을 맡는다. */
+  const CAL_VIEWS = [['future','Journey']];
   function holidayNames(date) { return state.holidays?.[date] || []; }
   function dayLabel(date) { return new Date(date + 'T12:00:00').toLocaleDateString('ko-KR', { month:'long', day:'numeric', weekday:'short' }); }
   async function setCalView(value) { if (!CAL_VIEWS.some(([view]) => view === value)) return; state.calView = value; if (value === 'future') await loadFuture(); renderMainView(); focusView(); }
@@ -527,11 +531,11 @@
     const dayHead = date => { const value = new Date(date + 'T12:00:00'), holiday = holidayNames(date); return `${value.getMonth() + 1}.${value.getDate()} ${'일월화수목금토'[value.getDay()]}${holiday.length ? ` <b class="is-holiday">${esc(holiday.join(' · '))}</b>` : ''}`; };
     const block = (label, list) => { let last = ''; const count = list.filter(row => !row.holiday).length; return `<section class="future-month"><h2>${esc(label)}<small>${count ? count + '개' : ''}</small></h2>${list.map(row => { const head = row.date !== last ? `<time class="future-day" datetime="${row.date}">${dayHead(row.date)}</time>` : ''; last = row.date; return head + row.html; }).join('') || '<p class="future-empty">비어 있음</p>'}</section>`; };
     const later = rows.filter(row => !row.holiday && data.to && row.date >= data.to);
-    return `<div class="td-cal-head cal-list-head"><h2>앞으로<small>반복 일정 제외</small></h2></div><div class="td-main-calendar-agenda cal-future" tabindex="-1" data-cal-home aria-label="앞으로의 일정과 마감">${months.map(month => block(month.label, rows.filter(row => row.date.slice(0, 7) === month.key && (!data.to || row.date < data.to)))).join('')}${later.length ? block('그 뒤', later) : ''}</div>`;
+    return `<div class="td-main-calendar-agenda cal-future" tabindex="-1" data-cal-home aria-label="앞으로의 일정과 마감">${months.map(month => block(month.label, rows.filter(row => row.date.slice(0, 7) === month.key && (!data.to || row.date < data.to)))).join('')}${later.length ? block('그 뒤', later) : ''}</div>`;
   }
   function focusEvent(id, date) {
     const item = state.events.find(event => String(event.id) === String(id) && (!date || event.date === date)) || state.events.find(event => String(event.id) === String(id));
-    const button = item && body.querySelector(`.td-main-calendar-agenda [data-event="${eventKey(item)}"]`);
+    const button = item && (body.querySelector(`[data-event="${eventKey(item)}"]`) || root.querySelector(`.td-calendar-side [data-event="${eventKey(item)}"]`));
     if (button) button.focus({ preventScroll:true });
     return !!button;
   }
@@ -595,6 +599,12 @@
     await flushPending(); const task = state.tasks.find(t => String(t.id) === String(id)); if (!task) return;
     // 한 줄 메모(–)는 분류 탭이 없다 — 지금 화면에서 편집 대화상자만 연다.
     if (task.kind === 'note') { taskModal(task.id); return; }
+    // 분류한 열린 일(ToDo·Waiting)은 Today에 있다. 그 줄에 서서 편집 대화상자를 연다.
+    if (!task.done && ['todo','waiting'].includes(task.kind)) {
+      state.view = 'dashboard'; state.selected = null; state.project = null;
+      renderNav(); renderMainView(); await shell('dashboard', false);
+      body.querySelector(`.cf-home-task [data-reveal="${CSS.escape(String(task.id))}"]`)?.focus({ preventScroll:false }); taskModal(task.id); return;
+    }
     state.view = 'tasks'; state.tab = task.done ? 'done' : task.kind; state.selected = null; state.project = null; state.dueOnly = false; state.workQuery='';state.workRange=null;
     renderNav(); renderMainView(); await shell('dashboard', false); focusTask(task.id); taskModal(task.id);
   }
@@ -609,6 +619,9 @@
     }
     if (route.view === 'work' || route.view === 'tasks' && route.tab && !route.id) state.project=null;
     if (route.view === 'notes') { await flushPending(); state.view='notes'; state.project=null; renderNav(); renderMainView(); await shell('dashboard',false); await notes?.refresh(); if(route.id) await notes?.open(route.id,{edit:!!route.edit}); else notes?.focus(); return; }
+    // 옛 경로(ToDo·Waiting 탭, Calendar 월 보기)는 Today·Journey로 간다.
+    if (route.view === 'tasks' && ['todo','waiting'].includes(route.tab) && !route.id) { route = { ...route, view:'dashboard', tab:undefined }; }
+    if (route.view === 'calendar') state.calView = 'future';
     if (route.id && route.view !== 'calendar') await reveal(route.id);
     else { await flushPending(); state.view = route.settings ? 'settings' : route.view === 'work' ? 'tasks' : route.view || 'dashboard'; if(route.settings){state.prefs=await call('preferences.get');state.info=await call('app.info');state.update=await call('update.state').catch(()=>null);} if (route.tab) state.tab = route.tab; if (route.date) { state.date = route.date; state.year = Number(route.date.slice(0,4)); state.month = Number(route.date.slice(5,7))-1; } await loadState(); await shell('dashboard'); }
     if (route.focusCapture) root.querySelector('.td-quick input')?.focus();
@@ -771,7 +784,7 @@
   async function afterTaskModal(id) {
     await flushPending();const task=state.tasks.find(item=>item.id===id);
     // 상태를 바꿨으면 그 분류로 따라간다(목록 편집기와 같다). 완료 기록·프로젝트 화면에서는 그대로.
-    if(task&&state.view==='tasks'&&!['done','projects'].includes(state.tab)&&task.kind!==taskModalKind)state.tab=task.kind;
+    // 분류 탭이 없으므로 상태를 바꿔도 화면은 그대로다(InBox에서 분류한 일은 Today로 간다).
     taskModalKind=null;renderNav();renderMainView();if(state.view==='tasks')focusTask(id);else if(state.view==='dashboard')(body.querySelector(`.cf-home-task [data-reveal="${CSS.escape(id)}"]`)||dashboardItems()[0])?.focus({preventScroll:true});
   }
   function dueModal(id) {
@@ -823,13 +836,17 @@
     if(state.selected===id)state.selected=null;
     await mutate('task.delete',{id});
     rememberWorkUndo(task.title,()=>mutate('task.restore',{id}),'할 일을 삭제했어요.');
+    if(state.view!=='tasks')return;
     const remaining=visibleTasks();focusTask(remaining[Math.min(index,remaining.length-1)]?.id||null);if(!remaining.length)focusView();
   }
   async function reviveTask(id) {
     const task=state.allTasks.find(item=>item.id===id);if(!task)return;
     if(task.deleted)await mutate('task.restore',{id},{renderMain:false});
     if(task.done)await mutate('task.complete',{id,done:false},{renderMain:false});
-    state.tab=task.kind;state.selected=null;renderNav();renderMainView();focusTask(id);feedback('할 일을 되살렸어요.');
+    feedback('할 일을 되살렸어요.');
+    // 되살린 할 일은 제자리로: ToDo·Waiting은 Today의 그 줄, InBox는 InBox 목록.
+    if(['todo','waiting'].includes(task.kind)){state.workQuery='';await goSection('dashboard');body.querySelector(`.cf-home-task [data-reveal="${CSS.escape(id)}"]`)?.focus({preventScroll:false});return;}
+    state.tab='inbox';state.selected=null;renderNav();renderMainView();focusTask(id);
   }
   async function restoreProject(id) {
     await mutate('project.restore',{id,movedItemIds:projectMoves.get(id)||[]});projectMoves.delete(id);
@@ -866,7 +883,7 @@
     }
     if (state.view === 'calendar') return active?.closest('[data-event]') ? 'event' : state.calView === 'future' ? (active?.closest('[data-reveal]') ? 'futureTask' : 'calendarFuture') : 'calendarMonth';
     if (state.view === 'settings') return state.settingsTab === 'shortcuts' ? 'settingsShortcuts' : 'settings';
-    return active?.closest('.journal-migrate .cf-home-task') ? 'homeLate' : 'home';
+    return active?.closest('.cf-home-task.is-late') ? 'homeLate' : 'home';
   }
   let hintsFrame = 0, hintsShown = '';
   function syncHints() {
@@ -887,7 +904,7 @@
   function tabStops() {
     return [...root.querySelectorAll('#cf-dashboard-panel :is(input:not([type=hidden]),select,textarea,[tabindex],button[data-reveal],button.td-pick,[role=option])')]
       .filter(element => element.tabIndex >= 0 && !element.disabled && element.getClientRects().length && !element.closest('[hidden],.td-sidebar') && !element.matches('input[type=checkbox],input[type=radio]')
-        && (element.tagName !== 'BUTTON' || element.matches('[data-reveal],[role=option],[data-task-row],[data-work-project-row],.td-pick')));
+        && (element.tagName !== 'BUTTON' || element.matches('[data-reveal],[role=option],[data-task-row],[data-work-project-row],.td-pick,.td-calendar-side [data-date]')));
   }
   function nextTabStop(from, backwards = false) {
     // 문서 순서로 바로 다음(앞) 정지점. 지금 자리를 감싼 목록 행은 건너뛴다 — 편집기 안에서 행으로 되돌아가 갇히지 않게.
@@ -896,7 +913,7 @@
     const before = stops.filter(element => from.compareDocumentPosition(element) & Node.DOCUMENT_POSITION_PRECEDING);
     return backwards ? before.at(-1) || stops.at(-1) : after[0] || stops[0];
   }
-  const SETTINGS_TABS=[['general','일반'],['shortcuts','단축키']];
+  const SETTINGS_TABS=[['general','일반'],['projects','프로젝트'],['shortcuts','단축키']];
   function swatch([bg,fg,signal],skin){
     return `<span class="theme-swatch sw-${skin}" style="background:${bg};color:${fg}" aria-hidden="true"><span class="sw-key">A</span><span class="sw-lines"><i style="background:${fg}"></i><i style="background:${fg};opacity:.5"></i><i style="background:${signal};width:45%"></i></span><span class="sw-band" style="background:${signal}"></span></span>`;
   }
@@ -931,11 +948,19 @@
     look(); state.prefs=await call('preferences.set',{skin});
   }
 
-  function setSettingsTab(value) { if (!SETTINGS_TABS.some(([tab]) => tab === value)) return; state.settingsTab = value; renderMainView(); body.querySelector(`[data-settings-tab="${value}"]`)?.focus({preventScroll:true}); syncHints(); }
+  /* 설정 분류: 일반 · 프로젝트 · 단축키. 프로젝트는 원래 Work의 Projects 목록(키·되돌리기 그대로)을 설정 머리 아래에 둔 것이다. */
+  function settingsTabsBar() { const tab = state.view === 'tasks' && state.tab === 'projects' ? 'projects' : state.settingsTab; return `<div class="cal-views settings-tabs" role="tablist" aria-label="설정 분류">${SETTINGS_TABS.map(([value,label]) => `<button role="tab" data-settings-tab="${value}" aria-selected="${tab === value}" tabindex="${tab === value ? 0 : -1}">${label}</button>`).join('')}</div>`; }
+  async function setSettingsTab(value) {
+    if (!SETTINGS_TABS.some(([tab]) => tab === value)) return;
+    state.settingsTab = value;
+    if (value === 'projects') { await flushPending(); state.view = 'tasks'; state.tab = 'projects'; state.project = null; state.workTrash = false; projectCursor = null; }
+    else if (state.view !== 'settings') { state.view = 'settings'; state.prefs = await call('preferences.get'); state.info = await call('app.info'); }
+    renderNav(); renderMainView(); body.querySelector(`[data-settings-tab="${value}"]`)?.focus({preventScroll:true}); syncHints();
+  }
   /* 설정은 두 분류다: 일반(모양·시작과 알림·Command·업데이트·데이터)과 단축키(전역 단축키). ←→로 분류를 바꾼다. */
   function settingsView() {
     const shortcutFields = SHORTCUT_UI, tab = state.settingsTab;
-    const tabs = `<div class="cal-views settings-tabs" role="tablist" aria-label="설정 분류">${SETTINGS_TABS.map(([value,label]) => `<button role="tab" data-settings-tab="${value}" aria-selected="${tab === value}" tabindex="${tab === value ? 0 : -1}">${label}</button>`).join('')}</div>`;
+    const tabs = settingsTabsBar();
     if (tab === 'shortcuts') return tabs + `<form class="preferences-form"><section class="settings-section"><h2>어디서나 쓰는 단축키</h2><p class="settings-lead">다른 앱을 쓰는 중에도 바로 부르는 전역 단축키입니다. 칸을 고른 뒤 조합을 누르면 바로 저장되고, Delete는 해제, Esc는 저장된 값으로 되돌립니다.</p>${shortcutFields.map(([field,label,aria,fallback]) => `<label class="td-field">${label}<input name="${field}" data-shortcut="${field}" aria-label="${aria}" aria-describedby="shortcut-error-${field}" aria-invalid="${!!state.info.shortcutErrors?.[field]}" value="${esc(hotkey(state.prefs[field] ?? fallback))}" placeholder="사용 안 함" autocomplete="off" spellcheck="false"><span id="shortcut-error-${field}" class="settings-warning" data-shortcut-error="${field}" ${state.info.shortcutErrors?.[field] ? '' : 'hidden'}>${esc(state.info.shortcutErrors?.[field])}</span></label>`).join('')}<div class="settings-actions"><button class="td-secondary" type="button" data-action="help">앱 안 단축키 보기 (Ctrl+/)</button></div></section></form>`;
     return tabs + `<section class="settings-section theme-section"><h2>모양</h2>${themeCards()}<h3>앱 아이콘</h3>${iconCards()}<h3>할 일 표시</h3><label class="td-field settings-marker">완료 표시 방식${pickButton('data-pref="taskMarker" aria-label="할 일 완료 표시 방식"',state.prefs.taskMarker||'symbol',[{value:'symbol',label:'불릿 저널 기호 (• × > < …)'},{value:'checkbox',label:'체크박스'}])}</label><small class="settings-path">기호: • 할 일 · × 완료 · 줄 그음 취소(C) · &gt; 미룬 일 · &lt; 마감이 남은 일 · … 대기. 어느 쪽이든 Space는 완료, C는 취소입니다.</small></section>
     <section class="settings-section"><h2>시작과 알림</h2><label class="settings-check"><input type="checkbox" data-pref="launchAtLogin" ${state.prefs.launchAtLogin ? 'checked' : ''} ${state.info.launchAtLoginSupported ? '' : 'disabled'}>로그인할 때 트레이에 숨겨 실행</label>${state.info.launchAtLoginSupported ? '' : '<small class="settings-path">배포본에서만 설정할 수 있습니다.</small>'}<label class="settings-check"><input type="checkbox" data-pref="briefEnabled" ${state.prefs.briefEnabled !== false ? 'checked' : ''}>아침 브리핑 알림</label><label class="td-field settings-time">브리핑 시각<input type="time" data-pref="briefAt" aria-label="아침 브리핑 시각" value="${esc(state.prefs.briefAt || '09:00')}"></label><small class="settings-path">하루 한 번, 정한 시각부터 3시간 안에 켜져 있으면 오늘 마감·지연·일정·Waiting·InBox를 알립니다.</small></section>
@@ -1263,7 +1288,7 @@
 
   function controlSelector(element) {
     const target=element?.closest?.('button,[data-task-row]');if(!target)return null;
-    for(const [key,attribute]of [['action','data-action'],['tab','data-tab'],['project','data-project'],['task','data-task'],['date','data-date'],['event','data-event'],['taskRow','data-task-row']])if(target.dataset[key]!=null)return `[${attribute}="${CSS.escape(target.dataset[key])}"]`;
+    for(const [key,attribute]of [['action','data-action'],['tab','data-tab'],['project','data-project'],['task','data-task'],['date','data-date'],['event','data-event'],['taskRow','data-task-row'],['reveal','data-reveal']])if(target.dataset[key]!=null)return `[${attribute}="${CSS.escape(target.dataset[key])}"]`;
     return null;
   }
   function editingTarget(element) {return element?.matches?.('input:not([type=checkbox]),textarea,select,[contenteditable=true]');}
@@ -1280,12 +1305,13 @@
     projectCursor=id==null?null:String(id);syncProjectCursor();
     const row=body.querySelector(`[data-work-project-row="${CSS.escape(projectCursor||'')}"]`);
     row?.focus({preventScroll:true});row?.scrollIntoView({block:'nearest'});
-    if(!row)root.querySelector('.td-work-nav [aria-selected=true]')?.focus({preventScroll:true});
+    // 프로젝트가 없으면 설정의 '프로젝트' 분류 탭에 선다.
+    if(!row)(body.querySelector('[data-settings-tab=projects]')||root.querySelector('.td-tabs [aria-selected=true]'))?.focus({preventScroll:true});
   }
   function focusTask(id=taskCursor) {
     taskCursor=id;syncTaskCursor();if(taskCursor)workCursors.set(workCursorKey(),taskCursor);const row=body.querySelector(`[data-task-row="${CSS.escape(taskCursor||'')}"]`);row?.focus({preventScroll:true});row?.scrollIntoView({block:'nearest'});
     // 마지막 항목을 옮기거나 지워 목록이 비면 포커스가 사라져 Tab이 InBox 입력칸으로 갔다. 지금 분류 탭에 두어 Tab으로 다른 분류로 넘어가게 한다.
-    if(!row&&state.view==='tasks'&&state.tab!=='projects'&&!body.contains(document.activeElement)&&modalLayer.hidden)root.querySelector('.td-work-nav [aria-selected=true]')?.focus({preventScroll:true});
+    if(!row&&state.view==='tasks'&&state.tab!=='projects'&&!body.contains(document.activeElement)&&modalLayer.hidden)root.querySelector('.td-tabs [aria-selected=true]')?.focus({preventScroll:true});
   }
   function workCursorKey(){return `${state.tab}|${state.project??''}`;}
   /* 앱이 스스로 옮긴 포커스(화면 진입·펼치기)는 표시하지 않는다. 사용자가 키를 누르면 그때부터 보인다. */
@@ -1293,15 +1319,17 @@
   function focusView() {
     quietFocus(); syncHints();
     if(state.view==='notes'){notes?.focus();return;}
-    if(state.view==='tasks'){if(state.tab==='projects'){focusWorkProject();return;}syncTaskCursor();if(taskCursor)focusTask();else root.querySelector('.td-work-nav [aria-selected=true]')?.focus({preventScroll:true});return;}
+    if(state.view==='tasks'){if(state.tab==='projects'){focusWorkProject();return;}syncTaskCursor();if(taskCursor)focusTask();else root.querySelector('.td-tabs [aria-selected=true]')?.focus({preventScroll:true});return;}
     if(state.view==='calendar'){if(state.calView==='month'){body.querySelector(`[data-date="${state.date}"]`)?.focus({preventScroll:true});return;}(body.querySelector('[data-future-row]')||body.querySelector('[data-cal-home]'))?.focus({preventScroll:true});return;}
     if(state.view==='settings'){body.querySelector('.settings-tabs [aria-selected=true]')?.focus({preventScroll:true});return;}
     // 저널에 들어오면 첫 줄(넘길 일이 있으면 그 첫 일)에 선다. 넘길 일 접기 버튼은 ↑로만 간다.
-    (dashboardItems().find(item=>!item.matches('[data-action=toggle-migrate]'))||body.querySelector('button'))?.focus({preventScroll:true});
+    // 비어 있는 Today는 오른쪽 작은 달력의 고른 날짜에 선다.
+    (dashboardItems()[0]||root.querySelector('.td-calendar-side [data-date][tabindex="0"]')||body.querySelector('button'))?.focus({preventScroll:true});
   }
   /* 화면 안의 필터·하위 화면을 하나 푼다. 푼 것이 있으면 true. */
   function clearViewFilter() {
     if(state.view!=='tasks')return false;
+    if(state.tab==='done'&&!state.workQuery){safe(()=>goSection('dashboard'));return true;}
     if(state.workQuery){clearWorkSearch();return true;}
     if(state.workTrash){state.workTrash=false;projectCursor=null;renderMainView();focusView();return true;}
     if(state.project&&state.tab!=='projects'){state.project=null;renderMainView();focusView();return true;}
@@ -1325,18 +1353,18 @@
     if(commandInput.value){commandInput.value='';clearCommandNotice();if(!command.capture)queueCommandQuery('',0,true);return;}
     exitCapture();return call('window.close');
   }
-  const MENU_ORDER = ['dashboard','work','notes'];
   function cycleMenu(direction) {
-    // 설정은 메뉴 끝 다음 자리라 다음은 Dashboard, 이전은 Note다. 월·앞으로 보기는 Work다.
-    const current = state.view === 'tasks' || state.view === 'calendar' ? 'work' : state.view === 'settings' ? 'notes' : state.view;
-    const index = MENU_ORDER.indexOf(current);
-    return goSection(MENU_ORDER[((index < 0 ? -1 : index) + direction + MENU_ORDER.length) % MENU_ORDER.length]);
+    // 설정·완료 기록은 탭 밖이다. 설정에서는 다음이 Today, 이전이 Note다. 완료 기록은 InBox 자리로 본다.
+    const order = TOP_TABS.map(([key]) => key), now = currentTopTab() || (state.view === 'tasks' && state.tab === 'done' ? 'inbox' : null);
+    const index = now ? order.indexOf(now) : direction > 0 ? -1 : order.length;
+    return setTopTab(order[(index + direction + order.length) % order.length]);
   }
   async function goSection(section) {
     // 할 일 편집 대화상자는 자동 저장이라 화면을 옮기면 조용히 닫는다(저장은 아래 flushPending).
     if(modalLayer.querySelector('.task-form')){modalLayer.hidden=true;modalLayer.innerHTML='';modalDirty=false;taskModalKind=null;}
+    if(section==='projects'){await flushPending();return setSettingsTab('projects');}
     if(section==='settings'||section==='shortcuts')state.settingsTab=section==='shortcuts'?'shortcuts':'general';
-    const route={settings:{settings:true,view:'settings'},shortcuts:{settings:true,view:'settings'},dashboard:{view:'dashboard'},work:{view:'tasks',tab:state.tab},todo:{view:'tasks',tab:'todo'},inbox:{view:'tasks',tab:'inbox'},waiting:{view:'tasks',tab:'waiting'},done:{view:'tasks',tab:'done'},notes:{view:'notes'},calendar:{view:'calendar'}}[section];
+    const route={settings:{settings:true,view:'settings'},shortcuts:{settings:true,view:'settings'},dashboard:{view:'dashboard'},work:{view:'tasks',tab:'inbox'},todo:{view:'dashboard'},inbox:{view:'tasks',tab:'inbox'},waiting:{view:'dashboard'},done:{view:'tasks',tab:'done'},notes:{view:'notes'},calendar:{view:'calendar'},journey:{view:'calendar'}}[section];
     if(!route)return;
     await flushPending();state.project=null;state.selected=null;dashboardReturn=null;dashboardFocus=null;await navigate(route);focusView();
   }
@@ -1370,12 +1398,13 @@
   }
   /* 1~9: 활성 프로젝트 목록 순서로 바로 지정한다(원본 WHENWORK). InBox 항목은 도메인 규칙대로 ToDo로 옮겨진다. */
   async function assignProjectByNumber(id,number) {
-    const task=visibleTasks().find(item=>item.id===id),project=state.projects[number-1];
+    const task=state.view==='dashboard'?state.tasks.find(item=>item.id===id):visibleTasks().find(item=>item.id===id),project=state.projects[number-1];
     if(!task||task.archived)return;if(!project){feedback(`${number}번 프로젝트가 없어요.`);return;}
     if(task.project_id===project.id)return;
     const before=visibleTasks(),index=before.findIndex(item=>item.id===id),previous={project_id:task.project_id,kind:task.kind};
     await mutate('task.update',{id,project_id:project.id});
     rememberWorkUndo(task.title,()=>mutate('task.update',{id,...previous}),`${project.name}에 지정했어요.`);
+    if(state.view!=='tasks')return;
     const after=visibleTasks();focusTask(after.some(item=>item.id===id)?id:after[Math.min(Math.max(index,0),after.length-1)]?.id||null);
   }
   /* 반복 없는 일정은 바로 지우고 되돌리기를 남긴다. 반복 일정은 범위를 고르는 대화상자로 간다. */
@@ -1413,7 +1442,6 @@
     }
     if(editingTarget(target))return false;
     if(row&&state.selected===row.dataset.taskRow&&K.is(event,'focus.cycle'))return false;
-    if(K.is(event,'work.tab.cycle')&&(tab||row||projectRow)){event.preventDefault();if(!event.repeat)safe(()=>cycleWorkTab(event.shiftKey?-1:1));return true;}
     if(tab&&K.is(event,'work.tab.enter')){event.preventDefault();focusView();return true;}
     const tabMove=tab&&TAB_MOVES.find(id=>K.is(event,id));
     if(tabMove) {
@@ -1434,7 +1462,7 @@
         else if(state.workTrash&&action==='project.open'&&id)safe(()=>restoreProject(id));
         else if(!state.workTrash&&action==='project.rename'&&id)projectModal(id);
         else if(!state.workTrash&&action==='project.archive'&&id)archiveProjectModal(id);
-        else if(!state.workTrash&&action==='project.open'&&id)safe(async()=>{state.project=id;await switchWorkTab('todo');});
+        else if(!state.workTrash&&action==='project.open'&&id)safe(async()=>{await goSection('dashboard');(body.querySelector(`[data-today-project="${id}"] [data-reveal]`)||body.querySelector('[data-reveal]'))?.focus({preventScroll:false});});
         return true;
       }
     }
@@ -1452,7 +1480,7 @@
   }
   /* 대시보드(저널)는 위아래 한 줄 목록이다: 넘길 일 → 오늘 칸(일정·할 일·메모) → ToDo·InBox·Waiting 입구. ↑↓·J/K로 옮긴다.
    * 할 일 줄에서 Space 완료·C 취소(다시 누르면 해제), 마감이 지난 일은 T(>) 오늘로·D 다른 날. 줄이 남으므로 포커스는 같은 할 일에 머문다. */
-  function dashboardItems() { return [...body.querySelectorAll('.cf-home-task :is([data-reveal],[data-event],[data-open-note]),.cf-home-head [data-action=toggle-migrate],.cf-entry')]; }
+  function dashboardItems() { return [...body.querySelectorAll('.cf-home-task :is([data-reveal],[data-event])')]; }
   async function migrateToday(id) {
     const task=state.tasks.find(item=>item.id===id);if(!task||task.done)return;
     const previous=task.due||'',postponed=task.postponed??0;
@@ -1461,7 +1489,7 @@
   }
   function dashboardKeys(event) {
     const items=dashboardItems();if(!items.length)return false;
-    const current=event.target.closest('[data-reveal],[data-event],[data-open-note],[data-action=toggle-migrate],.cf-entry'),index=items.indexOf(current);
+    const current=event.target.closest('[data-reveal],[data-event]'),index=items.indexOf(current);
     const to=K.is(event,'list.up')?index-1:K.is(event,'list.down')?index+1:K.is(event,'list.first')?0:K.is(event,'list.last')?items.length-1:null;
     if(to!==null){event.preventDefault();items[index<0?0:Math.max(0,Math.min(items.length-1,to))].focus({preventScroll:false});return true;}
     const id=current?.closest('.cf-home-task')&&current.dataset.reveal,task=id&&state.tasks.find(item=>item.id===id);
@@ -1475,6 +1503,10 @@
     if(K.is(event,'task.cancel'))return keep(()=>toggleCancel(id));
     if(K.is(event,'task.migrate')){if(task.done||!task.due||task.due>=dateKey())return false;return keep(()=>migrateToday(id));}
     if(K.is(event,'task.due')){event.preventDefault();if(!event.repeat)dueModal(id);return true;}
+    if(K.is(event,'task.assign')){return keep(()=>assignProjectByNumber(id,Number(event.code.slice(5))));}
+    if(K.is(event,'task.waiting')){event.preventDefault();if(!event.repeat)waitingModal(id);return true;}
+    if(K.is(event,'task.delete'))return keep(()=>deleteTask(id));
+    if(K.is(event,'task.nudge')&&task.kind==='waiting')return keep(()=>nudgeTask(id));
     return false;
   }
   /* 앞으로 보기: ↑↓·J/K·Home·End로 일정과 할 일 줄을 함께 오간다. 할 일 줄은 Space 완료·C 취소·D 마감, 일정 줄은 캘린더 일정 키(E·R·M·Delete)를 그대로 쓴다. */
@@ -1503,15 +1535,15 @@
     if(K.is(event,'app.save')){event.preventDefault();if(state.view==='settings')body.querySelector('.preferences-form')?.requestSubmit();else safe(flushPending);return true;}
     if(K.is(event,'app.undo')&&!editingTarget(target)){event.preventDefault();safe(undoLastAction);return true;}
     if(state.view==='dashboard'&&!editingTarget(target)&&body.contains(target)&&dashboardKeys(event))return true;
-    if(state.view==='settings'&&target.closest('.settings-tabs')){const order=SETTINGS_TABS.map(([tab])=>tab),index=order.indexOf(state.settingsTab),to=K.is(event,'settings.next')?index+1:K.is(event,'settings.prev')?index-1:null;if(to!==null){event.preventDefault();setSettingsTab(order[(to+order.length)%order.length]);return true;}}
+    // H: 완료 기록(Today·InBox 어디서든). Esc로 Today에 돌아온다.
+    if((state.view==='dashboard'||state.view==='tasks'&&state.tab==='inbox')&&!editingTarget(target)&&K.is(event,'work.doneHistory')){event.preventDefault();if(!event.repeat)safe(()=>goSection('done'));return true;}
+    if((state.view==='settings'||state.view==='tasks'&&state.tab==='projects')&&target.closest('.settings-tabs')){const order=SETTINGS_TABS.map(([tab])=>tab),index=order.indexOf(state.settingsTab),to=K.is(event,'settings.next')?index+1:K.is(event,'settings.prev')?index-1:null;if(to!==null){event.preventDefault();setSettingsTab(order[(to+order.length)%order.length]);return true;}}
     if(state.view==='settings'&&target.matches('[data-theme-pick],[data-skin-pick],[data-icon-pick]')&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(event.key)&&!event.ctrlKey&&!event.altKey&&!event.metaKey){
       event.preventDefault();const cards=[...target.closest('.theme-grid').querySelectorAll('.theme-card')],index=cards.indexOf(target),columns=Math.max(1,cards.filter(card=>card.offsetTop===cards[0].offsetTop).length);
       const to={ArrowLeft:index-1,ArrowRight:index+1,ArrowUp:index-columns,ArrowDown:index+columns,Home:0,End:cards.length-1}[event.key];
       const next=cards[Math.min(cards.length-1,Math.max(0,to))];if(next&&next!==target){next.focus({preventScroll:false});safe(()=>next.dataset.iconPick?pickIcon(next.dataset.iconPick):next.dataset.skinPick?pickSkin(next.dataset.skinPick):pickTheme(next.dataset.themePick));}return true;
     }
     if(workKeys(event))return true;
-    if((state.view==='calendar'||state.view==='tasks'&&state.tab!=='projects')&&!editingTarget(target)&&!target.closest('.td-pick-list')&&K.is(event,'work.view')){event.preventDefault();if(!event.repeat)safe(()=>cycleWorkView(event.shiftKey?-1:1));return true;}
-    if(state.view==='calendar'&&!editingTarget(target)&&target.closest('.td-full-calendar')&&K.is(event,'calendar.view')){event.preventDefault();if(!event.repeat){const order=CAL_VIEWS.map(([view])=>view);safe(()=>setCalView(order[(order.indexOf(state.calView)+(event.shiftKey?order.length-1:1))%order.length]));}return true;}
     if(state.view==='calendar'&&state.calView==='future'&&!editingTarget(target)&&target.closest('.cal-future')&&futureKeys(event))return true;
     const day=target.closest('[data-date]');
     if(day){
@@ -1561,7 +1593,7 @@
     if (data.action === 'close-help') return closeHelp();
     if (data.action === 'help-shortcuts') { await closeHelp(); return goSection('shortcuts'); }
     if (data.calView) return setCalView(data.calView);
-    if (data.workView) return setWorkView(data.workView);
+    if (data.topTab) return setTopTab(data.topTab);
     if (data.settingsTab) return setSettingsTab(data.settingsTab);
     if (data.themePick) return pickTheme(data.themePick);
     if (data.skinPick) return pickSkin(data.skinPick);
@@ -1576,7 +1608,7 @@
     if (data.reviveTask) return reviveTask(data.reviveTask);
     if (data.date) {const side=!!button.closest('.td-calendar-side');await selectDate(data.date);(side?root.querySelector('.td-calendar-side'):body).querySelector(`[data-date="${state.date}"]`)?.focus({preventScroll:true});return;}
     if (data.month) {const side=!!button.closest('.td-calendar-side');await moveCalendarDate(0,Number(data.month),side);(side?root.querySelector('.td-calendar-side'):body).querySelector(`[data-month="${data.month}"]`)?.focus({preventScroll:true});return;}
-    if (data.project) { await flushPending(); state.project=Number(data.project); state.view='tasks'; state.tab='todo'; state.selected=null; renderNav(); renderMainView(); focusView();return; }
+    if (data.project) { await flushPending(); state.project=null; state.view='dashboard'; state.selected=null; renderNav(); renderMainView(); (body.querySelector(`[data-today-project="${CSS.escape(String(data.project))}"] [data-reveal]`)||body.querySelector('[data-reveal]'))?.focus({preventScroll:false});return; }
     if (data.editProject) return projectModal(Number(data.editProject));
     if (data.archiveProject) return archiveProjectModal(Number(data.archiveProject));
     if (data.restoreProject) return restoreProject(Number(data.restoreProject));
@@ -1595,10 +1627,10 @@
       case 'switch-shell': await flushPending(); return shell(state.shell==='command'?'dashboard':'command');
       case 'home': await flushPending(); state.view='dashboard'; renderNav(); renderMainView(); await shell('dashboard',false);focusView();break;
       case 'work': await flushPending(); state.view='tasks'; state.project=null; state.selected=null; renderNav(); renderMainView(); await shell('dashboard',false); focusView();break;
-      case 'calendar': await flushPending(); state.view='calendar'; state.calView='month'; renderNav(); renderMainView(); await shell('dashboard',false);focusView();break;
+      case 'calendar': case 'journey': return setTopTab('journey');
+      case 'new-note': await notes?.create(); break;
       case 'notes': return navigate({view:'notes'});
       case 'todo': case 'inbox': case 'waiting': return goSection(data.action);
-      case 'toggle-migrate': state.migrateOpen=state.migrateOpen===false; renderMainView(); body.querySelector('[data-action=toggle-migrate]')?.focus({preventScroll:true}); break;
       case 'command': return shell('command');
       case 'collapse': await collapseTaskEditor(); break;
       case 'new-project': projectModal(); break;
@@ -1690,7 +1722,7 @@
       }
       if(form.matches('.work-waiting-form')){
         const id=form.dataset.taskId,task=state.tasks.find(task=>task.id===id),previous={kind:task.kind,waitingFor:task.waitingFor};
-        await mutate('task.update',{id,kind:'waiting',waitingFor:values.waitingFor});state.tab='waiting';state.selected=null;renderNav();renderMainView();closeModal();focusTask(id);
+        await mutate('task.update',{id,kind:'waiting',waitingFor:values.waitingFor});state.selected=null;renderNav();renderMainView();closeModal();if(state.view==='tasks')focusTask(id);else body.querySelector(`.cf-home-task [data-reveal="${CSS.escape(id)}"]`)?.focus({preventScroll:true});
         rememberWorkUndo(task.title,()=>mutate('task.update',{id,...previous}),'대기로 옮겼어요.');return;
       }
       if(form.matches('.work-archive-form')){

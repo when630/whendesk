@@ -33,7 +33,7 @@ async function test(name,fn){await fn();results.push({name,ok:true});}
   });
   await test('Tab native확장·Esc 숨김 뒤 빈 Command로 다시 부르기',async()=>{
    const input=page.locator('.td-command input');await input.fill('123+456');await page.waitForFunction(()=>document.querySelector('.td-command-results')?.textContent.includes('579'));
-   await input.evaluate(el=>el.setSelectionRange(1,4));await input.press('Tab');await page.locator('.td-main h1').filter({hasText:'Dashboard'}).waitFor();
+   await input.evaluate(el=>el.setSelectionRange(1,4));await input.press('Tab');await page.locator('.td-main h1').filter({hasText:'Today'}).waitFor();
    const bounds=await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].getBounds());assert.ok(bounds.width>=800);
    await page.keyboard.press('Escape');for(let attempt=0;attempt<40&&await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isVisible());attempt++)await page.waitForTimeout(50);
    assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isVisible()),false,'대시보드의 Esc가 창을 숨기지 않았습니다.');
@@ -49,7 +49,7 @@ async function test(name,fn){await fn();results.push({name,ok:true});}
   });
   let taskId,projectId;
   await test('실제 인박스 생성·할 일 분류·프로젝트',async()=>{
-   for(let attempt=0;attempt<20&&!await page.locator('.td-nav > [data-action=work]').isVisible();attempt++){await page.locator('.td-command input').press('Tab');await page.waitForTimeout(150);}await page.locator('.td-nav > [data-action=work]').click();await page.locator('.td-main > .td-work-nav [data-tab=inbox]').click();
+   for(let attempt=0;attempt<20&&!await page.locator('.td-tabs [data-top-tab=inbox]').isVisible();attempt++){await page.locator('.td-command input').press('Tab');await page.waitForTimeout(150);}await page.locator('.td-tabs [data-top-tab=inbox]').click();
    await page.locator('.td-quick input').fill('E2E 실제 할 일');await page.locator('.td-quick input').press('Enter');
    await page.locator('.td-task-open').filter({hasText:'E2E 실제 할 일'}).waitFor();await page.locator('.td-task-open').filter({hasText:'E2E 실제 할 일'}).click();
    await page.locator('[data-field=kind]').click();await page.locator('.td-pick-menu [data-value=todo]').click();await page.waitForTimeout(200);
@@ -66,7 +66,7 @@ async function test(name,fn){await fn();results.push({name,ok:true});}
    assert.equal(await note.evaluate(el=>el===window.__editor),true);assert.deepEqual(await note.evaluate(el=>[el.selectionStart,el.selectionEnd]),[2,7]);
    await page.locator('[data-field=title]').focus();await page.keyboard.press('Tab');assert.equal(await page.locator('#cf-dashboard-panel').isVisible(),true);
    await page.keyboard.press('Control+Comma');await page.locator('[data-theme-pick=zen-dim]').click();
-   await page.locator('.td-nav > [data-action=work]').click();await page.locator('.td-main > .td-work-nav [data-tab=todo]').click();await page.locator('[data-task]').filter({hasText:'E2E 저장 확인'}).click();
+   await page.locator('.td-tabs [data-top-tab=today]').click();await page.locator('.cf-home-task [data-reveal]').filter({hasText:'E2E 저장 확인'}).click();
    assert.equal(await note.inputValue(),'다시 실행해도 남는 실제 상세 내용');
    await page.keyboard.press('Escape');await page.locator('.task-form').waitFor({state:'detached'});
   });
@@ -80,16 +80,16 @@ async function test(name,fn){await fn();results.push({name,ok:true});}
   });
   let eventId;
   await test('실제 Calendar 생성·수정·삭제·복원',async()=>{
-   await page.evaluate(()=>window.__whendeskGo('calendar'));await page.locator('.td-main-head [data-action=new-event]').click();await page.locator('.quick-event-form input').waitFor();await page.keyboard.press('Control+Enter');
+   await page.evaluate(()=>window.__whendeskGo('calendar'));await page.locator('.td-calendar-side [data-action=new-event]').click();await page.locator('.quick-event-form input').waitFor();await page.keyboard.press('Control+Enter');
    await page.locator('.event-form [name=title]').fill('E2E 개인 일정');await page.locator('.event-form [type=submit]').click();
    await page.locator('.event-form').waitFor({state:'hidden'});let state=await call('state',{});let event=state.events.find(e=>e.title==='E2E 개인 일정');assert.ok(event);eventId=event.id;
-   await page.locator('.td-main-calendar-agenda [data-event]').filter({hasText:'E2E 개인 일정'}).click();await page.locator('.event-form [name=title]').fill('E2E 일정 수정');await page.locator('.event-form [type=submit]').click();await page.locator('.event-form').waitFor({state:'hidden'});
+   await page.locator('.td-calendar-side [data-event]').filter({hasText:'E2E 개인 일정'}).click();await page.locator('.event-form [name=title]').fill('E2E 일정 수정');await page.locator('.event-form [type=submit]').click();await page.locator('.event-form').waitFor({state:'hidden'});
    event=(await call('state',{})).events.find(e=>e.id===eventId);assert.equal(event.title,'E2E 일정 수정');
-   await page.locator('.td-main-calendar-agenda [data-event]').filter({hasText:'E2E 일정 수정'}).click();await page.locator('[data-action=delete-event]').click();await page.locator('.event-form').waitFor({state:'hidden'});assert.equal((await call('state',{})).events.some(e=>e.id===eventId),false);
+   await page.locator('.td-calendar-side [data-event]').filter({hasText:'E2E 일정 수정'}).click();await page.locator('[data-action=delete-event]').click();await page.locator('.event-form').waitFor({state:'hidden'});assert.equal((await call('state',{})).events.some(e=>e.id===eventId),false);
    await page.locator('[data-action=undo]').click();await page.waitForTimeout(200);assert.ok((await call('state',{})).events.some(e=>e.id===eventId));
   });
   await test('설정 IPC와 실제 검색 결과',async()=>{
-   await page.locator('.td-sidebar-bottom [data-action=settings]').click();assert.ok((await page.locator('.settings-path').filter({hasText:'e2e-profile'}).first().textContent()).includes('e2e-profile'));await page.locator('[data-settings-tab=shortcuts]').click();await page.locator('[aria-label="Command 단축키"]').waitFor();
+   await page.locator('.td-main-head [data-action=settings]').click();assert.ok((await page.locator('.settings-path').filter({hasText:'e2e-profile'}).first().textContent()).includes('e2e-profile'));await page.locator('[data-settings-tab=shortcuts]').click();await page.locator('[aria-label="Command 단축키"]').waitFor();
    const prefs=await call('preferences.get');assert.equal(prefs.theme,'zen-dim');assert.equal(prefs.mode,'dark');
    await page.waitForFunction(async()=>{const info=await window.desk.call('app.info');return info.commandReady||info.commandFailure;},null,{timeout:30000});
    const query=await call('command.query',{q:'계산기',seq:100});assert.ok(Array.isArray(query.items));assert.ok(query.items.some(i=>i.source==='apps'),query.notice||'설치된 계산기 앱 검색 결과 없음');

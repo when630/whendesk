@@ -137,7 +137,7 @@ function durableData(state) {
     await test('Tab/Ctrl+K 2회 왕복 뒤 대시보드 native 크기와 검색 선택영역 보존', async () => {
       await page.locator('.td-command input').press('Tab');
       await page.locator('#cf-dashboard-panel').waitFor();
-      await page.locator('.td-main h1').filter({ hasText: 'Dashboard' }).waitFor();
+      await page.locator('.td-main h1').filter({ hasText: 'Today' }).waitFor();
       await waitUntil(async () => (await bounds()).width >= 800, '대시보드 native 창이 확장되지 않았습니다.');
       const initial = await bounds();
       measurements.dashboardBounds = { initial, returns: [] };
@@ -166,7 +166,7 @@ function durableData(state) {
     await test('일정 초안 위 도움말: Esc는 도움말만 닫고 모달·제목·caret 유지', async () => {
       await page.locator('.td-command input').press('Tab');
       await page.evaluate(()=>window.__whendeskGo('calendar'));
-      await page.locator('.td-main-head [data-action=new-event]').click();await page.locator('.quick-event-form input').waitFor();await page.keyboard.press('Control+Enter');
+      await page.locator('.td-calendar-side [data-action=new-event]').click();await page.locator('.quick-event-form input').waitFor();await page.keyboard.press('Control+Enter');
       const form = page.locator('.event-form');
       const title = form.locator('[name=title]');
       const draft = '아직 저장하지 않은 일정 제목';
@@ -208,9 +208,8 @@ function durableData(state) {
       await call('mutate', { type: 'task.update', payload: { id: taskId, kind: 'todo', project_id: projectId, due: today } });
       await call('mutate', { type: 'event.create', payload: { title: '스킨 보존 확인용 일정', date: today, time: '09:00', end: '10:00', allDay: false, location: '테스트 위치', note: '외관을 변경해도 유지할 일정 내용' } });
 
-      await page.locator('.td-nav > [data-action=work]').click();
-      await page.locator('.td-main > .td-work-nav [data-tab=todo]').click();
-      await page.locator('.td-task-open[data-task]').filter({ hasText: '미니멀 검증용 할 일' }).click();
+      await page.locator('.td-tabs [data-top-tab=today]').click();
+      await page.locator('.cf-home-task [data-reveal]').filter({ hasText: '미니멀 검증용 할 일' }).click();
       const note = page.locator('[data-field=note]');
       const finalTitle = '스킨 변경 후에도 남을 제목';
       const finalNote = '스킨을 바꿔도 유지할 작성 내용';
@@ -287,7 +286,7 @@ function durableData(state) {
         await waitUntil(async () => (await call('preferences.get')).skin === skin, skin + ' 스킨 변경이 저장되지 않았습니다.');
         await screenshot('07-skin-' + skin);
         await page.evaluate(section=>window.__whendeskGo(section),'dashboard');
-        await page.locator('.td-main h1').filter({ hasText: 'Dashboard' }).waitFor();
+        await page.locator('.td-main h1').filter({ hasText: 'Today' }).waitFor();
         await screenshot('07-skin-' + skin + '-dashboard');
         await page.keyboard.press('Control+k');
         await page.waitForFunction(() => document.activeElement === document.querySelector('.td-command input'));
@@ -331,9 +330,8 @@ function durableData(state) {
       await page.keyboard.press('Control+k');
       await commandRestored('123+456', [1, 4]);
       await page.locator('.td-command input').press('Tab');
-      await page.locator('.td-nav > [data-action=work]').click();
-      await page.locator('.td-main > .td-work-nav [data-tab=todo]').click();
-      await page.locator('.td-task-open[data-task]').filter({ hasText: finalTitle }).click();
+      await page.locator('.td-tabs [data-top-tab=today]').click();
+      await page.locator('.cf-home-task [data-reveal]').filter({ hasText: finalTitle }).click();
       assert.equal(await page.locator('[data-field=title]').inputValue(), finalTitle);
       assert.equal(await page.locator('[data-field=note]').inputValue(), finalNote);
       assert.equal(await page.locator('[data-field=project_id]').getAttribute('value'), String(projectId));
@@ -348,8 +346,8 @@ function durableData(state) {
       await page.locator('.td-command input').press('Tab');
       // 대시보드로 돌아오면 편집 대화상자가 그대로 열려 있다. Esc로 닫고 메뉴로 간다.
       await page.locator('.task-form').waitFor();await page.keyboard.press('Escape');await page.locator('.task-form').waitFor({ state: 'detached' });
-      await page.locator('.td-nav [data-action=home]').click();
-      await page.locator('.td-main h1').filter({ hasText: 'Dashboard' }).waitFor();
+      await page.locator('.td-tabs [data-top-tab=today]').click();
+      await page.locator('.td-main h1').filter({ hasText: 'Today' }).waitFor();
       await page.locator('.cf-home-task').filter({ hasText: finalTitle }).waitFor();
       await noPersistentKeycaps('데이터가 있는 대시보드');
       await screenshot('10-dashboard-with-data');

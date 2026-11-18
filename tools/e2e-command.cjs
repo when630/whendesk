@@ -247,7 +247,7 @@ async function closeHarness() {
     });
 
     await test('단축키 직접 기록·정규화 저장·중복/예약/등록 실패에서 기존 설정 유지',async()=>{
-      await page.keyboard.press('Control+Comma');await page.locator('[data-settings-tab=general]').waitFor();await page.keyboard.press('ArrowRight');
+      await page.keyboard.press('Control+Comma');await page.locator('[data-settings-tab=general]').waitFor();await page.keyboard.press('ArrowRight');await page.locator('[data-settings-tab=projects][aria-selected=true]').waitFor();await page.keyboard.press('ArrowRight');await page.locator('[data-settings-tab=shortcuts][aria-selected=true]').waitFor();
       const hotkey=page.locator('[data-shortcut=hotkey]'),capture=page.locator('[data-shortcut=captureHotkey]');
       await hotkey.focus();assert.equal(await page.evaluate(()=>window.__whendeskRecordShortcut('Alt+Space')),true);assert.equal(await hotkey.inputValue(),'Alt+Space');
       await capture.focus();assert.equal(await page.evaluate(()=>window.__whendeskRecordShortcut('Control+Alt+Space')),true);assert.equal(await capture.inputValue(),'Ctrl+Alt+Space');
@@ -268,7 +268,7 @@ async function closeHarness() {
     });
 
     await test('일정 모달 Ctrl+K 초안 보존·Tab 순환·Ctrl+/ 도움말 우선순위',async()=>{
-      await page.evaluate(()=>window.__whendeskGo('calendar'));await page.locator('.td-main-head [data-action=new-event]').click();await page.locator('.quick-event-form input').waitFor();await page.keyboard.press('Control+Enter');
+      await page.evaluate(()=>window.__whendeskGo('calendar'));await page.locator('.td-calendar-side [data-action=new-event]').click();await page.locator('.quick-event-form input').waitFor();await page.keyboard.press('Control+Enter');
       const title=page.locator('.event-form [name=title]');await title.fill('저장하지 않은 키보드 검증 일정');
       await title.evaluate(element=>{window.__commandDraftNode=element;element.setSelectionRange(2,8);element.dispatchEvent(new KeyboardEvent('keydown',{key:'ㅏ',code:'KeyK',ctrlKey:true,bubbles:true,cancelable:true}));});
       assert.equal(await page.locator('.event-form').isVisible(),true);assert.equal(await title.inputValue(),'저장하지 않은 키보드 검증 일정');assert.equal(await title.evaluate(element=>element===window.__commandDraftNode),true);
@@ -281,7 +281,7 @@ async function closeHarness() {
       assert.equal((await call('state',{})).events.length,0);await screenshot('04-modal-draft');
       await page.keyboard.press('Escape');assert.equal(await page.locator('.event-form').isVisible(),true,'입력한 초안을 Esc 한 번에 버렸습니다.');await page.keyboard.press('Escape');await page.locator('.event-form').waitFor({state:'hidden'});
       // 대화상자를 연 버튼에서 Esc는 먼저 화면의 기본 자리(선택 날짜)로, 한 번 더 누르면 창을 숨긴다.
-      await page.keyboard.press('Escape');await waitUntil(()=>page.evaluate(()=>!!document.activeElement?.closest('.td-main [data-date]')),'Esc가 캘린더 기본 자리로 돌아가지 않았습니다.');assert.equal(await page.locator('#cf-dashboard-panel').isVisible(),true);
+      await page.keyboard.press('Escape');await waitUntil(()=>page.evaluate(()=>!!document.activeElement?.closest('.td-main .cal-future')),'Esc가 Journey 기본 자리로 돌아가지 않았습니다.');assert.equal(await page.locator('#cf-dashboard-panel').isVisible(),true);
       const hides=(await records('window.hide')).length;await page.keyboard.press('Escape');await waitUntil(async()=>(await records('window.hide')).length>hides,'대시보드의 마지막 Esc가 창을 숨기지 않았습니다.');
     });
 

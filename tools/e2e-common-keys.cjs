@@ -102,8 +102,8 @@ async function closeApp(){
       await page.evaluate(section=>window.__whendeskGo(section),'inbox');await waitWithin(`[data-task-row="${inboxTask.id}"]`);
       await press('Control+Enter');await page.waitForTimeout(400);
       assert.equal((await task(inboxTask.id)).done,false,'접힌 행의 Ctrl+Enter가 할 일을 완료했습니다.');
-      for(let step=0;step<4;step++)await press('Tab');
-      await waitUntil(async()=>await page.locator('.td-work-nav [role=tab][aria-selected=true]').getAttribute('data-tab')==='projects','Projects 탭으로 가지 않았습니다.');
+      // 프로젝트 관리는 설정의 프로젝트 분류에 있다.
+      await page.evaluate(()=>window.__whendeskGo('projects'));await page.locator('[data-settings-tab=projects][aria-selected=true]').waitFor();
       const toggle=page.locator('[data-action=work-project-trash]');
       assert.equal(await toggle.getAttribute('aria-pressed'),'false');
       await press('a');await waitUntil(async()=>await toggle.getAttribute('aria-pressed')==='true','A가 보관함 보기로 바꾸지 않았습니다.');
@@ -175,18 +175,18 @@ async function closeApp(){
       assert.deepEqual(visited.filter(stop=>stop.startsWith('BUTTON')||stop.includes(':checkbox')),[],'Tab이 버튼이나 체크박스에 멈췄습니다: '+visited.join(' → '));
       assert.ok(visited.some(stop=>stop.endsWith('#due'))&&visited.some(stop=>stop.endsWith('#note')),'편집기의 입력 칸을 Tab으로 돌지 못했습니다: '+visited.join(' → '));
       await press('Escape');
-      const grips=await page.evaluate(()=>['.command-grip','.sidebar-grip'].map(selector=>{const element=document.querySelector(selector);return element&&getComputedStyle(element).webkitAppRegion;}));
+      const grips=await page.evaluate(()=>['.command-grip','.head-grip'].map(selector=>{const element=document.querySelector(selector);return element&&getComputedStyle(element).webkitAppRegion;}));
       assert.deepEqual(grips,['drag','drag'],'창을 끄는 자리 표시가 없거나 끌기 영역이 아닙니다.');
       await screenshot('05-grips');
     });
 
-    await test('Ctrl+Tab·Ctrl+Shift+Tab은 왼쪽 메뉴(Dashboard·Work·Note)를 순환하고 Work는 보던 분류로 간다',async()=>{
+    await test('Ctrl+Tab·Ctrl+Shift+Tab은 머리 탭(Today·InBox·Journey·Note)을 순환한다',async()=>{
       const title=()=>page.locator('.td-main h1').innerText();
-      await page.evaluate(section=>window.__whendeskGo(section),'waiting');await waitUntil(async()=>/Waiting/.test(await title()),'Waiting으로 가지 않았습니다.');
+      await page.evaluate(section=>window.__whendeskGo(section),'inbox');await waitUntil(async()=>(await title())==='InBox','InBox로 가지 않았습니다.');
       const visited=[];
-      for(const key of ['Control+Tab','Control+Tab','Control+Tab','Control+Tab','Control+Shift+Tab']){const before=await title();await press(key);await waitUntil(async()=>await title()!==before,key+'가 메뉴를 바꾸지 않았습니다.');visited.push(await title());}
+      for(const key of ['Control+Tab','Control+Tab','Control+Tab','Control+Tab','Control+Shift+Tab']){const before=await title();await press(key);await waitUntil(async()=>await title()!==before,key+'가 탭을 바꾸지 않았습니다.');visited.push(await title());}
       measurements.menuCycle=visited;
-      assert.deepEqual(visited,['Note','Dashboard','Work · Waiting','Note','Work · Waiting'],'메뉴 순환 순서가 다릅니다: '+visited.join(' → '));
+      assert.deepEqual(visited,['Journey','Note','Today','InBox','Today'],'탭 순환 순서가 다릅니다: '+visited.join(' → '));
     });
 
     await test('화면에 들어온 직후에는 포커스 표시가 없고 키로 움직이면 생긴다',async()=>{
@@ -202,24 +202,24 @@ async function closeApp(){
       assert.ok(moved.shown||['INPUT','TEXTAREA','SELECT'].includes(moved.tag),'키로 움직였는데 포커스 표시가 없습니다: '+JSON.stringify(moved));
     });
 
-    await test('대시보드 저널은 ↑↓로 항목을 오가고 Space 완료한 일은 × 줄로 남는다',async()=>{
+    await test('Today는 ↑↓로 항목을 오가고 Space 완료한 일은 × 줄로 남는다',async()=>{
       // – 한 줄 메모는 Work 항목이다(긴 글의 Note 문서는 저널에 오르지 않는다).
       const memo=await call('mutate',{type:'task.create',payload:{title:'저널 메모 '+runId,kind:'note'}});
       const ids=[];for(const title of ['대시보드 첫째 '+runId,'대시보드 둘째 '+runId]){const created=await call('mutate',{type:'task.create',payload:{title}});await call('mutate',{type:'task.update',payload:{id:created.id,kind:'todo'}});ids.push(created.id);}
-      await page.evaluate(section=>window.__whendeskGo(section),'waiting');await page.evaluate(section=>window.__whendeskGo(section),'dashboard');await waitUntil(async()=>(await page.locator('.td-main h1').innerText())==='Dashboard','Dashboard로 가지 않았습니다.');
+      await page.evaluate(section=>window.__whendeskGo(section),'inbox');await page.evaluate(section=>window.__whendeskGo(section),'dashboard');await waitUntil(async()=>(await page.locator('.td-main h1').innerText())==='Today','Today로 가지 않았습니다.');
       const active=()=>page.evaluate(()=>{const element=document.activeElement;return element.dataset.reveal?(element.closest('.is-note')?'note:':'task:')+element.dataset.reveal:element.classList.contains('cf-entry')?'entry:'+element.dataset.action:element.tagName+'.'+element.className;});
       const items=await page.evaluate(()=>[...document.querySelectorAll('.cf-home-task :is([data-reveal],[data-event],[data-open-note]),.cf-entry')].map(element=>element.dataset.reveal?(element.closest('.is-note')?'note:':'task:')+element.dataset.reveal:element.dataset.event?'event:'+element.dataset.event:'entry:'+element.dataset.action));
       for(const id of ids)assert.ok(items.includes('task:'+id),'오늘 담은 할 일이 오늘 칸에 없습니다.');
       assert.ok(items.includes('note:'+memo.id),'오늘 적은 한 줄 메모가 – 줄로 보이지 않습니다.');
       await waitUntil(async()=>await active()===items[0],'첫 포커스가 첫 줄이 아닙니다: '+await active());
       await press('ArrowDown');assert.equal(await active(),items[1]);await press('ArrowUp');assert.equal(await active(),items[0]);
-      await press('End');assert.equal(await active(),'entry:waiting');await press('Home');assert.equal(await active(),items[0]);
+      await press('End');assert.equal(await active(),items[items.length-1]);await press('Home');assert.equal(await active(),items[0]);
       while(await active()!=='task:'+ids[0])await press('ArrowDown');
       await press('Space');
       await waitUntil(async()=>(await task(ids[0])).done,'Space가 할 일을 완료하지 않았습니다.');
       await waitUntil(async()=>await page.locator(`.cf-home-task.done [data-reveal="${ids[0]}"]`).count()===1,'완료한 일이 오늘 칸에 × 줄로 남지 않았습니다.');
       assert.equal(await active(),'task:'+ids[0],'완료 뒤 포커스가 같은 할 일에 머물지 않았습니다.');
-      await press('Control+Slash');await page.locator('.help-group.is-current').waitFor();assert.equal(await page.locator('.help-group').first().locator('h3').evaluate(element=>element.firstChild.textContent),'Dashboard','안내의 첫 묶음이 지금 화면이 아닙니다.');await screenshot('09-help-dashboard');await press('Escape');await page.locator('.minimal-help-layer').waitFor({state:'hidden'});
+      await press('Control+Slash');await page.locator('.help-group.is-current').waitFor();assert.equal(await page.locator('.help-group').first().locator('h3').evaluate(element=>element.firstChild.textContent),'Today','안내의 첫 묶음이 지금 화면이 아닙니다.');await screenshot('09-help-dashboard');await press('Escape');await page.locator('.minimal-help-layer').waitFor({state:'hidden'});
       await press('u');await waitUntil(async()=>!(await task(ids[0])).done,'U가 완료를 되돌리지 않았습니다.');
       await waitFocus(`[data-reveal="${ids[0]}"]`);
       await press('c');await waitUntil(async()=>(await task(ids[0])).cancelled,'C가 취소하지 않았습니다.');
@@ -229,7 +229,7 @@ async function closeApp(){
 
     await test('저널의 – 메모는 Enter로 메모 편집(상태·마감 없음)을 열고, Space·C는 메모에 아무 일도 하지 않으며, Command 검색으로 찾는다',async()=>{
       const memo=await call('mutate',{type:'task.create',payload:{title:'편집할 메모 '+runId,kind:'note'}});
-      await page.evaluate(section=>window.__whendeskGo(section),'waiting');await page.evaluate(section=>window.__whendeskGo(section),'dashboard');
+      await page.evaluate(section=>window.__whendeskGo(section),'inbox');await page.evaluate(section=>window.__whendeskGo(section),'dashboard');
       const row=`.cf-home-task.is-note [data-reveal="${memo.id}"]`;await page.locator(row).waitFor();
       await page.evaluate(selector=>document.querySelector(selector)?.focus(),row);await waitFocus(row);
       await press('Space');await press('c');await page.waitForTimeout(200);
@@ -249,43 +249,42 @@ async function closeApp(){
       await press('Escape');
     });
 
-    await test('마감이 있는 할 일은 Work 목록에서 < 이고, 대시보드 저널에서는 그날이 된 일이라 • 이다',async()=>{
+    await test('마감이 있는 할 일은 오른쪽 달력의 마감 줄에서 < 이고, Today에서는 그날이 된 일이라 • 이다',async()=>{
       const d=new Date(),today=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
       const due=await call('mutate',{type:'task.create',payload:{title:'오늘 마감 기호 '+runId}});await call('mutate',{type:'task.update',payload:{id:due.id,kind:'todo',due:today}});
-      await page.evaluate(section=>window.__whendeskGo(section),'todo');
-      const listMark=page.locator(`[data-task-row="${due.id}"] .task-mark`);await listMark.waitFor();
-      assert.equal((await listMark.innerText()).trim(),'<','Work 목록에서 마감 있는 일이 < 가 아닙니다.');
-      await page.evaluate(section=>window.__whendeskGo(section),'dashboard');
-      const journalMark=page.locator(`.journal-today .cf-home-task:has([data-reveal="${due.id}"]) .task-mark`);await journalMark.waitFor();
-      assert.equal((await journalMark.innerText()).trim(),'•','저널에서 오늘 마감인 일이 • 가 아닙니다.');
+      await page.evaluate(section=>window.__whendeskGo(section),'inbox');await page.evaluate(section=>window.__whendeskGo(section),'dashboard');
+      const sideMark=page.locator(`.td-calendar-side .td-deadline[data-reveal="${due.id}"] .td-deadline-glyph`);await sideMark.waitFor();
+      assert.equal((await sideMark.innerText()).trim(),'<','달력의 마감 줄에서 마감 있는 일이 < 가 아닙니다.');
+      const journalMark=page.locator(`.cf-home-task:has([data-reveal="${due.id}"]) .task-mark`);await journalMark.waitFor();
+      assert.equal((await journalMark.innerText()).trim(),'•','Today에서 오늘 마감인 일이 • 가 아닙니다.');
     });
 
-    await test('넘길 일: 마감이 지난 일은 맨 위에 모이고 T로 오늘로 넘기면 미룸이 세지고 U로 돌아온다',async()=>{
+    await test('지난 마감: 프로젝트 묶음 안 맨 앞에 붉은 D+n으로 서고, T로 오늘로 넘기면 미룸이 세지고 U로 돌아온다',async()=>{
       const key=offset=>{const d=new Date();d.setDate(d.getDate()+offset);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
       const late=await call('mutate',{type:'task.create',payload:{title:'넘길 일 '+runId}});await call('mutate',{type:'task.update',payload:{id:late.id,kind:'todo',due:key(-2)}});
       await call('mutate',{type:'event.create',payload:{title:'저널 일정 '+runId,date:key(0),time:'09:00',end:'10:00',allDay:false}});
-      await page.evaluate(section=>window.__whendeskGo(section),'waiting');await page.evaluate(section=>window.__whendeskGo(section),'dashboard');
-      await page.locator('.journal-migrate').waitFor();
-      assert.equal(await page.locator(`.journal-migrate [data-reveal="${late.id}"]`).count(),1,'지난 마감 할 일이 넘길 일에 없습니다.');
-      assert.equal(await page.locator('.journal-today [data-event]').filter({hasText:'저널 일정 '+runId}).count(),1,'오늘 일정이 ○ 줄로 보이지 않습니다.');
-      await waitFocus(`[data-reveal="${late.id}"]`);
-      await waitUntil(async()=>(await page.locator('.td-hints').innerText()).includes('오늘로'),'넘길 일의 하단 힌트에 오늘로가 없습니다.');
-      await screenshot('10-journal-migrate');
+      await page.evaluate(section=>window.__whendeskGo(section),'inbox');await page.evaluate(section=>window.__whendeskGo(section),'dashboard');
+      const lateRow=`.cf-home-task.is-late [data-reveal="${late.id}"]`;await page.locator(lateRow).waitFor();
+      assert.equal(await page.locator(`.cf-home-task:has([data-reveal="${late.id}"]) .work-overdue`).count(),1,'지난 마감에 붉은 D+n이 없습니다.');
+      assert.equal(await page.locator('.cf-home-task [data-event]').filter({hasText:'저널 일정 '+runId}).count(),1,'오늘 일정이 ○ 줄로 보이지 않습니다.');
+      const firstInGroup=await page.evaluate(id=>{const row=document.querySelector(`.cf-home-task [data-reveal="${id}"]`).closest('.today-group');return row.querySelector('.cf-home-task [data-reveal],.cf-home-task [data-event]')?.dataset.reveal;},late.id);
+      assert.equal(firstInGroup,late.id,'지난 마감이 프로젝트 묶음의 맨 앞이 아닙니다.');
+      await page.evaluate(selector=>document.querySelector(selector)?.focus(),lateRow);await waitFocus(`[data-reveal="${late.id}"]`);
+      await waitUntil(async()=>(await page.locator('.td-hints').innerText()).includes('오늘로'),'지난 마감의 하단 힌트에 오늘로가 없습니다.');
+      await screenshot('10-today-late');
       await press('t');
       await waitUntil(async()=>(await task(late.id)).due===key(0),'T가 마감을 오늘로 옮기지 않았습니다.');
       assert.equal((await task(late.id)).postponed,1,'오늘로 넘겼는데 미룸 횟수가 세지지 않았습니다.');
-      await waitUntil(async()=>await page.locator(`.journal-today [data-reveal="${late.id}"]`).count()===1,'넘긴 일이 오늘 칸으로 오지 않았습니다.');
-      assert.equal(await page.locator('.journal-migrate').count(),0,'넘길 일이 비었는데 묶음이 남았습니다.');
+      await waitUntil(async()=>await page.locator(lateRow).count()===0,'넘긴 일이 아직 지난 마감으로 보입니다.');
       assert.equal(await focused(`[data-reveal="${late.id}"]`),true,'넘긴 뒤 포커스가 그 할 일을 따라가지 않았습니다.');
-      await screenshot('11-journal-today');
+      await screenshot('11-today-moved');
       await press('u');await waitUntil(async()=>{const t=await task(late.id);return t.due===key(-2)&&t.postponed===0;},'U가 마감과 미룸 횟수를 되돌리지 않았습니다.');
-      await page.locator('.journal-migrate').waitFor();
+      await page.locator(lateRow).waitFor();
     });
 
     await test('하단 힌트는 포커스 자리에 맞는 키를 보여 준다',async()=>{
       const hints=()=>page.locator('.td-hints').innerText();
-      await page.evaluate(section=>window.__whendeskGo(section),'inbox');await waitWithin('.td-main');for(let step=0;step<4;step++)await press('Tab');
-      await waitUntil(async()=>await page.locator('.td-work-nav [role=tab][aria-selected=true]').getAttribute('data-tab')==='projects','Projects 탭으로 가지 않았습니다.');
+      await page.evaluate(()=>window.__whendeskGo('projects'));await page.locator('[data-settings-tab=projects][aria-selected=true]').waitFor();
       await waitUntil(async()=>/보관함/.test(await hints()),'Projects 힌트가 아닙니다.');
       await page.evaluate(section=>window.__whendeskGo(section),'inbox');await waitWithin(`[data-task-row="${inboxTask.id}"]`);
       await waitUntil(async()=>/Space\s*완료/.test(await hints())&&/1 ~ 9\s*프로젝트/.test(await hints()),'할 일 목록 힌트가 아닙니다.');

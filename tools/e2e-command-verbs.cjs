@@ -172,20 +172,16 @@ async function closeApp(){
       assert.equal(errors.length,0,errors.join('\n'));
     });
 
-    await test('Work 보기는 V로 목록·월·앞으로를 돌고 월·앞으로는 Tab으로 오가며, N 한 줄 입력은 해석을 미리 보여 주고 Enter로 추가·Ctrl+Enter로 자세히 편집한다',async()=>{
-      const view=()=>page.locator('.work-views [aria-selected=true]').getAttribute('data-work-view');
+    await test('머리 탭은 Ctrl+Tab으로 Today→InBox→Journey→Note를 돌고, Journey의 N 한 줄 입력은 해석을 미리 보여 주고 Enter로 추가·Ctrl+Enter로 자세히 편집한다',async()=>{
+      const tab=()=>page.locator('.td-tabs [aria-selected=true]').getAttribute('data-top-tab');
       await press('Control+k');await page.locator('#cf-command-panel').waitFor();await press('Tab');await page.locator('#cf-dashboard-panel').waitFor();
-      // 일정은 Work의 월 보기로 열린다(Calendar 메뉴는 없다).
-      await page.evaluate(section=>window.__whendeskGo(section),'calendar');await waitUntil(async()=>await view()==='month','월 보기로 열리지 않았습니다.');await waitFocus('.td-main [data-date]');
-      assert.match(await page.locator('.td-main h1').innerText(),/^Work · 월/);
-      await press('Tab');await waitUntil(async()=>await view()==='future','Tab이 앞으로 보기로 가지 않았습니다.');
-      await press('Shift+Tab');await waitUntil(async()=>await view()==='month','Shift+Tab이 월 보기로 가지 않았습니다.');await waitFocus('.td-main [data-date]');
-      await press('v');await waitUntil(async()=>await view()==='future','V가 월에서 앞으로 가지 않았습니다.');
-      await press('v');await waitUntil(async()=>await view()==='list','V가 앞으로에서 목록으로 가지 않았습니다.');
-      assert.match(await page.locator('.td-main h1').innerText(),/^Work · /);
-      await press('Shift+v');await waitUntil(async()=>await view()==='future','Shift+V가 목록에서 거꾸로 앞으로 가지 않았습니다.');
-      await press('Shift+v');await waitUntil(async()=>await view()==='month','Shift+V가 앞으로에서 월로 가지 않았습니다.');await waitFocus('.td-main [data-date]');
-      await screenshot('03-work-month');
+      await page.evaluate(section=>window.__whendeskGo(section),'dashboard');await waitUntil(async()=>await tab()==='today','Today로 열리지 않았습니다.');
+      for(const next of ['inbox','journey','note','today']){await press('Control+Tab');await waitUntil(async()=>await tab()===next,'Ctrl+Tab이 '+next+'로 가지 않았습니다.');}
+      await press('Control+Shift+Tab');await waitUntil(async()=>await tab()==='note','Ctrl+Shift+Tab이 거꾸로 가지 않았습니다.');
+      await press('Control+Shift+Tab');await waitUntil(async()=>await tab()==='journey','Ctrl+Shift+Tab이 Journey로 가지 않았습니다.');
+      assert.equal(await page.locator('.td-main h1').innerText(),'Journey');
+      await waitUntil(()=>within('.cal-future'),'Journey 기본 자리에 포커스가 없습니다.');
+      await screenshot('03-journey');
       const title='정비 '+runId;
       await press('n');await page.locator('.quick-event-form').waitFor();await waitFocus('.quick-event-form [name=line]');
       await text('다음 주 월요일 오전 9시 '+title);

@@ -28,7 +28,7 @@ test('물리 키·수식키를 정확히 판정하고 한글 입력 상태에서
   assert.equal(K.section(key('Comma', { key:',', ctrlKey:true })), 'settings');
   assert.equal(K.section(key('KeyH', { key:'ㅗ', altKey:true })), null, 'Alt+글자 화면 이동은 없다');
   assert.equal(K.section(key('KeyH', { key:'h' })), null);
-  assert.ok(K.is(key('Tab', { key:'Tab', shiftKey:true }), 'work.tab.cycle'));
+  assert.ok(K.is(key('Tab', { key:'Tab', shiftKey:true }), 'focus.cycle'));
   assert.ok(K.is(key('Escape', { key:'Escape', ctrlKey:true, shiftKey:true }), 'back'), '?수식키는 눌려도 된다');
   assert.ok(K.is(key('Enter', { key:'Enter', shiftKey:true }), 'command.run'));
   assert.equal(K.is(key('Enter', { key:'Enter', ctrlKey:true }), 'command.run'), false);

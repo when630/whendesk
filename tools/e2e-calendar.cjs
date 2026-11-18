@@ -86,7 +86,7 @@ async function openQuick(){
 
     await test('폼: 시작을 옮기면 종료가 따라오고, 자정을 넘는 종료도 저장된다',async()=>{
       // 한 줄로 추가하면 그 날짜 목록으로 옮겨 새 일정에 포커스를 둔다.
-      await waitUntil(()=>page.evaluate(()=>!!document.activeElement?.closest('.td-main [data-event]')&&document.activeElement.textContent.includes('야간 배포')),'추가한 일정에 포커스가 없습니다.');
+      await waitUntil(()=>page.evaluate(()=>!!document.activeElement?.closest('.td-main [data-event], .td-calendar-side [data-event]')&&document.activeElement.textContent.includes('야간 배포')),'추가한 일정에 포커스가 없습니다.');
       await press('Enter');await page.locator('.event-form').waitFor();
       const value = name => page.locator(`.event-form [name=${name}]`).inputValue();
       assert.equal(await value('time'),'23:00');assert.equal(await value('end'),'01:00');assert.equal(await value('endDate'),nextKey);
@@ -114,14 +114,14 @@ async function openQuick(){
       await openQuick();await text('내일 오후 2시 덱 점검');
       await waitUntil(async()=>/14:00 – 15:00/.test(await preview()),'추가 미리보기가 없습니다.');
       await press('Enter');
-      await waitUntil(()=>page.evaluate(()=>!!document.activeElement?.closest('.td-main [data-event]')&&document.activeElement.textContent.includes('덱 점검')),'추가한 일정에 포커스가 없습니다.');
+      await waitUntil(()=>page.evaluate(()=>!!document.activeElement?.closest('.td-main [data-event], .td-calendar-side [data-event]')&&document.activeElement.textContent.includes('덱 점검')),'추가한 일정에 포커스가 없습니다.');
       await press('e');await page.locator('.line-edit-form[data-mode=title]').waitFor();
       assert.equal(await page.locator('.line-edit-form [name=line]').inputValue(),'덱 점검','E 입력줄에 지금 제목이 없습니다.');
       await press('Control+a');await text('덱 점검 다시');await press('Enter');
       await waitUntil(async()=>(await events()).some(e=>e.title==='덱 점검 다시'),'E로 제목을 바꾸지 못했습니다.');
       await waitUntil(()=>page.evaluate(()=>document.activeElement?.textContent?.includes('덱 점검 다시')),'제목을 바꾼 뒤 그 일정에 포커스가 없습니다.');
       await press('u');await waitUntil(async()=>(await events()).some(e=>e.title==='덱 점검'),'U로 제목 변경을 되돌리지 못했습니다.');
-      await waitUntil(()=>page.evaluate(()=>{const row=[...document.querySelectorAll('.td-main [data-event]')].find(row=>row.textContent.includes('덱 점검'));row?.focus();return document.activeElement===row&&!!row;}),'일정 행에 다시 포커스를 두지 못했습니다.');
+      await waitUntil(()=>page.evaluate(()=>{const row=[...document.querySelectorAll('.td-main [data-event], .td-calendar-side [data-event]')].find(row=>row.textContent.includes('덱 점검'));row?.focus();return document.activeElement===row&&!!row;}),'일정 행에 다시 포커스를 두지 못했습니다.');
       const moved=plusDays(2);
       await press('d');await page.locator('.line-edit-form[data-mode=when]').waitFor();
       await text(`${moved.getMonth()+1}월 ${moved.getDate()}일 오후 4시 1시간`);
@@ -150,8 +150,8 @@ async function openQuick(){
       // 이름을 바꾼 회차는 제외하고 남은 '아침 운동' 회차로 삭제를 검증한다.
       const remaining=(await events()).filter(e=>e.title==='아침 운동').length;
       // 이름을 바꾼 회차의 날에는 '아침 운동'이 없다. 월 격자에서 다음 날(→)로 넘겨 그 회차를 고른다.
-      await page.evaluate(()=>document.querySelector('.td-main .td-day.selected')?.focus());await press('ArrowRight');
-      await waitUntil(()=>page.evaluate(()=>{const row=[...document.querySelectorAll('.td-main [data-event]')].find(row=>row.textContent.includes('아침 운동'));row?.focus();return !!row&&document.activeElement===row;}),'다음 날의 반복 회차에 포커스를 두지 못했습니다.');
+      await page.evaluate(()=>document.querySelector('.td-calendar-side .td-day.selected')?.focus());await press('ArrowRight');
+      await waitUntil(()=>page.evaluate(()=>{const row=[...document.querySelectorAll('.td-main [data-event], .td-calendar-side [data-event]')].find(row=>row.textContent.includes('아침 운동'));row?.focus();return !!row&&document.activeElement===row;}),'다음 날의 반복 회차에 포커스를 두지 못했습니다.');
       await press('x');await page.locator('.scope-form').waitFor();
       assert.equal(await page.evaluate(()=>document.activeElement?.dataset.scope),'one','3지선다 커서가 이 회차만에서 시작하지 않습니다.');
       await screenshot('03-scope-chooser');
@@ -162,13 +162,12 @@ async function openQuick(){
       await waitUntil(async()=>(await events()).filter(e=>e.title==='아침 운동').length===remaining,'회차 삭제를 되돌리지 못했습니다.');
     });
 
-    await test('앞으로(Future Log): 월에서 Tab으로 넘어가는 보기, 달마다 단발 일정 ○와 마감 할 일, 반복 일정은 빠지고 Space·U가 같은 줄에서 동작한다',async()=>{
+    await test('Journey(Future Log): 머리 탭의 셋째 화면, 달마다 단발 일정 ○와 마감 할 일, 반복 일정은 빠지고 Space·U가 같은 줄에서 동작한다',async()=>{
       await call('mutate',{type:'event.create',payload:{title:'앞으로 출장',date:dayKey(plusDays(10)),time:'14:00',end:'15:00',allDay:false}});
       const task=await call('mutate',{type:'task.create',payload:{title:'앞으로 마감'}});await call('mutate',{type:'task.update',payload:{id:task.id,kind:'todo',due:dayKey(plusDays(20))}});
       await go('calendar');await waitUntil(()=>page.evaluate(()=>!!document.activeElement?.closest('.td-main')),'캘린더에 포커스가 없습니다.');
-      for(let step=0;step<4&&!(await page.locator('.cal-future').count());step++){await press('Tab');await page.waitForTimeout(80);}
       await page.locator('.cal-future').waitFor();
-      assert.equal(await page.locator('.work-views [aria-selected=true]').innerText(),'앞으로');
+      assert.equal(await page.locator('.td-tabs [aria-selected=true]').getAttribute('data-top-tab'),'journey');
       assert.equal(await page.locator('.cal-future .future-month').count()>=6,true,'여섯 달 칸이 없습니다.');
       const rows=()=>page.locator('.cal-future [data-future-row]').evaluateAll(list=>list.map(row=>row.innerText));
       await waitUntil(async()=>(await rows()).some(row=>row.includes('앞으로 출장')),'단발 일정이 앞으로 보기에 없습니다.');

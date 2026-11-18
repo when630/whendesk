@@ -19,11 +19,11 @@ const state=()=>call('state',{});
 async function waitUntil(predicate,message){const end=Date.now()+12000;while(Date.now()<end){if(await predicate())return;await page.waitForTimeout(30);}assert.fail(message);}
 async function focused(selector){return page.evaluate(selector=>!!document.activeElement?.matches(selector),selector);}
 async function waitFocus(selector){await waitUntil(()=>focused(selector),'포커스가 도착하지 않았습니다: '+selector);}
-async function waitTab(tab){await page.locator(`.td-work-nav [data-tab="${tab}"][aria-selected=true]`).waitFor();}
+async function waitTab(tab){await page.locator(`.td-tabs [data-top-tab="${tab}"][aria-selected=true]`).waitFor();}
 async function waitRowFocus(id){await waitFocus(`[data-task-row="${id}"]`);}
 async function currentRow(){return page.evaluate(()=>document.activeElement?.closest('[data-task-row]')?.dataset.taskRow||null);}
-const SECTION_BY_KEY={h:'dashboard',t:'todo',i:'inbox',w:'waiting',d:'done',n:'notes',c:'calendar'};
-async function section(key,selector){if(key==='s')await press('Control+Comma');else await page.evaluate(section=>window.__whendeskGo(section),SECTION_BY_KEY[key]);if(key==='c')await page.locator('.work-views [data-work-view=month][aria-selected=true]').waitFor();await page.locator(selector).first().waitFor();}
+const SECTION_BY_KEY={h:'dashboard',t:'dashboard',i:'inbox',d:'done',n:'notes',c:'journey'};
+async function section(key,selector){if(key==='s')await press('Control+Comma');else await page.evaluate(section=>window.__whendeskGo(section),SECTION_BY_KEY[key]);await page.locator(selector).first().waitFor();}
 async function screenshot(name){const file=path.join(shots,name+'.png');await page.screenshot({path:file});screenshots.push(file);}
 async function test(name,run){const started=Date.now();try{await run();results.push({name,ok:true,durationMs:Date.now()-started});}catch(error){results.push({name,ok:false,durationMs:Date.now()-started,error:error.message});throw error;}}
 function normalize(value){return String(value).replace(/\\"/g,'"').replace(/"/g,'').replace(/\\/g,'/').toLowerCase();}
@@ -122,8 +122,8 @@ async function withDelayedTaskSelection(run){
     fixture.note=await call('mutate',{type:'note.create',payload:{body:'포커스 메모 '+runId+'\n본문 #검증\n[웹 링크](https://example.com)'}});
     await press('Tab');await page.locator('#cf-dashboard-panel').waitFor();
 
-    await test('프로젝트로 거른 ToDo에서 새 캡처 후 InBox 행으로 이동해 바로 프로젝트·마감을 지정',async()=>{
-      await section('t','.td-work-nav');await waitTab('todo');
+    await test('프로젝트로 거른 InBox에서 새 캡처 후 그 행으로 이동해 바로 프로젝트·마감을 지정',async()=>{
+      await section('i','.td-tabs');await waitTab('inbox');
       await page.locator('[data-work-project-filter]').focus();await press('Enter');await page.locator('.td-pick-menu').waitFor();
       {const index=await page.locator('.td-pick-menu [role=option]').evaluateAll((options,value)=>options.findIndex(option=>option.dataset.value===value),String(fixture.project.id));await press('Home');for(let step=0;step<index;step++)await press('ArrowDown');await press('Enter');}
       await press('Control+n');await waitFocus('.td-quick input');
@@ -136,48 +136,40 @@ async function withDelayedTaskSelection(run){
       measurements.captureFlow={id:fixture.captured.id,createdKind:fixture.captured.kind,returnedTab:'inbox',directActions:['M','D']};
     });
 
-    await test('목록 Tab 순환은 빈 분류를 거쳐 Projects 행으로 진입하고 돌아오면 마지막 ToDo 선택을 복원',async()=>{
+    await test('Today에서 ↑↓로 프로젝트 묶음을 건너 이동하고, 마지막 줄의 Tab은 오른쪽 달력 날짜로, 방향키는 날짜를 옮긴다',async()=>{
       fixture.todoSecond=await call('mutate',{type:'task.create',payload:{title:'마지막 선택 할 일 '+runId}});
       await call('mutate',{type:'task.update',payload:{id:fixture.todoSecond.id,kind:'todo',project_id:fixture.project.id}});
-      await section('t','.td-work-nav');await waitTab('todo');await page.locator(`[data-task-row="${fixture.todo.id}"]`).focus();await press('End');
-      const remembered=await currentRow();assert.ok(remembered,'기억할 ToDo 행 포커스가 없습니다.');
-      await press('Tab');await waitTab('waiting');await waitFocus('.td-work-nav [data-tab=waiting]');
-      await press('Tab');await waitTab('done');await waitFocus('.td-work-nav [data-tab=done]');
-      await press('Tab');await waitTab('projects');await waitFocus('[data-work-project-row]');
-      await press('Shift+Tab');await waitTab('done');await press('Shift+Tab');await waitTab('waiting');await press('Shift+Tab');await waitTab('todo');await waitRowFocus(remembered);
-      measurements.tabRoundtrip={remembered,restored:await currentRow(),emptyTabs:['waiting','done'],projectsDirect:true};
-    });
-
-    await test('Work 검색 Tab은 필터·정렬로 이동하고 Enter·아래 방향키는 검색 결과 목록으로 진입',async()=>{
-      await section('t','.td-work-nav');await waitTab('todo');await press('Control+f');await waitFocus('[data-work-search]');await page.keyboard.insertText(fixture.todo.title);
-      const visited=[];
-      for(let index=0;index<4&&!await focused('[data-work-project-filter]');index++){
-        await press('Tab');await waitTab('todo');visited.push(await page.evaluate(()=>document.activeElement?.outerHTML?.slice(0,250)));
-      }
-      await waitFocus('[data-work-project-filter]');await press('Tab');await waitFocus('[data-work-sort]');await waitTab('todo');
-      await page.locator('[data-work-search]').focus();await press('Enter');await waitRowFocus(fixture.todo.id);
-      await page.locator('[data-work-search]').focus();await press('ArrowDown');await waitRowFocus(fixture.todo.id);
-      await page.locator('[data-work-search]').focus();await press('Escape');
-      await waitUntil(async()=>await page.locator('[data-work-search]').inputValue()==='','Work 검색을 해제하지 못했습니다.');
-      measurements.searchFieldFlow={tabTargets:visited,enteredRow:fixture.todo.id};
-    });
-
-    await test('주 메뉴 Work에서 V로 월 보기에 들어가면 날짜에 포커스되고, 방향키로 날짜를 옮긴다',async()=>{
-      await page.locator('.td-nav [data-action=work]').focus();await press('Enter');await page.locator('.work-views [data-work-view=list][aria-selected=true]').waitFor();
-      // 목록에서 포커스가 할 일 행이나 탭에 있으면 V가 월 보기로 넘긴다.
-      await press('v');await page.locator('.td-body [data-date]').first().waitFor();await waitFocus('.td-body [data-date]');
+      await section('t','.td-tabs');await waitTab('today');
+      await page.locator(`.cf-home-task [data-reveal="${fixture.todo.id}"]`).waitFor();
+      await page.locator(`.cf-home-task [data-reveal="${fixture.todo.id}"]`).focus();await press('End');
+      const last=await page.evaluate(()=>document.activeElement?.dataset.reveal||document.activeElement?.dataset.event||null);assert.ok(last,'Today 마지막 줄에 포커스가 없습니다.');
+      await press('Tab');await waitFocus('.td-calendar-side [data-date]');
       const before=await page.evaluate(()=>document.activeElement.dataset.date);await press('ArrowRight');
-      await waitUntil(async()=>await page.evaluate(()=>document.activeElement?.dataset.date)!==before,'월 보기 진입 뒤 방향키가 날짜를 옮기지 못했습니다.');
+      await waitUntil(async()=>await page.evaluate(()=>document.activeElement?.dataset.date)!==before,'달력 방향키가 날짜를 옮기지 못했습니다.');
       const after=await page.evaluate(()=>document.activeElement.dataset.date);
       assert.equal((new Date(after+'T12:00:00')-new Date(before+'T12:00:00'))/86400000,1);
-      measurements.calendarEntry={before,after};
+      measurements.calendarEntry={before,after,lastRow:last};
+    });
+
+    await test('InBox 검색 Tab은 필터·정렬로 이동하고 Enter·아래 방향키는 검색 결과 목록으로 진입',async()=>{
+      await section('i','.td-tabs');await waitTab('inbox');await press('Control+f');await waitFocus('[data-work-search]');await page.keyboard.insertText(fixture.inbox.title);
+      const visited=[];
+      for(let index=0;index<4&&!await focused('[data-work-project-filter]');index++){
+        await press('Tab');await waitTab('inbox');visited.push(await page.evaluate(()=>document.activeElement?.outerHTML?.slice(0,250)));
+      }
+      await waitFocus('[data-work-project-filter]');await press('Tab');await waitFocus('[data-work-sort]');await waitTab('inbox');
+      await page.locator('[data-work-search]').focus();await press('Enter');await waitRowFocus(fixture.inbox.id);
+      await page.locator('[data-work-search]').focus();await press('ArrowDown');await waitRowFocus(fixture.inbox.id);
+      await page.locator('[data-work-search]').focus();await press('Escape');
+      await waitUntil(async()=>await page.locator('[data-work-search]').inputValue()==='','InBox 검색을 해제하지 못했습니다.');
+      measurements.searchFieldFlow={tabTargets:visited,enteredRow:fixture.inbox.id};
     });
 
     await test('상태·프로젝트 저장 응답이 늦어도 사용자가 이동한 다음 입력 필드에 포커스를 유지',async()=>{
       fixture.altProject=await call('mutate',{type:'project.create',payload:{name:'다음 프로젝트 '+runId}});
       fixture.delayTask=await call('mutate',{type:'task.create',payload:{title:'느린 저장 포커스 '+runId}});
       await call('mutate',{type:'task.update',payload:{id:fixture.delayTask.id,kind:'todo',project_id:fixture.project.id}});
-      await section('t','.td-work-nav');await waitTab('todo');await page.locator(`[data-task-row="${fixture.delayTask.id}"]`).focus();await press('Enter');await waitFocus('[data-field=title]');
+      await section('t','.td-tabs');await waitTab('today');await page.locator(`.cf-home-task [data-reveal="${fixture.delayTask.id}"]`).focus();await press('Enter');await waitFocus('[data-field=title]');
       await withDelayedTaskSelection(async()=>{
         await page.locator('[data-field=project_id]').focus();await press('Enter');await press('End');await press('Enter');await press('Tab');await waitFocus('[data-field=note]');
         await waitUntil(async()=>(await state()).tasks.find(task=>task.id===fixture.delayTask.id)?.project_id===fixture.altProject.id,'지연된 프로젝트 선택이 저장되지 않았습니다.');
@@ -196,11 +188,11 @@ async function withDelayedTaskSelection(run){
         await changeLook(theme,mode);measurements.matrix.push({theme,mode});
         await probe('[data-skin-pick][aria-checked=true]','스킨 선택',variant);
         await probe('[data-theme-pick][aria-checked=true]','테마 선택',variant);
-        await page.locator('[data-settings-tab=general]').focus();await press('ArrowRight');await page.locator('[data-shortcut=hotkey]').waitFor();
+        await page.locator('[data-settings-tab=general]').focus();await press('ArrowRight');await page.locator('[data-settings-tab=projects][aria-selected=true]').waitFor();await press('ArrowRight');await page.locator('[data-shortcut=hotkey]').waitFor();
         await probe('[data-settings-tab=shortcuts]','설정 분류 탭',variant);
         await probe('[data-shortcut=hotkey]','단축키 입력',variant);
         await probe('.preferences-form [data-action=help]','설정 안내 버튼',variant);
-        await probe('.td-nav [data-action=work]','주 메뉴',variant);
+        await probe('.td-tabs [data-top-tab=today]','화면 탭',variant);
 
         await press('Control+k');await waitFocus('.td-command input');
         await probe('.td-command input','Command 입력',variant);
@@ -209,8 +201,8 @@ async function withDelayedTaskSelection(run){
         await sendMockMedia(false);
         await page.locator('.td-command input').focus();await press('Tab');
 
-        await section('i','.td-work-nav');await waitTab('inbox');
-        await probe('.td-work-nav [data-tab=inbox]','Work 탭',variant);
+        await section('i','.td-tabs');await waitTab('inbox');
+        await probe('.td-tabs [data-top-tab=inbox]','화면 탭',variant);
         await probe('.td-quick input','빠른 할 일 입력',variant);
         await probe('[data-work-search]','Work 검색',variant);
         await probe('[data-work-project-filter]','프로젝트 필터',variant);
@@ -225,7 +217,7 @@ async function withDelayedTaskSelection(run){
         await page.locator('.work-due-form').waitFor();
         await probe('.work-due-form [name=text]','마감 대화상자 입력',variant);
         await probe('.work-due-form [type=submit]','마감 대화상자 저장',variant);await press('Escape');
-        await page.locator('.td-work-nav [data-tab=projects]').focus();await press('Enter');await waitTab('projects');
+        await page.evaluate(()=>window.__whendeskGo('projects'));await page.locator('[data-settings-tab=projects][aria-selected=true]').waitFor();
         await probe(`[data-work-project-row="${fixture.project.id}"]`,'프로젝트 행',variant);
         await probe(`[data-edit-project="${fixture.project.id}"]`,'프로젝트 관리 버튼',variant);
 
@@ -243,14 +235,14 @@ async function withDelayedTaskSelection(run){
         await probe('[data-note-preview]','메모 미리보기',variant);
         await probe('[data-note-preview] a','메모 링크',variant);
 
-        await section('c','.td-body [data-date]');
-        await probe('.td-body [data-date][tabindex="0"]','캘린더 날짜',variant);
+        await section('c','.td-calendar-side [data-date]');
+        await probe('.td-calendar-side [data-date][tabindex="0"]','작은 달력 날짜',variant);
         await press('Control+n');await page.locator('.quick-event-form').waitFor();await press('Control+Enter');await page.locator('.event-form').waitFor();
         for(const field of ['title','date','time','rrule','note'])await probe(`.event-form [name=${field}]`,'일정 대화상자 '+field,variant);
         await probe('.event-form [type=submit]','일정 저장 버튼',variant);await press('Escape');
 
-        await section('t','.td-work-nav');await waitTab('todo');
-        await page.locator(`[data-task-row="${fixture.todo.id}"]`).focus();
+        await section('t','.td-tabs');await waitTab('today');
+        await page.locator(`.cf-home-task [data-reveal="${fixture.todo.id}"]`).focus();
         await screenshot('focus-'+theme);
       });
     }

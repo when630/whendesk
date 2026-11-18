@@ -37,8 +37,8 @@ async function tabTo(selector,{reverse=false,limit=100}={}){
  const actual=await page.evaluate(()=>({tag:document.activeElement?.tagName,label:document.activeElement?.getAttribute('aria-label'),html:document.activeElement?.outerHTML?.slice(0,300)}));
  assert.fail('Tab으로 도착할 수 없습니다: '+selector+' / '+JSON.stringify(actual));
 }
-const sections={home:{key:'h',go:'dashboard',title:'Dashboard'},todo:{key:'t',go:'todo',title:'Work · ToDo'},inbox:{key:'i',go:'inbox',title:'Work · InBox'},waiting:{key:'w',go:'waiting',title:'Work · Waiting'},done:{key:'d',go:'done',title:'Work · Done'},notes:{key:'n',go:'notes',title:'Note'},calendar:{key:'c',go:'calendar',title:'Work · 월'},settings:{key:'s',title:'Settings'}};
-async function section(name){const target=sections[name];assert.ok(target,'알 수 없는 화면: '+name);if(target.key==='s')await press('Control+Comma');else await page.evaluate(section=>window.__whendeskGo(section),target.go);if(name==='calendar')await page.locator('.work-views [data-work-view=month][aria-selected=true]').waitFor();await page.locator('.td-main h1').filter({hasText:target.title}).waitFor();await page.locator('#cf-dashboard-panel').waitFor();}
+const sections={home:{key:'h',go:'dashboard',title:'Today'},todo:{key:'t',go:'dashboard',title:'Today'},inbox:{key:'i',go:'inbox',title:'InBox'},done:{key:'d',go:'done',title:'완료 기록'},notes:{key:'n',go:'notes',title:'Note'},calendar:{key:'c',go:'journey',title:'Journey'},settings:{key:'s',title:'Settings'}};
+async function section(name){const target=sections[name];assert.ok(target,'알 수 없는 화면: '+name);if(target.key==='s')await press('Control+Comma');else await page.evaluate(section=>window.__whendeskGo(section),target.go);await page.locator('.td-main h1').filter({hasText:target.title}).waitFor();await page.locator('#cf-dashboard-panel').waitFor();}
 async function screenshot(name){await page.screenshot({path:path.join(shots,name+'.png')});}
 async function test(name,action){const started=Date.now();try{await action();results.push({name,ok:true,durationMs:Date.now()-started});}catch(error){results.push({name,ok:false,durationMs:Date.now()-started,error:error.message});throw error;}}
 function normalize(value){return String(value).replace(/\\"/g,'"').replace(/"/g,'').replace(/\\/g,'/').toLowerCase();}
@@ -64,10 +64,10 @@ async function closeApp(){
   await test('Command Tab으로 펼치고 모든 작업 화면에 들어가며, Alt 문자·숫자 화면키는 없다',async()=>{
    const info=await page.evaluate(()=>window.desk.call('app.info'));assert.equal(info.isPackaged,false);assert.equal(info.shortcutsEnabled,false);
    const initial=await state();assert.equal(initial.tasks.length,0);assert.equal(initial.notes.length,0);assert.equal(initial.events.length,0);
-   await press('Tab');await page.locator('.td-main h1').filter({hasText:'Dashboard'}).waitFor();
-   for(const name of ['todo','inbox','waiting','done','notes','calendar','settings','home'])await section(name);
-   await press('Alt+6');await page.waitForTimeout(100);assert.equal(await page.locator('.td-main h1').textContent(),'Dashboard','이전 Alt+6 숫자 키가 메모 화면으로 이동했습니다.');
-   for(const key of ['Alt+t','Alt+i','Alt+n','Alt+c']){await press(key);await page.waitForTimeout(100);assert.equal(await page.locator('.td-main h1').textContent(),'Dashboard',key+'가 아직 화면을 옮깁니다(Alt 문자 화면 이동은 뺐습니다).');}
+   await press('Tab');await page.locator('.td-main h1').filter({hasText:'Today'}).waitFor();
+   for(const name of ['todo','inbox','done','notes','calendar','settings','home'])await section(name);
+   await press('Alt+6');await page.waitForTimeout(100);assert.equal(await page.locator('.td-main h1').textContent(),'Today','이전 Alt+6 숫자 키가 메모 화면으로 이동했습니다.');
+   for(const key of ['Alt+t','Alt+i','Alt+n','Alt+c']){await press(key);await page.waitForTimeout(100);assert.equal(await page.locator('.td-main h1').textContent(),'Today',key+'가 아직 화면을 옮깁니다(Alt 문자 화면 이동은 뺐습니다).');}
    measurements.sectionKeys={settings:'Ctrl+,',menuCycle:'Ctrl+Tab · Ctrl+Shift+Tab'};
    await screenshot('01-dashboard-keyboard');
   });
@@ -84,7 +84,7 @@ async function closeApp(){
    await press('Enter');await waitFocus('[data-field=title]');await replaceText(editedTaskTitle);
    await tabTo('[data-field=kind]');await press('Enter');await press('Home');await press('ArrowDown');await press('Enter');await press('Tab');
    await waitUntil(async()=>(await state()).tasks.find(task=>task.id===taskId)?.kind==='todo','키보드 분류가 저장되지 않았습니다.');
-   await page.locator('.td-main h1').filter({hasText:'Work · ToDo'}).waitFor();
+   // 분류해도 화면은 그대로다(할 일은 Today로 간다). 편집 대화상자는 열린 채다.
    // 마감 칸은 자연어 입력이다. '내일'을 쓰고 Tab으로 떠나면 내일 날짜로 저장된다.
    await tabTo('[data-field=due]');await replaceText('내일');await press('Tab');
    await waitUntil(async()=>(await state()).tasks.find(task=>task.id===taskId)?.due===await page.evaluate(()=>{const d=new Date();d.setDate(d.getDate()+1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}),'키보드로 입력한 자연어 마감이 저장되지 않았습니다.');
@@ -93,11 +93,13 @@ async function closeApp(){
    await tabTo('[data-field=note]');await text('키보드로 입력한 할 일 상세 내용');await press('Control+s');
    await waitUntil(async()=>{const task=(await state()).tasks.find(task=>task.id===taskId);return task?.title===editedTaskTitle&&task.note==='키보드로 입력한 할 일 상세 내용';},'할 일 편집 내용이 저장되지 않았습니다.');
    // 편집은 대화상자다. Ctrl+S가 저장하고 닫으며 포커스는 그 행으로 돌아온다.
-   await page.locator('.task-form').waitFor({state:'detached'});await waitFocus(`article[data-task-row="${taskId}"]`);
+   await page.locator('.task-form').waitFor({state:'detached'});
+   // 분류한 할 일은 Today의 프로젝트 묶음에 있다. 그 줄에서 Space로 완료한다.
+   await section('todo');await page.locator(`.cf-home-task [data-reveal="${taskId}"]`).focus();await waitFocus(`.cf-home-task [data-reveal="${taskId}"]`);
    await press('Space');await waitUntil(async()=>(await state()).tasks.find(task=>task.id===taskId)?.done===true,'완료되지 않았습니다.');
    await section('done');await waitFocus(`article[data-task-row="${taskId}"]`);await press('Space');
    await waitUntil(async()=>(await state()).tasks.find(task=>task.id===taskId)?.done===false,'완료 해제가 저장되지 않았습니다.');
-   await section('todo');await waitFocus(`article[data-task-row="${taskId}"]`);await press('Delete');
+   await section('todo');await page.locator(`.cf-home-task [data-reveal="${taskId}"]`).focus();await waitFocus(`.cf-home-task [data-reveal="${taskId}"]`);await press('Delete');
    await waitUntil(async()=>!(await state()).tasks.some(task=>task.id===taskId),'할 일이 삭제되지 않았습니다.');
    await press('Control+z');
    await waitUntil(async()=>(await state()).tasks.some(task=>task.id===taskId),'삭제한 할 일을 키보드로 복원하지 못했습니다.');await screenshot('02-task-keyboard');
@@ -177,20 +179,22 @@ async function closeApp(){
    await press('Control+e');await waitFocus('[data-note-editor]');
   });
 
-  await test('캘린더 날짜·월 이동과 일정 생성·수정·삭제·복원을 키보드로 처리',async()=>{
-   await section('calendar');await waitFocus('.td-body [data-date]');const before=await page.evaluate(()=>document.activeElement.dataset.date);
+  await test('오른쪽 작은 달력의 날짜·월 이동과 일정 생성·수정·삭제·복원을 키보드로 처리',async()=>{
+   const day='.td-calendar-side [data-date]',dayEvent='.td-calendar-side [data-event]';
+   const toDay=async()=>{await page.locator(`${day}[tabindex="0"]`).focus();await waitFocus(day);};
+   await section('calendar');await toDay();const before=await page.evaluate(()=>document.activeElement.dataset.date);
    await press('ArrowRight');await waitUntil(async()=>await page.evaluate(()=>document.activeElement.dataset.date)!==before,'방향키 날짜 이동이 되지 않았습니다.');
    const moved=await page.evaluate(()=>document.activeElement.dataset.date);await press('PageDown');await waitUntil(async()=>(await page.evaluate(()=>document.activeElement.dataset.date))?.slice(0,7)!==moved.slice(0,7),'PageDown 월 이동이 되지 않았습니다.');
-   await press('t');await waitFocus('.td-body [data-date]');// Ctrl+N은 한 줄 입력을 열고, Ctrl+Enter로 자세히 편집한다.
-   await press('Control+n');await page.locator('.quick-event-form').waitFor();await press('Control+Enter');await page.locator('.event-form').waitFor();await waitFocus('.event-form [name=title]');await text(eventTitle);await press('Control+s');await page.locator('.event-form').waitFor({state:'hidden'});
+   await press('t');await waitFocus(day);// N은 고른 날에 한 줄 입력을 열고, Ctrl+Enter로 자세히 편집한다.
+   await press('n');await page.locator('.quick-event-form').waitFor();await press('Control+Enter');await page.locator('.event-form').waitFor();await waitFocus('.event-form [name=title]');await text(eventTitle);await press('Control+s');await page.locator('.event-form').waitFor({state:'hidden'});
    await waitUntil(async()=>{const event=(await state()).events.find(event=>event.title===eventTitle);eventId=event?.id;return !!eventId;},'일정이 저장되지 않았습니다.');
-   await section('calendar');await waitFocus('.td-body [data-date]');await press('Enter');await waitFocus('.td-main-calendar-agenda [data-event]');await press('Enter');await waitFocus('.event-form [name=title]');await replaceText(editedEventTitle);await press('Control+s');await page.locator('.event-form').waitFor({state:'hidden'});
+   await section('calendar');await toDay();await press('Enter');await waitFocus(dayEvent);await press('Enter');await waitFocus('.event-form [name=title]');await replaceText(editedEventTitle);await press('Control+s');await page.locator('.event-form').waitFor({state:'hidden'});
    await waitUntil(async()=>(await state()).events.find(event=>event.id===eventId)?.title===editedEventTitle,'일정 수정이 저장되지 않았습니다.');
-   await section('calendar');await waitFocus('.td-body [data-date]');await press('Enter');await waitFocus('.td-main-calendar-agenda [data-event]');await press('Delete');
+   await section('calendar');await toDay();await press('Enter');await waitFocus(dayEvent);await press('Delete');
    // 반복 없는 일정은 확인 없이 바로 지우고 되돌리기를 남긴다(원본 WHENCALENDAR X·U).
    await waitUntil(async()=>!(await state()).events.some(event=>event.id===eventId),'일정이 삭제되지 않았습니다.');assert.equal(await page.locator('.event-form').count(),0,'반복 없는 일정 삭제가 대화상자를 열었습니다.');
-   await waitUntil(()=>page.evaluate(()=>!!document.activeElement?.closest('.td-main')),'일정을 지운 뒤 캘린더 포커스를 잃었습니다.');await press('u');await waitUntil(async()=>(await state()).events.some(event=>event.id===eventId),'U로 일정 삭제를 되돌리지 못했습니다.');
-   await waitFocus('.td-body [data-date]');await press('Enter');await waitFocus('.td-main-calendar-agenda [data-event]');await press('Delete');await waitUntil(async()=>!(await state()).events.some(event=>event.id===eventId),'일정을 다시 삭제하지 못했습니다.');// 캘린더의 Tab은 보기 전환이라 사이드바로 나가지 않는다. Ctrl+Z는 어디서나 공용 되돌리기다.
+   await waitUntil(()=>page.evaluate(()=>!!document.activeElement?.closest('.td-calendar-side,.td-main')),'일정을 지운 뒤 포커스를 잃었습니다.');await press('u');await waitUntil(async()=>(await state()).events.some(event=>event.id===eventId),'U로 일정 삭제를 되돌리지 못했습니다.');
+   await toDay();await press('Enter');await waitFocus(dayEvent);await press('Delete');await waitUntil(async()=>!(await state()).events.some(event=>event.id===eventId),'일정을 다시 삭제하지 못했습니다.');
    await press('Control+z');await waitUntil(async()=>(await state()).events.some(event=>event.id===eventId),'일정 삭제를 키보드로 복원하지 못했습니다.');await screenshot('05-calendar-keyboard');
   });
 

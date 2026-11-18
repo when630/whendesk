@@ -158,3 +158,23 @@
 /* 반전 선택 위에서는 검색어 강조를 강조색 대신 밑줄로 */
 #whendesk-command-first .td-app:is([data-skin=poster],[data-skin=soft],[data-skin=tui],[data-skin=ide]) .td-command-result.selected .command-result-title em{color:inherit;text-decoration:underline;text-underline-offset:3px}
 #whendesk-command-first .td-app[data-skin=tui] .command-brand{display:flex;flex:0 0 auto;width:auto;padding-right:0}
+/* 한 페이지: 왼쪽 메뉴 없음. 화면 탭(Today · InBox · Journey · Note)은 머리에 있고 오른쪽 작은 달력은 설정 밖 모든 화면에 있다. */
+#whendesk-command-first .td-app .td-sidebar{display:none}
+#whendesk-command-first .td-app .td-layout{grid-template-columns:minmax(0,1fr) 246px}
+#whendesk-command-first .td-app.is-calendar .td-layout{grid-template-columns:minmax(0,1fr)}
+#whendesk-command-first .td-app .td-main-head{flex-wrap:wrap;align-items:center;gap:12px 24px}
+#whendesk-command-first .td-app .td-main-head>div:first-child{flex:1 1 180px}
+#whendesk-command-first .td-app .td-tabs{display:flex;gap:18px}
+#whendesk-command-first .td-app .td-tabs [role=tab]{padding:5px 0;font-size:13px;color:var(--td-muted);border-bottom:2px solid transparent;background:none;display:flex;gap:4px;align-items:baseline}
+#whendesk-command-first .td-app .td-tabs [role=tab][aria-selected=true]{color:var(--td-text);border-bottom-color:var(--td-text);font-weight:500}
+#whendesk-command-first .td-app .td-tabs small{font-size:10px;color:var(--td-muted)}
+#whendesk-command-first .td-app .td-settings-button{display:grid;place-items:center;width:30px;height:30px;color:var(--td-muted)}
+#whendesk-command-first .td-app .today-group{margin-bottom:18px}
+#whendesk-command-first .td-app .today-group>.work-group{margin:0 0 4px}
+#whendesk-command-first .td-app .today-holiday{margin:0 0 12px;font-size:12px}
+#whendesk-command-first .td-app .today-legend{margin:8px 0 0;font-size:11px;line-height:1.7;color:var(--td-muted)}
+@media(max-width:650px){#whendesk-command-first .td-app .td-layout{grid-template-columns:minmax(0,1fr)}#whendesk-command-first .td-app .td-calendar-side{grid-column:1}}
+/* 창 끌기 표시: 왼쪽 메뉴가 없어져 머리 위 가운데에 둔다. */
+#whendesk-command-first .td-app .td-main-head{position:relative}
+#whendesk-command-first .td-app .head-grip{top:-22px;left:50%;transform:translateX(-50%);width:28px;height:12px}
+#whendesk-command-first .td-app .head-grip svg{width:14px;height:14px}
