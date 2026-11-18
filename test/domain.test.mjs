@@ -68,7 +68,7 @@ test('잘못된 날짜·시간·제목을 거부하고 일반·종일 일정과 
   const { domain } = setup(t);
   await assert.rejects(domain.mutate('event.create', { title: '오류', date: '2026-10-29', time: '18:00', end: '17:00' }), /종료/);
   await assert.rejects(domain.mutate('event.create', { title: '오류', date: '2026-02-31', time: '18:00', end: '19:00' }), /날짜/);
-  assert.equal(domain.calendar.countEvents(), 0);
+  assert.equal(domain.calendar.allEvents().length, 0);
   const event = await domain.mutate('event.create', { title: '일반 일정', date: '2026-10-29', time: '09:30', end: '10:00', location: '장소' });
   await domain.mutate('event.update', { id: event.id, title: '변경한 일정' });
   const updated = domain.state(range).events.find(item => item.id === event.id);
@@ -179,38 +179,6 @@ test('반복 일정의 시각을 옮겨도 빼 둔 회차는 빠진 채, 고친 
   assert.ok(!after.includes('2026-11-25'), '빼 둔 회차(11/24 → 11/25)가 되살아났다');
 });
 
-test('구독 일정은 수정·삭제할 수 없고 동기화 실패에도 기존 내용이 남는다', async t => {
-  let fail = false;
-  const { domain } = setup(t, { fetchImpl: async () => fail ? { ok: false, status: 503 } : { ok: true, status: 200, text: async () => sampleIcs, headers: { get: () => null } } });
-  const sub = await domain.mutate('subscription.add', { url: 'https://example.test/calendar.ics' });
-  assert.equal(sub.ok, true);
-  const event = domain.state(range).events.find(item => item.calendarId === sub.id);
-  assert.equal(event.readonly, true);
-  await assert.rejects(domain.mutate('event.update', { id: event.id, title: '막혀야 함' }), /읽기 전용/);
-  await assert.rejects(domain.mutate('event.delete', { id: event.id }), /읽기 전용/);
-  fail = true;
-  const synced = await domain.mutate('subscription.sync', { id: sub.id });
-  assert.equal(synced.ok, false);
-  assert.equal(domain.state(range).events.find(item => item.id === event.id).title, '구독 일정');
-  await domain.mutate('subscription.toggle', { id: sub.id, enabled: false });
-  assert.equal(domain.state(range).events.length, 0);
-});
-
-test('ICS 가져오기·내보내기는 수정 회차와 제외일을 잃지 않는다', async t => {
-  const { domain } = setup(t);
-  const event = await domain.mutate('event.create', { title: '반복', date: '2026-10-26', time: '09:00', end: '10:00', rrule: 'FREQ=DAILY;COUNT=4' });
-  const occurrences = domain.state(range).events;
-  await domain.mutate('event.update', { id: event.id, recurrenceId: occurrences[1].recurrenceId, scope: 'one', title: '한 번 바꾼 내용' });
-  await domain.mutate('event.delete', { id: event.id, recurrenceId: occurrences[2].recurrenceId, scope: 'one' });
-  const content = await domain.mutate('ics.export');
-  assert.match(content, /RECURRENCE-ID/);
-  assert.match(content, /EXDATE/);
-  const imported = await domain.mutate('ics.import', { text: content });
-  const events = domain.state(range).events.filter(item => item.calendarId === imported.calendarId);
-  assert.equal(events.length, 3);
-  assert.ok(events.some(item => item.title === '한 번 바꾼 내용'));
-});
-
 test('자연어 파서·프로젝트 보관·내보내기와 닫힌 저장소 오류', async t => {
   const { domain } = setup(t);
   const parsed = await domain.mutate('calendar.parse', { text: '내일 오후 3시 병원 1시간', now: '2026-10-29T00:00:00.000Z' });
@@ -244,4 +212,86 @@ test('Future Log는 내일부터 정한 달 수만큼의 단발 일정만 돌려
   assert.equal(result.from, key(1));
   assert.throws(() => domain.future({ months: 0 }), /기간/);
   assert.equal(domain.future({ months: 12 }).events.some(event => event.title === '일곱 달 뒤'), true);
+});
+
+test('일정과 한 줄 메모는 Work 항목이다: 일정은 할 일 목록·완료 기록에 섞이지 않고, 메모는 완료가 없다', async t => {
+  const { domain } = setup(t);
+  const project = await domain.mutate('project.create', { name: '현장' });
+  const event = await domain.mutate('event.create', { title: '현장 회의', date: '2026-10-29', time: '10:00', end: '11:00', project_id: project.id });
+  assert.equal(typeof event.id, 'string');
+  assert.equal(event.project_id, project.id);
+  assert.equal(domain.state(range).tasks.some(task => task.id === event.id), false, '일정이 할 일 목록에 섞였습니다.');
+  await assert.rejects(domain.mutate('task.complete', { id: event.id }), /찾을 수 없/);
+  const memo = await domain.mutate('task.create', { title: '자재 단가가 올랐다', kind: 'note' });
+  assert.equal(memo.kind, 'note');
+  await assert.rejects(domain.mutate('task.complete', { id: memo.id }), /메모/);
+  await assert.rejects(domain.mutate('task.update', { id: memo.id, due: '2026-11-01' }), /메모/);
+  const moved = await domain.mutate('task.update', { id: memo.id, project_id: project.id });
+  assert.equal(moved.kind, 'note', '메모에 프로젝트를 정해도 할 일이 되면 안 됩니다.');
+  await domain.mutate('event.delete', { id: event.id });
+  assert.equal((await domain.mutate('work.archive', {})).some(item => item.id === event.id), false, '지운 일정이 할 일 보관 검색에 나왔습니다.');
+  assert.ok(domain.state(range).holidays['2026-10-03'], '공휴일 데이터가 없습니다.');
+});
+
+test('처음 열 때 옛 캘린더의 직접 등록 일정(반복·회차 수정 포함)을 한 번만 옮기고 구독 일정은 버린다', async t => {
+  const temporaryRoot = fileURLToPath(new URL('./.tmp/', import.meta.url));
+  fs.mkdirSync(temporaryRoot, { recursive: true });
+  const dataDir = fs.mkdtempSync(path.join(temporaryRoot, 'whendesk-legacy-'));
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  fs.mkdirSync(path.join(dataDir, 'calendar'), { recursive: true });
+  const { DatabaseSync } = await import('node:sqlite');
+  const legacy = new DatabaseSync(path.join(dataDir, 'calendar', 'store.sqlite'));
+  legacy.exec(`CREATE TABLE calendar (id INTEGER PRIMARY KEY, kind TEXT, name TEXT, url TEXT, color INTEGER, enabled INTEGER, created_at TEXT);
+    CREATE TABLE event (id INTEGER PRIMARY KEY, calendar_id INTEGER, uid TEXT, title TEXT, starts_at TEXT, ends_at TEXT, all_day INTEGER DEFAULT 0, tzid TEXT, rrule TEXT, exdates TEXT, location TEXT, note TEXT, remind_min INTEGER, source_hash TEXT, deleted_at TEXT, created_at TEXT, updated_at TEXT);
+    CREATE TABLE override (id INTEGER PRIMARY KEY, event_id INTEGER, recurrence_id TEXT, starts_at TEXT, ends_at TEXT, title TEXT, cancelled INTEGER DEFAULT 0);
+    INSERT INTO calendar VALUES (1,'local','이 PC',NULL,1,1,'2026-10-01T00:00:00Z'),(2,'subscription','휴일','https://x',2,1,'2026-10-01T00:00:00Z');
+    INSERT INTO event (id,calendar_id,title,starts_at,ends_at,rrule,exdates,created_at,updated_at) VALUES
+      (1,1,'주간회의','2026-10-06T01:30:00.000Z','2026-10-06T02:30:00.000Z','FREQ=WEEKLY;BYDAY=TU','["2026-10-13T01:30:00.000Z"]','2026-10-01T00:00:00Z','2026-10-01T00:00:00Z'),
+      (2,1,'치과','2026-10-29T09:00:00.000Z','2026-10-29T10:00:00.000Z',NULL,NULL,'2026-10-01T00:00:00Z','2026-10-01T00:00:00Z'),
+      (3,2,'개천절','2026-10-03T00:00:00.000Z',NULL,NULL,NULL,'2026-10-01T00:00:00Z','2026-10-01T00:00:00Z'),
+      (4,1,'지운 일정','2026-10-20T00:00:00.000Z',NULL,NULL,NULL,'2026-10-01T00:00:00Z','2026-10-01T00:00:00Z');
+    UPDATE event SET deleted_at='2026-10-02T00:00:00Z' WHERE id=4;
+    INSERT INTO override (event_id,recurrence_id,starts_at,ends_at,title) VALUES (1,'2026-10-20T01:30:00.000Z','2026-10-20T05:00:00.000Z','2026-10-20T06:00:00.000Z','주간회의(오후)');`);
+  legacy.close();
+  const first = createDomain({ dataDir });
+  try {
+    const titles = first.state(range).events.map(event => event.title);
+    assert.ok(titles.includes('치과'));
+    assert.ok(titles.includes('주간회의(오후)'), '회차 수정이 옮겨지지 않았습니다.');
+    assert.equal(titles.includes('개천절'), false, '구독 일정이 옮겨졌습니다.');
+    assert.equal(titles.includes('지운 일정'), false);
+    const meetings = first.state(range).events.filter(event => event.title.startsWith('주간회의')).map(event => event.date);
+    assert.equal(meetings.includes('2026-10-13'), false, '제외일이 옮겨지지 않았습니다.');
+    assert.ok(meetings.includes('2026-10-27'), '반복이 옮겨지지 않았습니다.');
+  } finally { first.close(); }
+  const second = createDomain({ dataDir });
+  try { assert.equal(second.calendar.allEvents().length, 2, '두 번째 실행에서 다시 옮겼습니다.'); }
+  finally { second.close(); }
+  assert.ok(fs.existsSync(path.join(dataDir, 'calendar', 'store.sqlite')), '옛 캘린더 파일을 지웠습니다.');
+});
+
+test('처음 열 때 첨부·링크 없는 한 줄 Note는 Work 메모 항목으로 옮기고 원본은 휴지통에 둔다', async t => {
+  const temporaryRoot = fileURLToPath(new URL('./.tmp/', import.meta.url));
+  fs.mkdirSync(temporaryRoot, { recursive: true });
+  const dataDir = fs.mkdtempSync(path.join(temporaryRoot, 'whendesk-notes-'));
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  const before = createDomain({ dataDir });
+  let short, long;
+  try {
+    short = await before.mutate('note.create', { body: '견적 회신은 금요일까지' });
+    long = await before.mutate('note.create', { body: '회의록\n- 첫째\n- 둘째' });
+    // 이미 옮기기를 마친 저장소라 표시를 지워 처음 여는 것처럼 만든다.
+    before.work.close();
+  } finally { before.close(); }
+  const { DatabaseSync } = await import('node:sqlite');
+  const db = new DatabaseSync(path.join(dataDir, 'work', 'store.sqlite'));
+  db.exec("DELETE FROM event WHERE kind = 'notes.imported'");
+  db.close();
+  const after = createDomain({ dataDir });
+  try {
+    const memo = after.state(range).tasks.find(task => task.kind === 'note');
+    assert.equal(memo?.title, '견적 회신은 금요일까지');
+    assert.equal((await after.mutate('note.get', { id: short.id })).deleted, true, '옮긴 원본이 휴지통에 가지 않았습니다.');
+    assert.equal((await after.mutate('note.get', { id: long.id })).deleted, false, '여러 줄 메모까지 옮겼습니다.');
+  } finally { after.close(); }
 });

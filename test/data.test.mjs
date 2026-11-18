@@ -26,7 +26,7 @@ test('백업 큐를 먼저 재생한 후 복원해도 이전 활성 큐가 재�
  const receipt=installPrepared(target.dir,prepared);assert.ok(fs.existsSync(path.join(receipt.archive,'work','capture.jsonl')));
  const domain=createDomain({dataDir:target.dir});try{assert.deepEqual(domain.state().tasks.map(t=>t.title),['가져올 캡처']);}finally{domain.close();}
 });
-test('복원 후 롤백은 Work와 Calendar 및 캡처 큐를 함께 되살린다',async()=>{
+test('복원 후 롤백은 Work·Note와 캡처 큐를 함께 되살린다',async()=>{
  const source=await fixture('새 데이터');const target=await fixture('이전 데이터');const bundle=await exportWorkspace(source.dir,{});source.domain.close();target.domain.close();
  const oldHash=hash(path.join(target.dir,'work','store.sqlite'));const queue=fs.readFileSync(path.join(target.dir,'work','capture.jsonl'),'utf8');
  const prepared=prepareRestore(target.dir,bundle);const receipt=installPrepared(target.dir,prepared);receipt.rollback();
@@ -36,12 +36,12 @@ test('복원 후 롤백은 Work와 Calendar 및 캡처 큐를 함께 되살린�
 test('파일 설치 도중 실패하면 이동 영수증으로 이전 파일과 큐를 복구한다',async()=>{
  const source=await fixture('실패할 새 데이터');const target=await fixture('보존할 기존 데이터');const bundle=await exportWorkspace(source.dir,{});source.domain.close();target.domain.close();const prepared=prepareRestore(target.dir,bundle);
  const expected=hash(path.join(target.dir,'work','store.sqlite'));const original=fs.copyFileSync;
- try{fs.copyFileSync=(from,to,...args)=>{if(String(from).startsWith(prepared.stage)&&String(from).includes('calendar'))throw new Error('injected-copy-failure');return original(from,to,...args);};assert.throws(()=>installPrepared(target.dir,prepared),/injected-copy-failure/);}finally{fs.copyFileSync=original;}
+ try{fs.copyFileSync=(from,to,...args)=>{if(String(from).startsWith(prepared.stage)&&String(from).includes('note'))throw new Error('injected-copy-failure');return original(from,to,...args);};assert.throws(()=>installPrepared(target.dir,prepared),/injected-copy-failure/);}finally{fs.copyFileSync=original;}
  assert.equal(hash(path.join(target.dir,'work','store.sqlite')),expected);assert.ok(fs.existsSync(path.join(target.dir,'work','capture.jsonl')));
  const restored=createDomain({dataDir:target.dir});try{assert.equal(restored.state().tasks[0].title,'보존할 기존 데이터');}finally{restored.close();}
 });
 test('기존 앱 DB와 queue.jsonl 원본을 보존하면서 복사본에서만 큐를 재생한다',async()=>{
- const origin=await fixture('기존 앱의 항목');origin.domain.close();const legacy=folder();fs.mkdirSync(path.join(legacy,'whenwork'));fs.mkdirSync(path.join(legacy,'whencalendar'));fs.copyFileSync(path.join(origin.dir,'work','store.sqlite'),path.join(legacy,'whenwork','store.sqlite'));fs.copyFileSync(path.join(origin.dir,'calendar','store.sqlite'),path.join(legacy,'whencalendar','store.sqlite'));
+ const origin=await fixture('기존 앱의 항목');origin.domain.close();const legacy=folder();fs.mkdirSync(path.join(legacy,'whenwork'));fs.copyFileSync(path.join(origin.dir,'work','store.sqlite'),path.join(legacy,'whenwork','store.sqlite'));
  const queue=path.join(legacy,'whenwork','queue.jsonl');fs.writeFileSync(queue,JSON.stringify({id:'pending-legacy',title:'아직 DB에 없는 캡처',captured_at:new Date().toISOString()})+'\n');const originalHash=hash(path.join(legacy,'whenwork','store.sqlite'));const queueHash=hash(queue);
  const prepared=await prepareLegacy(folder(),legacy);const copied=createDomain({dataDir:prepared.stage});try{assert.ok(copied.state().tasks.some(t=>t.title==='아직 DB에 없는 캡처'));}finally{copied.close();}
  assert.equal(hash(path.join(legacy,'whenwork','store.sqlite')),originalHash);assert.equal(hash(queue),queueHash);
@@ -51,6 +51,6 @@ test('더 최신인 Work DB는 복사본에서도 거부한다',async()=>{
 });
 test('v3 Work DB를 열면 취소·미룸 칸이 붙고 기존 항목은 열린 일·미룬 적 없음으로 남는다',async()=>{
  const {dir,domain}=await fixture('v3 이행');const task=await domain.mutate('task.create',{title:'옛 항목'});domain.close();
- const file=path.join(dir,'work','store.sqlite');const db=new DatabaseSync(file);db.exec('ALTER TABLE item DROP COLUMN cancelled;ALTER TABLE item DROP COLUMN postponed;PRAGMA user_version=3');db.close();
- const reopened=createDomain({dataDir:dir});try{const view=reopened.state().tasks.find(item=>item.id===task.id);assert.equal(view.cancelled,false);assert.equal(view.postponed,0);assert.equal(reopened.work.schemaVersion(),4);}finally{reopened.close();}
+ const file=path.join(dir,'work','store.sqlite');const db=new DatabaseSync(file);db.exec('DROP TABLE occurrence;DROP INDEX item_starts;ALTER TABLE item DROP COLUMN cancelled;ALTER TABLE item DROP COLUMN postponed;PRAGMA user_version=3');db.close();
+ const reopened=createDomain({dataDir:dir});try{const view=reopened.state().tasks.find(item=>item.id===task.id);assert.equal(view.cancelled,false);assert.equal(view.postponed,0);assert.equal(reopened.work.schemaVersion(),5);}finally{reopened.close();}
 });

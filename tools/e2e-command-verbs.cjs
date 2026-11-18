@@ -144,7 +144,9 @@ async function closeApp(){
       await press('Enter');await page.locator('.command-capture-preview').waitFor({state:'detached'});
       await waitUntil(async()=>(await state()).events.some(item=>item.title==='접두일정 '+runId),'o 접두가 일정으로 담기지 않았습니다.');
       await text('- 접두메모 '+runId);await press('Enter');
-      await waitUntil(async()=>(await state()).notes.some(item=>item.title==='접두메모 '+runId),'- 접두가 메모로 담기지 않았습니다.');
+      // - 는 불릿 저널의 한 줄 메모(Work 항목, kind=note)다. 긴 글의 Note에는 담기지 않는다.
+      await waitUntil(async()=>(await state()).tasks.some(item=>item.title==='접두메모 '+runId&&item.kind==='note'),'- 접두가 한 줄 메모 항목으로 담기지 않았습니다.');
+      assert.equal((await state()).notes.some(item=>item.title==='접두메모 '+runId),false,'- 접두가 Note 문서로도 담겼습니다.');
       await text('. 접두할일 '+runId);await press('Enter');
       await waitUntil(async()=>(await state()).tasks.some(item=>item.title==='접두할일 '+runId&&item.kind==='inbox'),'. 접두가 기호를 뗀 할 일로 담기지 않았습니다.');
       await text('-3도 접두아님 '+runId);await press('Enter');
@@ -170,27 +172,20 @@ async function closeApp(){
       assert.equal(errors.length,0,errors.join('\n'));
     });
 
-    await test('캘린더는 Tab으로 오늘·주·월·앞으로를 순환하고, N 한 줄 입력은 해석을 미리 보여 주며 Enter로 추가·Ctrl+Enter로 자세히 편집한다',async()=>{
-      const view=()=>page.locator('.cal-views [aria-selected=true]').getAttribute('data-cal-view');
+    await test('Work 보기는 V로 목록·월·앞으로를 돌고 월·앞으로는 Tab으로 오가며, N 한 줄 입력은 해석을 미리 보여 주고 Enter로 추가·Ctrl+Enter로 자세히 편집한다',async()=>{
+      const view=()=>page.locator('.work-views [aria-selected=true]').getAttribute('data-work-view');
       await press('Control+k');await page.locator('#cf-command-panel').waitFor();await press('Tab');await page.locator('#cf-dashboard-panel').waitFor();
-      // 캘린더는 오늘 보기로 열린다. Shift+Tab으로 월 보기에 간 뒤 순환을 확인한다.
-      await page.evaluate(section=>window.__whendeskGo(section),'calendar');await waitUntil(async()=>await view()==='today','캘린더가 오늘 보기로 열리지 않았습니다.');await waitUntil(()=>within('.cal-list'),'오늘 보기에 포커스가 없습니다.');
-      // 보기는 오늘·주·월·앞으로 넷이다. Shift+Tab은 앞으로, 한 번 더 월이다.
-      await press('Shift+Tab');await waitUntil(async()=>await view()==='future','Shift+Tab이 앞으로 보기로 가지 않았습니다.');
-      await press('Shift+Tab');await waitFocus('.td-main [data-date]');assert.equal(await view(),'month');
-      await press('Tab');await waitUntil(async()=>await view()==='future','Tab이 월에서 앞으로 보기로 가지 않았습니다.');
-      await press('Tab');await waitUntil(async()=>await view()==='today','Tab이 오늘 보기로 가지 않았습니다.');
-      await waitUntil(()=>within('.cal-list'),'오늘 보기의 기본 자리에 포커스가 없습니다.');
-      // 앞 시나리오에서 모레 일정을 열어 선택 날짜가 옮겨져 있다. T로 오늘에 맞춘다.
-      await press('t');await waitUntil(async()=>await page.locator('.cal-list [data-cal-day]').getAttribute('data-cal-day')===await page.evaluate(()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}),'T가 오늘로 가지 않았습니다.');
-      await waitUntil(()=>within('.cal-list'),'T 뒤 목록 포커스를 잃었습니다.');
-      await press('ArrowRight');await waitUntil(()=>page.evaluate(()=>document.activeElement?.matches('[data-event]')&&document.activeElement.textContent.includes('치과')),'→가 다음 날 일정으로 가지 않았습니다.');
-      await press('Tab');await waitUntil(async()=>await view()==='week','Tab이 주 보기로 가지 않았습니다.');
-      const week=await page.locator('.cal-list [data-event]').allTextContents();
-      assert.ok(week.some(item=>item.includes('치과'))&&week.some(item=>item.includes('검진')),'주 보기에 이번 주 일정이 모두 보이지 않습니다.');
-      await waitFocus('[data-event]');const before=await page.evaluate(()=>document.activeElement.dataset.event);
-      await press('j');await waitUntil(()=>page.evaluate(before=>document.activeElement?.matches('[data-event]')&&document.activeElement.dataset.event!==before,before),'J가 다음 일정으로 가지 않았습니다.');
-      await screenshot('03-calendar-week');
+      // 일정은 Work의 월 보기로 열린다(Calendar 메뉴는 없다).
+      await page.evaluate(section=>window.__whendeskGo(section),'calendar');await waitUntil(async()=>await view()==='month','월 보기로 열리지 않았습니다.');await waitFocus('.td-main [data-date]');
+      assert.match(await page.locator('.td-main h1').innerText(),/^Work · 월/);
+      await press('Tab');await waitUntil(async()=>await view()==='future','Tab이 앞으로 보기로 가지 않았습니다.');
+      await press('Shift+Tab');await waitUntil(async()=>await view()==='month','Shift+Tab이 월 보기로 가지 않았습니다.');await waitFocus('.td-main [data-date]');
+      await press('v');await waitUntil(async()=>await view()==='future','V가 월에서 앞으로 가지 않았습니다.');
+      await press('v');await waitUntil(async()=>await view()==='list','V가 앞으로에서 목록으로 가지 않았습니다.');
+      assert.match(await page.locator('.td-main h1').innerText(),/^Work · /);
+      await press('Shift+v');await waitUntil(async()=>await view()==='future','Shift+V가 목록에서 거꾸로 앞으로 가지 않았습니다.');
+      await press('Shift+v');await waitUntil(async()=>await view()==='month','Shift+V가 앞으로에서 월로 가지 않았습니다.');await waitFocus('.td-main [data-date]');
+      await screenshot('03-work-month');
       const title='정비 '+runId;
       await press('n');await page.locator('.quick-event-form').waitFor();await waitFocus('.quick-event-form [name=line]');
       await text('다음 주 월요일 오전 9시 '+title);
@@ -204,8 +199,6 @@ async function closeApp(){
       assert.match(await page.locator('.event-form [name=title]').inputValue(),/회의/,'자세히 편집에 해석한 제목이 없습니다.');
       await press('Escape');await page.locator('.event-form').waitFor({state:'hidden'});
       assert.equal((await state()).events.some(event=>event.title==='회의 '+runId),false,'자세히 편집을 닫았는데 일정이 저장됐습니다.');
-      await press('Shift+Tab');await waitUntil(async()=>await view()==='today','Shift+Tab이 이전 보기로 가지 않았습니다.');
-      await press('Tab');await press('Tab');await waitUntil(async()=>await view()==='month','월 보기로 돌아오지 않았습니다.');await waitFocus('.td-main [data-date]');
     });
 
     await test('숨어 있다가 다시 불린 Command는 빈 입력줄로 시작하고, 대시보드에서 내려온 Command는 검색어를 유지한다',async()=>{
@@ -219,13 +212,6 @@ async function closeApp(){
       await waitFocus(commandInput);
     });
 
-    await test('Command에서 캘린더 구독 관리를 연다',async()=>{
-      await press('Control+k');await page.locator('#cf-command-panel').waitFor();
-      await commandQuery('구독 관리','캘린더 구독 관리');await selectResult('캘린더 구독 관리');await press('Enter');
-      await page.locator('.subscription-form').waitFor();
-      await press('Escape');await page.locator('.subscription-form').waitFor({state:'hidden'});
-      assert.equal(errors.length,0,errors.join('\n'));
-    });
   }catch(error){failure=error.stack||String(error);if(page&&!page.isClosed())await screenshot('failure').catch(()=>{});}
   finally{
     try{await closeApp();}catch(error){failure=[failure,error.stack||String(error)].filter(Boolean).join('\n');}

@@ -131,7 +131,7 @@ const playing=session('fixture-playing','재생 중인 아주 긴 노래 제목 
 
     await test('최상위 네 메뉴·Work 화면 내부 다섯 탭과 키보드·외관 유지',async()=>{
       await input().press('Tab');await page.locator('#cf-dashboard-panel').waitFor();assert.equal(await page.locator('.td-chrome').count(),0);
-      assert.deepEqual((await page.locator('.td-nav > button').allTextContents()).map(text=>text.trim()),['Dashboard','Work','Note','Calendar']);
+      assert.deepEqual((await page.locator('.td-nav > button').allTextContents()).map(text=>text.trim()),['Dashboard','Work','Note']);
       assert.equal(await page.locator('.td-sidebar [data-tab]').count(),0,'Work 분류가 왼쪽 주 메뉴에 남아 있습니다.');
       assert.equal(await page.locator('.td-main > .td-work-nav').isVisible(),false,'Dashboard에서 Work 탭이 표시됩니다.');
       await screenshot('05-dashboard-no-header');

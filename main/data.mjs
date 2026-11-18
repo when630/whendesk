@@ -37,12 +37,13 @@ export function prepareRestore(dataDir,bundle){
   const file=path.join(stage,entry.path);fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,bytes);
   if(entry.path.endsWith('.jsonl')){for(const line of bytes.toString('utf8').split('\n'))if(line.trim())JSON.parse(line);}else if(isDatabase(entry.path)){const db=new DatabaseSync(file,{readOnly:true});try{if(db.prepare('PRAGMA quick_check').get().quick_check!=='ok')throw new Error('백업 데이터베이스 검사에 실패했습니다.');}finally{db.close();}}
  }
- if(!names.has('work/store.sqlite')||!names.has('calendar/store.sqlite'))throw new Error('할 일 또는 캘린더 데이터가 빠져 있습니다.');
+ // 통합 뒤의 백업에는 calendar/store.sqlite가 없을 수 있다(일정은 Work 안에 있다). 옛 백업의 캘린더 파일은 받아 두고 처음 열 때 Work로 옮긴다.
+ if(!names.has('work/store.sqlite'))throw new Error('할 일 데이터가 빠져 있습니다.');
  return {stage,files:[...names],preferences:bundle.preferences||{}};
 }
 export async function prepareLegacy(dataDir,sourceRoot){
  const stage=path.join(dataDir,'staging','legacy-'+crypto.randomUUID());fs.mkdirSync(stage,{recursive:true});const files=[];
- for(const [app,target,name] of [['whenwork','work','store.sqlite'],['whennote','note','store.sqlite'],['whencalendar','calendar','store.sqlite'],['whencommand','command','whencommand.db']]){
+ for(const [app,target,name] of [['whenwork','work','store.sqlite'],['whennote','note','store.sqlite'],['whencommand','command','whencommand.db']]){
   const source=path.join(sourceRoot,app,name);if(!fs.existsSync(source))continue;
   const relative=target+'/'+name;await snapshotDatabase(source,path.join(stage,relative));files.push(relative);
   // Replay only copied captures. Original queues remain untouched.
@@ -52,7 +53,7 @@ export async function prepareLegacy(dataDir,sourceRoot){
    if(fs.existsSync(sourceAttachments))for(const entry of fs.readdirSync(sourceAttachments,{withFileTypes:true})){const relative='note/attachments/'+entry.name;if(entry.isFile()&&allowedFile(relative)){const dest=path.join(stage,relative);fs.mkdirSync(path.dirname(dest),{recursive:true});fs.copyFileSync(path.join(sourceAttachments,entry.name),dest);files.push(relative);}}
   }
  }
- if(!files.length)throw new Error('선택한 폴더에 whenwork, whennote, whencalendar 또는 whencommand 데이터가 없습니다.');
+ if(!files.length)throw new Error('선택한 폴더에 whenwork, whennote 또는 whencommand 데이터가 없습니다.');
  return {stage,files};
 }
 export function installPrepared(dataDir,prepared){

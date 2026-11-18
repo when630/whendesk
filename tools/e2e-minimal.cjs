@@ -165,7 +165,7 @@ function durableData(state) {
 
     await test('일정 초안 위 도움말: Esc는 도움말만 닫고 모달·제목·caret 유지', async () => {
       await page.locator('.td-command input').press('Tab');
-      await page.locator('.td-nav [data-action=calendar]').click();
+      await page.evaluate(()=>window.__whendeskGo('calendar'));
       await page.locator('.td-main-head [data-action=new-event]').click();await page.locator('.quick-event-form input').waitFor();await page.keyboard.press('Control+Enter');
       const form = page.locator('.event-form');
       const title = form.locator('[name=title]');

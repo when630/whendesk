@@ -1,5 +1,5 @@
-// WHENDESK의 Work·Calendar 데이터 경계. 기존 앱의 복사본 저장 모듈을 사용하고
-// 원본 앱의 데이터 경로는 열지 않는다. 모든 경로는 호출자가 정한 dataDir 아래다.
+// WHENDESK의 데이터 경계. 할 일·일정·한 줄 메모는 모두 Work 저장소의 item(불릿 저널의 • ○ –)이고,
+// 긴 글은 Note 저장소다. 원본 앱의 데이터 경로는 열지 않는다. 모든 경로는 호출자가 정한 dataDir 아래다.
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -7,10 +7,11 @@ import ICAL from 'ical.js';
 import { createStore as createWorkStore } from '../modules/work/main/store.mjs';
 import { createQueue } from '../modules/work/main/queue.mjs';
 import { parseDue } from '../modules/work/main/parse.mjs';
-import { createStore as createCalendarStore } from '../modules/calendar/main/store.mjs';
+import { DatabaseSync } from 'node:sqlite';
+import * as holidayYears from '@hyunbinseo/holidays-kr/all';
 import { parseLine, describe } from '../modules/calendar/main/parse.mjs';
-import { parseIcs, buildIcs, isCancelled } from '../modules/calendar/main/ics.mjs';
-import { syncCalendar, syncAll } from '../modules/calendar/main/sync.mjs';
+import { expand } from '../modules/calendar/main/recur.mjs';
+import { matches } from '../modules/calendar/main/search.mjs';
 import { createStore as createNoteStore } from '../modules/note/main/store.mjs';
 import { createAttachments, isSafeName, sniffImageExt } from '../modules/note/main/attachments.mjs';
 import { parseQuery, toChoseong, makeSnippet } from '../modules/note/main/search.mjs';
@@ -82,10 +83,13 @@ export function shiftRrule(rrule, days, startsAt) {
   }).join(';');
 }
 
+// 관보 기준 공휴일(@hyunbinseo/holidays-kr). 항목이 아니라 달력에 덧그리는 표시라 날짜 → 이름 목록만 둔다.
+const HOLIDAYS = Object.freeze(Object.assign({}, ...Object.values(holidayYears)));
+
 function normalizeEvent(event) {
   return {
     ...event,
-    id: Number(event.id),
+    id: String(event.id),
     title: event.title,
     date: day(event.startsAt),
     time: event.allDay ? '' : hm(event.startsAt),
@@ -93,8 +97,9 @@ function normalizeEvent(event) {
     endDate: event.endsAt ? day(event.endsAt) : '',
     location: event.location ?? '',
     note: event.note ?? '',
-    readonly: event.calendarKind === 'subscription',
+    readonly: false,
     rrule: event.rrule ?? '',
+    project_id: event.projectId ?? null,
   };
 }
 
@@ -102,30 +107,68 @@ export function createDomain({ dataDir, fetchImpl = globalThis.fetch } = {}) {
   if (typeof dataDir !== 'string' || !path.isAbsolute(dataDir)) throw new Error('절대 경로인 데이터 폴더가 필요합니다.');
   fs.mkdirSync(dataDir, { recursive: true });
   const workFile = path.join(dataDir, 'work', 'store.sqlite');
-  const calendarFile = path.join(dataDir, 'calendar', 'store.sqlite');
+  // 통합 전 캘린더 저장소. 처음 한 번 일정을 Work로 옮긴 뒤에는 읽지도 쓰지도 않고 보관만 한다.
+  const legacyCalendarFile = path.join(dataDir, 'calendar', 'store.sqlite');
   const noteFile = path.join(dataDir, 'note', 'store.sqlite');
   const queue = createQueue(path.join(dataDir, 'work', 'capture.jsonl'));
   const noteQueue = createQueue(path.join(dataDir, 'note', 'capture.jsonl'));
   const work = createWorkStore(workFile);
-  let calendar, note;
-  try { calendar = createCalendarStore(calendarFile); note = createNoteStore(noteFile); }
-  catch (error) { work.close(); calendar?.close(); throw error; }
+  let note;
+  try { note = createNoteStore(noteFile); }
+  catch (error) { work.close(); throw error; }
   const attachments = createAttachments(path.join(dataDir, 'note', 'attachments'));
   let closed = false;
-  let subscriptionBusy = false;
 
   function mustOpen() {
     if (closed) throw new Error('저장소가 닫혀 있습니다.');
     const status = work.status();
     if (!status.ok) throw new Error(status.notice || '할 일 저장소를 열지 못했습니다.');
-    if (!calendar.ok) throw new Error(calendar.state.detail || '캘린더 저장소를 열지 못했습니다.');
     if (!note.status().ok) throw new Error(note.status().notice || '메모 저장소를 열지 못했습니다.');
   }
-  try { mustOpen(); } catch (error) { work.close(); calendar.close(); note.close(); throw error; }
+  try { mustOpen(); } catch (error) { work.close(); note.close(); throw error; }
   queue.replayPending(entries => work.insertCaptures(entries));
   noteQueue.replayPending(entries => note.insertCaptures(entries));
-  // 직접 등록 달력만 만들며 예제 프로젝트·할 일·일정을 실제 데이터에 넣지 않는다.
-  calendar.localCalendarId();
+  // 일정은 Work 저장소의 item(kind='event')이다. 덱·Command·브리핑이 쓰던 캘린더 모양(listBetween·searchEvents…)은
+  // 이 얇은 어댑터가 그대로 내준다 — 반복 일정은 조회 범위만큼만 펼친다.
+  const calendar = {
+    listBetween: (fromISO, toISO) => work.eventsBetween(fromISO, toISO, expand),
+    searchEvents: (query, limit = 80) => String(query ?? '').trim() ? work.allEvents().filter(event => matches(event.title, query)).slice(0, limit) : [],
+    getEvent: id => work.getEvent(String(id)),
+    allEvents: () => work.allEvents(),
+  };
+  importLegacyCalendar();
+  importOneLineNotes();
+
+  /* 통합 전 캘린더 저장소의 직접 등록 일정(반복·회차 수정 포함)을 한 번만 Work로 옮긴다. 구독 일정은 옮기지 않는다.
+   * 옛 파일은 지우지 않고 그대로 둔다(되돌릴 근거). 옮겼다는 표시는 Work의 기록에 같은 트랜잭션으로 남는다. */
+  function importLegacyCalendar() {
+    if (work.hasLog('calendar.imported') || !fs.existsSync(legacyCalendarFile)) return;
+    let source;
+    try { source = new DatabaseSync(legacyCalendarFile, { readOnly: true }); }
+    catch (error) { console.error('옛 캘린더를 열지 못했습니다:', error.message); return; }
+    try {
+      const tables = new Set(source.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map(row => row.name));
+      if (!tables.has('event') || !tables.has('calendar')) { work.importEvents([], 'calendar.imported'); return; }
+      const rows = source.prepare(`SELECT e.* FROM event e JOIN calendar c ON c.id = e.calendar_id
+        WHERE c.kind = 'local' AND e.deleted_at IS NULL ORDER BY e.starts_at, e.id`).all();
+      const overrides = tables.has('override') ? source.prepare('SELECT * FROM override').all() : [];
+      work.importEvents(rows.map(row => ({
+        title: row.title, startsAt: row.starts_at, endsAt: row.ends_at ?? null, allDay: !!row.all_day,
+        location: row.location || null, note: row.note || null, rrule: row.rrule || null,
+        exdates: row.exdates ? JSON.parse(row.exdates) : null, capturedAt: row.created_at || new Date().toISOString(),
+        overrides: overrides.filter(o => o.event_id === row.id).map(o => ({ recurrenceId:o.recurrence_id, startsAt:o.starts_at, endsAt:o.ends_at, title:o.title, cancelled:!!o.cancelled })),
+      })), 'calendar.imported');
+    } finally { source.close(); }
+  }
+  /* 한 줄짜리 Note는 불릿 저널의 – 메모다. 첨부·링크·고정·보관이 없는 것만 Work의 메모 항목으로 옮기고 원본은 휴지통에 둔다. */
+  function importOneLineNotes() {
+    if (work.hasLog('notes.imported')) return;
+    const candidates = note.listNotes().filter(item => !item.deleted_at && !item.pinned_at && !item.archived_at && !item.attachments?.length
+      && item.body.trim() && !item.body.trim().includes('\n') && item.body.trim().length <= 500)
+      .filter(item => { const full = note.getNote(item.id); return !full?.links?.length && !full?.backlinks?.length; });
+    work.importNoteItems(candidates.map(item => ({ title:item.body.trim(), capturedAt:item.created_at })), 'notes.imported');
+    for (const item of candidates) { try { note.removeNote(item.id); } catch (error) { console.error('메모를 휴지통에 옮기지 못했습니다:', error.message); } }
+  }
 
   function rawNote(id, { writable = false } = {}) {
     if (typeof id !== 'string' || !id || id.length > 1000) throw new Error('메모를 찾을 수 없습니다.');
@@ -182,7 +225,7 @@ export function createDomain({ dataDir, fetchImpl = globalThis.fetch } = {}) {
 
   function workData() { mustOpen(); return work.exportAll(); }
   function rawTask(id, { deleted = false } = {}) {
-    const task = workData().item.find(item => item.id === id && (deleted || !item.deleted_at));
+    const task = workData().item.find(item => item.id === id && item.kind !== 'event' && (deleted || !item.deleted_at));
     if (!task) throw new Error('할 일을 찾을 수 없습니다.');
     return task;
   }
@@ -243,6 +286,8 @@ export function createDomain({ dataDir, fetchImpl = globalThis.fetch } = {}) {
       patch.postponed = payload.postponed;
     }
     if (owns(payload, 'waitingFor') || owns(payload, 'waiting_for')) patch.waiting_for = text(payload.waitingFor ?? payload.waiting_for ?? '', '대기 상대', { empty: true, limit: 10_000 }) || null;
+    const isNote = current.kind === 'note';
+    if (isNote && ['due','done','cancelled','kind','waitingFor','waiting_for','postponed'].some(key => owns(payload, key))) throw new Error('메모에는 상태·마감·완료가 없습니다.');
     if (owns(payload, 'kind')) {
       if (!['inbox', 'todo', 'waiting'].includes(payload.kind)) throw new Error('할 일 상태가 올바르지 않습니다.');
       patch.kind = payload.kind;
@@ -266,10 +311,10 @@ export function createDomain({ dataDir, fetchImpl = globalThis.fetch } = {}) {
     work.patchItem(payload.id, patch);
     return taskView(rawTask(payload.id));
   }
-  function rawEvent(id, { writable = false } = {}) {
-    const event = calendar.getEvent(Number(id));
+  function rawEvent(id) {
+    if (typeof id !== 'string' && typeof id !== 'number') throw new Error('일정을 찾을 수 없습니다.');
+    const event = work.getEvent(String(id));
     if (!event) throw new Error('일정을 찾을 수 없습니다.');
-    if (writable && event.calendarKind === 'subscription') throw new Error('구독 일정은 읽기 전용입니다. 원본 캘린더에서 수정해 주세요.');
     return event;
   }
   function eventFields(payload, current = null) {
@@ -298,15 +343,12 @@ export function createDomain({ dataDir, fetchImpl = globalThis.fetch } = {}) {
       endsAt = new Date(Date.parse(startsAt) + Math.max(60_000, duration)).toISOString();
     }
     if (endsAt != null && Date.parse(endsAt) <= Date.parse(startsAt)) throw new Error('종료 시간을 시작 시간 이후로 정해 주세요.');
-    const calendarId = payload.calendarId == null ? (current?.calendarId ?? calendar.localCalendarId()) : Number(payload.calendarId);
-    const target = calendar.listCalendars().find(item => item.id === calendarId);
-    if (!target || target.kind !== 'local') throw new Error('직접 등록 가능한 캘린더를 선택해 주세요.');
     return {
-      title, startsAt, endsAt, allDay, calendarId,
+      title, startsAt, endsAt, allDay,
+      projectId: projectId(payload, current ? { project_id: current.projectId ?? null } : null),
       location: text(payload.location ?? current?.location ?? '', '장소', { empty: true, limit: 10_000 }) || null,
       note: text(payload.note ?? current?.note ?? '', '상세 내용', { empty: true }) || null,
       rrule: owns(payload, 'rrule') ? recurrence(payload.rrule) : current?.rrule ?? null,
-      ...(payload.uid ? { uid: text(payload.uid, '일정 식별자', { limit: 10_000 }) } : {}),
     };
   }
   function state({ year = new Date().getFullYear(), month = new Date().getMonth(), includeDeleted = false } = {}) {
@@ -319,17 +361,17 @@ export function createDomain({ dataDir, fetchImpl = globalThis.fetch } = {}) {
     const workView = work.getViewState();
     const deletedProjects = (workView.deletedProjects || []).map(project => ({ ...project, deletedAt:project.deleted_at, itemCount:project.item_count }));
     return {
-      tasks: data.item.filter(item => includeDeleted || !item.deleted_at).map(item => taskView(item, data.project)),
+      tasks: data.item.filter(item => item.kind !== 'event' && (includeDeleted || !item.deleted_at)).map(item => taskView(item, data.project)),
       projects: workView.projects.map(project => ({ id: project.id, name: project.name, sort: project.sort })),
       archivedProjects: deletedProjects,
       deletedProjects,
       events: calendar.listBetween(from.toISOString(), to.toISOString()).map(normalizeEvent),
       // 대시보드 저널은 캘린더가 어느 달을 보고 있든 오늘 일정이 필요하다.
       todayEvents: calendar.listBetween(new Date(new Date().setHours(0, 0, 0, 0)).toISOString(), new Date(new Date().setHours(24, 0, 0, 0)).toISOString()).map(normalizeEvent),
-      calendars: calendar.listCalendars(),
+      holidays: HOLIDAYS,
       notes: note.listNotes().map(item => noteView(item)),
       noteTags: note.listTags(),
-      notices: [work.status().notice, note.status().notice, calendar.state.reason === 'recovered' ? '손상된 이전 캘린더 파일을 보관했습니다.' : null].filter(Boolean),
+      notices: [work.status().notice, note.status().notice].filter(Boolean),
     };
   }
   /* 불릿 저널의 Future Log: 내일부터 months달 뒤 1일 전까지의 단발 일정. 반복 일정은 매번 같은 줄이 쌓여 계획이 묻히므로 뺀다. */
@@ -390,6 +432,8 @@ export function createDomain({ dataDir, fetchImpl = globalThis.fetch } = {}) {
       }
       case 'task.create': {
         const title = text(payload.title, '제목', { limit: 10_000 });
+        // 한 줄 메모(–)는 담기 큐를 거치지 않는다 — 큐는 InBox 할 일 전용 형식이다.
+        if (payload.kind === 'note') return taskView(rawTask(work.addNoteItem({ title })));
         const entry = { id: crypto.randomUUID(), title, captured_at: new Date().toISOString() };
         queue.append(entry);
         work.insertCaptures([entry]);
@@ -457,11 +501,11 @@ export function createDomain({ dataDir, fetchImpl = globalThis.fetch } = {}) {
       }
       case 'event.create': {
         const fields = eventFields(payload);
-        const id = calendar.addEvent(fields);
+        const id = work.addEvent(fields);
         return normalizeEvent(rawEvent(id));
       }
       case 'event.update': {
-        const current = rawEvent(payload.id, { writable: true });
+        const current = rawEvent(payload.id);
         const occurrenceId = payload.recurrenceId ? iso(payload.recurrenceId, '회차 시각') : null;
         const duration = current.endsAt ? Date.parse(current.endsAt) - Date.parse(current.startsAt) : null;
         const base = occurrenceId
@@ -479,10 +523,10 @@ export function createDomain({ dataDir, fetchImpl = globalThis.fetch } = {}) {
           if (fields.endsAt) fields.endsAt = new Date(Date.parse(fields.endsAt) + offset).toISOString();
         }
         if (payload.recurrenceId && payload.scope === 'one') {
-          if (fields.location !== current.location || fields.note !== current.note || fields.rrule !== current.rrule || fields.calendarId !== current.calendarId) {
+          if (fields.location !== current.location || fields.note !== current.note || fields.rrule !== current.rrule || fields.projectId !== current.projectId) {
             throw new Error('장소·상세 내용·반복 규칙 변경은 전체 반복 일정에 적용해 주세요.');
           }
-          if (!calendar.setOverride(current.id, occurrenceId, fields)) throw new Error('회차를 수정하지 못했습니다.');
+          if (!work.setOverride(current.id, occurrenceId, fields)) throw new Error('회차를 수정하지 못했습니다.');
         } else if (payload.recurrenceId && payload.scope === 'future') {
           if (!current.rrule) throw new Error('반복 일정만 회차부터 나눌 수 있습니다.');
           if (!owns(payload, 'rrule')) {
@@ -498,35 +542,35 @@ export function createDomain({ dataDir, fetchImpl = globalThis.fetch } = {}) {
               fields.rrule = current.rrule.replace(/COUNT=\d+/i, `COUNT=${remaining}`);
             }
           }
-          const id = calendar.splitEventSeries(current.id, occurrenceId, fields);
+          const id = work.splitEventSeries(current.id, occurrenceId, fields);
           if (!id) throw new Error('반복 일정을 나누지 못했습니다.');
           // 새 시리즈로 넘어온 제외일·회차 수정은 옛 시각을 가리킨다. 첫 회차가 옮겨진 만큼 함께 옮긴다.
-          calendar.shiftExceptions(id, Date.parse(fields.startsAt) - Date.parse(occurrenceId));
+          work.shiftExceptions(id, Date.parse(fields.startsAt) - Date.parse(occurrenceId));
           return normalizeEvent(rawEvent(id));
         } else {
-          if (!calendar.updateEvent(current.id, fields)) throw new Error('일정을 수정하지 못했습니다.');
+          if (!work.updateEvent(current.id, fields)) throw new Error('일정을 수정하지 못했습니다.');
           // 반복 시리즈 전체를 옮겼으면 제외일·회차 수정도 같은 만큼 옮긴다(빼 둔 회차가 되살아나지 않게).
-          if (current.rrule && fields.rrule) calendar.shiftExceptions(current.id, Date.parse(fields.startsAt) - Date.parse(current.startsAt));
+          if (current.rrule && fields.rrule) work.shiftExceptions(current.id, Date.parse(fields.startsAt) - Date.parse(current.startsAt));
         }
         return normalizeEvent(rawEvent(current.id));
       }
       case 'event.delete': {
-        const current = rawEvent(payload.id, { writable: true });
+        const current = rawEvent(payload.id);
         // 회차 삭제는 규칙·제외일만 바꾼다. 되돌리기(event.reshape)가 쓰도록 바꾸기 전 모양을 돌려준다.
         const previous = { rrule: current.rrule ?? null, exdates: current.exdates ?? null };
-        if (payload.recurrenceId && payload.scope === 'one') calendar.excludeOccurrence(current.id, iso(payload.recurrenceId, '회차 시각'));
-        else if (payload.recurrenceId && payload.scope === 'future') calendar.truncateSeries(current.id, iso(payload.recurrenceId, '회차 시각'));
-        else { calendar.softDeleteEvent(current.id); return { id: current.id }; }
+        if (payload.recurrenceId && payload.scope === 'one') work.excludeOccurrence(current.id, iso(payload.recurrenceId, '회차 시각'));
+        else if (payload.recurrenceId && payload.scope === 'future') work.truncateSeries(current.id, iso(payload.recurrenceId, '회차 시각'));
+        else { work.removeItem(current.id); return { id: current.id }; }
         return { id: current.id, previous };
       }
       case 'event.reshape': {
-        const current = rawEvent(payload.id, { writable: true });
+        const current = rawEvent(payload.id);
         const rrule = payload.rrule == null ? null : text(payload.rrule, '반복 규칙', { limit: 10_000 });
         const exdates = payload.exdates == null ? null : [].concat(payload.exdates).map(value => iso(value, '제외 회차'));
-        if (!calendar.setSeriesShape(current.id, rrule, exdates)) throw new Error('반복 일정을 되돌리지 못했습니다.');
+        if (!work.setSeriesShape(current.id, rrule, exdates)) throw new Error('반복 일정을 되돌리지 못했습니다.');
         return normalizeEvent(rawEvent(current.id));
       }
-      case 'event.restore': rawEvent(payload.id, { writable: true }); calendar.restoreEvent(Number(payload.id)); return normalizeEvent(rawEvent(payload.id));
+      case 'event.restore': rawEvent(payload.id); work.restoreItem(String(payload.id)); return normalizeEvent(rawEvent(payload.id));
       case 'calendar.parse': {
         const now = payload.now == null ? new Date() : new Date(payload.now);
         if (!Number.isFinite(now.getTime())) throw new Error('기준 날짜가 올바르지 않습니다.');
@@ -534,65 +578,17 @@ export function createDomain({ dataDir, fetchImpl = globalThis.fetch } = {}) {
         const parsed = parseLine(text(payload.text, '일정 입력', { limit: 10_000 }), now);
         return { ...parsed, summary: describe(parsed) };
       }
-      case 'subscription.list': return calendar.listCalendars().filter(item => item.kind === 'subscription');
-      case 'subscription.add': {
-        const url = text(payload.url, '구독 주소', { limit: 10_000 }).trim();
-        let parsed; try { parsed = new URL(url); } catch { throw new Error('http(s) 구독 주소를 입력해 주세요.'); }
-        if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('http(s) 구독 주소를 입력해 주세요.');
-        if (calendar.listCalendars().some(item => item.url === url)) throw new Error('이미 등록된 구독 주소입니다.');
-        const id = calendar.addCalendar({ kind: 'subscription', name: payload.name ? text(payload.name, '이름', { limit: 1000 }) : url, url });
-        const result = await syncCalendar(calendar, calendar.listCalendars().find(item => item.id === id), { fetchImpl });
-        return { id, ...result };
-      }
-      case 'subscription.sync': {
-        if (subscriptionBusy) throw new Error('캘린더를 동기화하고 있습니다.');
-        subscriptionBusy = true;
-        try {
-          if (payload.id == null) return await syncAll(calendar, { fetchImpl });
-          const item = calendar.listCalendars().find(item => item.id === Number(payload.id) && item.kind === 'subscription');
-          if (!item) throw new Error('구독을 찾을 수 없습니다.');
-          return await syncCalendar(calendar, item, { fetchImpl });
-        } finally { subscriptionBusy = false; }
-      }
-      case 'subscription.toggle': {
-        const item = calendar.listCalendars().find(item => item.id === Number(payload.id) && item.kind === 'subscription');
-        if (!item) throw new Error('구독을 찾을 수 없습니다.');
-        const enabled = owns(payload, 'enabled') ? !!payload.enabled : !item.enabled;
-        calendar.updateCalendar(item.id, { enabled }); return { id: item.id, enabled };
-      }
-      case 'subscription.delete': {
-        const item = calendar.listCalendars().find(item => item.id === Number(payload.id) && item.kind === 'subscription');
-        if (!item) throw new Error('구독을 찾을 수 없습니다.');
-        calendar.deleteCalendar(item.id); return { id: item.id };
-      }
-      case 'ics.import': {
-        const content = text(payload.text, 'iCalendar 파일', { limit: 8 * 1024 * 1024 });
-        const parsed = parseIcs(content);
-        if (!parsed.ok) throw new Error('iCalendar 파일을 읽지 못했습니다.');
-        const id = calendar.addCalendar({ kind: 'local', name: payload.name ? text(payload.name, '달력 이름', { limit: 1000 }) : parsed.name || '가져온 일정' });
-        const originals = parsed.events.filter(event => !event.recurrenceId && !isCancelled(event));
-        const stats = calendar.replaceCalendarEvents(id, originals);
-        for (const override of parsed.events.filter(event => event.recurrenceId)) {
-          const parent = calendar.allEvents().find(event => event.calendarId === id && event.uid === override.uid);
-          if (parent) calendar.setOverride(parent.id, override.recurrenceId, { ...override, cancelled: isCancelled(override) });
-        }
-        return { calendarId: id, ...stats, errors: parsed.errors.length };
-      }
-      case 'ics.export': {
-        const events = calendar.allEvents().filter(event => event.calendarKind === 'local').map(event => ({ ...event, overrides: calendar.listOverrides(event.id) }));
-        return buildIcs(events, { name: 'WHENDESK' });
-      }
       default: throw new Error(`지원하지 않는 작업입니다: ${type}`);
     }
   }
   function exportAll() {
     mustOpen();
-    return { app: 'whendesk', version: 1, exportedAt: new Date().toISOString(), work: work.exportAll(), calendar: calendar.exportAll(), note:note.exportAll() };
+    return { app: 'whendesk', version: 2, exportedAt: new Date().toISOString(), work: work.exportAll(), note:note.exportAll() };
   }
   function close() {
     if (closed) return;
     closed = true;
-    work.close(); calendar.close(); note.close();
+    work.close(); note.close();
   }
   return { state, future, mutate, exportAll, close, work, calendar, note, searchNotes, noteAttachmentPath };
 }

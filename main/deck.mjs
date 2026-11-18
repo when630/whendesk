@@ -62,7 +62,7 @@ export function summarize({ items = [], projects = [], events = [], now = new Da
   const timed = events
     .filter(event => !event.allDay && event.startsAt)
     .map(event => ({
-      id: Number(event.id),
+      id: String(event.id),
       title: event.title || '',
       startsAt: event.startsAt,
       endsAt: event.endsAt || null,

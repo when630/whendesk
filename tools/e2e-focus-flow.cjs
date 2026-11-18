@@ -23,7 +23,7 @@ async function waitTab(tab){await page.locator(`.td-work-nav [data-tab="${tab}"]
 async function waitRowFocus(id){await waitFocus(`[data-task-row="${id}"]`);}
 async function currentRow(){return page.evaluate(()=>document.activeElement?.closest('[data-task-row]')?.dataset.taskRow||null);}
 const SECTION_BY_KEY={h:'dashboard',t:'todo',i:'inbox',w:'waiting',d:'done',n:'notes',c:'calendar'};
-async function section(key,selector){if(key==='s')await press('Control+Comma');else await page.evaluate(section=>window.__whendeskGo(section),SECTION_BY_KEY[key]);if(key==='c'){await page.locator('.cal-views').waitFor();for(let step=0;step<4&&await page.locator('.cal-views [aria-selected=true]').getAttribute('data-cal-view')!=='month';step++)await page.keyboard.press('Tab');}await page.locator(selector).first().waitFor();}
+async function section(key,selector){if(key==='s')await press('Control+Comma');else await page.evaluate(section=>window.__whendeskGo(section),SECTION_BY_KEY[key]);if(key==='c')await page.locator('.work-views [data-work-view=month][aria-selected=true]').waitFor();await page.locator(selector).first().waitFor();}
 async function screenshot(name){const file=path.join(shots,name+'.png');await page.screenshot({path:file});screenshots.push(file);}
 async function test(name,run){const started=Date.now();try{await run();results.push({name,ok:true,durationMs:Date.now()-started});}catch(error){results.push({name,ok:false,durationMs:Date.now()-started,error:error.message});throw error;}}
 function normalize(value){return String(value).replace(/\\"/g,'"').replace(/"/g,'').replace(/\\/g,'/').toLowerCase();}
@@ -162,14 +162,12 @@ async function withDelayedTaskSelection(run){
       measurements.searchFieldFlow={tabTargets:visited,enteredRow:fixture.todo.id};
     });
 
-    await test('주 메뉴 Calendar를 Enter로 열면 오늘 보기의 기본 자리에 포커스되고, 월 보기에서 방향키로 날짜를 옮긴다',async()=>{
-      await page.locator('.td-nav [data-action=calendar]').focus();await press('Enter');
-      // 캘린더는 오늘 보기로 열린다(원본 WHENCALENDAR).
-      await page.locator('.cal-list').waitFor();await waitUntil(()=>page.evaluate(()=>!!document.activeElement?.closest('.cal-list')),'오늘 보기의 기본 자리에 포커스가 없습니다.');
-      // 보기는 오늘·주·월·앞으로 넷이라 Shift+Tab 두 번이 월 보기다.
-      await press('Shift+Tab');await page.locator('.cal-future').waitFor();await press('Shift+Tab');await page.locator('.td-body [data-date]').first().waitFor();await waitFocus('.td-body [data-date]');
+    await test('주 메뉴 Work에서 V로 월 보기에 들어가면 날짜에 포커스되고, 방향키로 날짜를 옮긴다',async()=>{
+      await page.locator('.td-nav [data-action=work]').focus();await press('Enter');await page.locator('.work-views [data-work-view=list][aria-selected=true]').waitFor();
+      // 목록에서 포커스가 할 일 행이나 탭에 있으면 V가 월 보기로 넘긴다.
+      await press('v');await page.locator('.td-body [data-date]').first().waitFor();await waitFocus('.td-body [data-date]');
       const before=await page.evaluate(()=>document.activeElement.dataset.date);await press('ArrowRight');
-      await waitUntil(async()=>await page.evaluate(()=>document.activeElement?.dataset.date)!==before,'Calendar 진입 뒤 방향키가 날짜를 옮기지 못했습니다.');
+      await waitUntil(async()=>await page.evaluate(()=>document.activeElement?.dataset.date)!==before,'월 보기 진입 뒤 방향키가 날짜를 옮기지 못했습니다.');
       const after=await page.evaluate(()=>document.activeElement.dataset.date);
       assert.equal((new Date(after+'T12:00:00')-new Date(before+'T12:00:00'))/86400000,1);
       measurements.calendarEntry={before,after};

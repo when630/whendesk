@@ -31,7 +31,7 @@ function publicItem(item) {
   const preferredAlt = ['capture-task', 'capture-event'].includes(item.action?.type) ? 'add-open' : { files: 'reveal', apps: 'reveal', scripts: 'edit', tasks: 'complete', notes: 'edit' }[item.source];
   return { key: item.key, title: item.title, subtitle: item.subtitle || '', source: item.source,
     icon: item.icon || 'command', kind: item.kind, positions: item.positions || [], via: item.via || null,
-    ...(item.path ? { path: item.path } : {}), actions,
+    ...(item.path ? { path: item.path } : {}), ...(item.memo ? { memo: true } : {}), actions,
     altId: actions.some(x => x.id === preferredAlt) ? preferredAlt : null,
     final: item.final };
 }
@@ -223,10 +223,7 @@ export function createCommand({ dataDir, domain, onMore, onLaunch, platform: pro
       ['waiting', '대기', { view: 'tasks', tab: 'waiting' }, 'hourglass', 'Waiting'],
       ['done', '완료 기록', { view: 'tasks', tab: 'done' }, 'archive', 'Done'],
       ['notes', '메모', { view: 'notes' }, 'notebook-pen', '노트 WHENNOTE Note notes'],
-      ['calendar', '캘린더', { view: 'calendar' }, 'calendar-days', 'Calendar'],
-      ['calendar-subscriptions', '캘린더 구독 관리', { view: 'calendar', action: 'subscriptions' }, 'rss', '구독 ICS subscribe'],
-      ['ics-import', 'ICS 가져오기', { view: 'calendar', action: 'import-ics' }, 'calendar-plus', '캘린더 가져오기 import'],
-      ['ics-export', 'ICS 내보내기', { view: 'calendar', action: 'export-ics' }, 'calendar-check', '캘린더 내보내기 export'],
+      ['calendar', '월 보기 (캘린더)', { view: 'calendar' }, 'calendar-days', 'Calendar 캘린더 달력 Work 월'],
       ['settings', '설정', { view: 'dashboard', settings: true }, 'settings-2', 'Settings'],
     ];
     for (const [id, title, route, icon, aliases] of entries) addMatched(out, q, { key: `builtin:${id}`, source: 'builtin', title,
@@ -243,6 +240,14 @@ export function createCommand({ dataDir, domain, onMore, onLaunch, platform: pro
     const state = domain.state();
     for (const task of state.tasks || []) {
       if (task.deleted) continue;
+      // 한 줄 메모(–)는 분류 탭이 없다. 열면 지금 화면에서 편집 대화상자가 뜬다.
+      if (task.kind === 'note') {
+        addMatched(out, q, { key: `tasks:${task.id}`, source: 'tasks', title: task.title, memo: true,
+          subtitle: ['– 메모', task.project, String(task.capturedAt || '').slice(0, 10)].filter(Boolean).join(' · '),
+          searchText: [task.note, task.project].filter(Boolean).join(' '), icon: 'minus',
+          action: { type: 'route', route: { view: 'tasks', id: task.id } } }, .9);
+        continue;
+      }
       addMatched(out, q, { key: `tasks:${task.id}`, source: 'tasks', title: task.title,
         subtitle: [task.cancelled ? '취소' : task.done ? '완료' : task.kind === 'waiting' ? 'Waiting' : task.kind === 'inbox' ? 'InBox' : '', task.project, task.done ? '' : dueText(task.due)].filter(Boolean).join(' · '),
         searchText: [task.note, task.waitingFor, task.project].filter(Boolean).join(' '), icon: 'circle-check', done: !!task.done, cancelled: !!task.cancelled,

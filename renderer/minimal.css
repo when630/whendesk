@@ -286,3 +286,14 @@
 #whendesk-command-first.is-capture .cf-command-panel .td-command::after{content:attr(data-capture-label);flex:0 0 auto;margin-left:auto;padding:2px 8px;border-radius:3px;font-size:11px;white-space:nowrap;color:var(--td-muted);background:var(--td-wash)}
 /* 대시보드 알림은 하단 힌트·번호 띠를 가리지 않게 그 위에 뜬다 */
 #whendesk-command-first:not(.is-command) .td-feedback{bottom:76px}
+/* Work 보기 전환(목록 · 월 · 앞으로, V). 머리 오른쪽에 일정 추가 버튼과 함께 선다. */
+#whendesk-command-first .td-main-actions{display:flex;align-items:center;gap:16px}
+#whendesk-command-first .work-views{display:flex;gap:14px}
+#whendesk-command-first .work-views [role=tab]{padding:4px 0;font-size:12px;color:var(--td-muted);border-bottom:2px solid transparent;background:none}
+#whendesk-command-first .work-views [role=tab][aria-selected=true]{color:var(--td-text);border-bottom-color:var(--td-text)}
+/* 공휴일: 항목이 아니라 날짜에 덧그리는 붉은 이름. 일요일 날짜도 같은 색이다. */
+#whendesk-command-first .is-holiday{color:var(--td-signal)}
+#whendesk-command-first .td-day.is-holiday>span:first-child{color:var(--td-signal)}
+#whendesk-command-first .td-day-holiday{display:block;font-style:normal;font-size:10px;color:var(--td-signal);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#whendesk-command-first :is(.cf-home-head,.td-main-calendar-agenda) h2 small.is-holiday{margin-left:8px;font-size:11px;font-weight:400}
+#whendesk-command-first .future-day b.is-holiday{font-weight:400}

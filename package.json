@@ -14,6 +14,7 @@
     "build:installer": "node tools/build-installer.mjs"
   },
   "dependencies": {
+    "@hyunbinseo/holidays-kr": "5.2027.2",
     "electron-updater": "^6.8.11",
     "ical.js": "2.2.1"
   },

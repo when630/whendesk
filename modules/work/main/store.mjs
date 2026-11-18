@@ -2,6 +2,7 @@
 // 캡처는 큐에 먼저 남고(main/queue.mjs), 여기서는 그 뒤 즉시 반영만 맡는다(D-01).
 // DatabaseSync는 동기 API라 이 파일의 모든 함수도 동기다. Electron을 import하지 않는
 // 순수 Node 모듈이라 node --test로 검증한다.
+import crypto from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -84,12 +85,62 @@ ALTER TABLE item ADD COLUMN cancelled INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE item ADD COLUMN postponed INTEGER NOT NULL DEFAULT 0;
 `;
 
+// v5 — 불릿 저널 통합: 일정(○)과 한 줄 메모(–)도 같은 item의 종류가 된다.
+// kind의 CHECK 제약은 ALTER로 넓힐 수 없어 표를 다시 만든다. 일정 칸(시작·끝·종일·반복·제외일·장소)은
+// kind='event'일 때만 쓴다. occurrence는 반복 일정의 '이 회차만' 고친 예외다(RFC 5545 RECURRENCE-ID).
+// item을 가리키는 외래키는 없으므로(event 표는 지표 기록) 다시 만들어도 끊기는 참조가 없다.
+const V5_SQL = `
+CREATE TABLE item_v5 (
+  id          TEXT PRIMARY KEY,
+  project_id  INTEGER REFERENCES project(id),
+  kind        TEXT NOT NULL DEFAULT 'inbox' CHECK (kind IN ('inbox','todo','waiting','event','note')),
+  title       TEXT NOT NULL,
+  due         TEXT,
+  waiting_for TEXT,
+  captured_at TEXT NOT NULL,
+  done_at     TEXT,
+  source      TEXT NOT NULL DEFAULT 'manual',
+  context     TEXT,
+  note        TEXT,
+  nudged_at   TEXT,
+  nudge_count INTEGER NOT NULL DEFAULT 0,
+  deleted_at  TEXT,
+  cancelled   INTEGER NOT NULL DEFAULT 0,
+  postponed   INTEGER NOT NULL DEFAULT 0,
+  starts_at   TEXT,
+  ends_at     TEXT,
+  all_day     INTEGER NOT NULL DEFAULT 0,
+  rrule       TEXT,
+  exdates     TEXT,
+  location    TEXT
+);
+INSERT INTO item_v5 (id, project_id, kind, title, due, waiting_for, captured_at, done_at, source, context, note,
+                     nudged_at, nudge_count, deleted_at, cancelled, postponed)
+  SELECT id, project_id, kind, title, due, waiting_for, captured_at, done_at, source, context, note,
+         nudged_at, nudge_count, deleted_at, cancelled, postponed FROM item;
+DROP TABLE item;
+ALTER TABLE item_v5 RENAME TO item;
+CREATE INDEX item_due ON item (due);
+CREATE INDEX item_kind ON item (kind);
+CREATE INDEX item_starts ON item (starts_at) WHERE starts_at IS NOT NULL;
+CREATE TABLE occurrence (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  item_id       TEXT NOT NULL,
+  recurrence_id TEXT NOT NULL,
+  starts_at     TEXT,
+  ends_at       TEXT,
+  title         TEXT,
+  cancelled     INTEGER NOT NULL DEFAULT 0
+);
+CREATE UNIQUE INDEX occurrence_at ON occurrence (item_id, recurrence_id);
+`;
+
 // PRAGMA user_version 순번 마이그레이션(D-12). 새 DB도 빈 상태(v0)에서 이 배열을 처음부터
 // 끝까지 밟아 올라간다 — 경로가 하나다. 한 번 배포된 함수는 절대 고치지 않는다.
-export const MIGRATIONS = [(db) => db.exec(V1_SQL), (db) => db.exec(V2_SQL), (db) => db.exec(V3_SQL), (db) => db.exec(V4_SQL)];
+export const MIGRATIONS = [(db) => db.exec(V1_SQL), (db) => db.exec(V2_SQL), (db) => db.exec(V3_SQL), (db) => db.exec(V4_SQL), (db) => db.exec(V5_SQL)];
 
 // schemaTables()가 대조하는 원본 — MIGRATIONS와 함수 대 함수로 짝을 이룬다.
-const MIGRATION_SQL = [V1_SQL, V2_SQL, V3_SQL, V4_SQL];
+const MIGRATION_SQL = [V1_SQL, V2_SQL, V3_SQL, V4_SQL, V5_SQL];
 
 // 스키마가 실제로 만드는 테이블 이름 — STOR-05 가드 테스트가 이것과 대조한다.
 export function schemaTables() {
@@ -178,7 +229,7 @@ export function validateExport(data) {
       return '프로젝트 자료가 손상되었습니다';
     }
   }
-  const KINDS = new Set(['inbox', 'todo', 'waiting']);
+  const KINDS = new Set(['inbox', 'todo', 'waiting', 'event', 'note']);
   for (const r of data.item) {
     if (typeof r?.id !== 'string' || !r.id) return '항목 자료가 손상되었습니다';
     if (typeof r?.title !== 'string' || !r.title) return '항목 자료가 손상되었습니다';
@@ -693,7 +744,7 @@ export function createStore(file) {
   // 끝까지 닿아야 한다 — 7일 고정일 때는 22건 중 19건이 어디서도 보이지 않았다.
   function getHistory(days = 7) {
     if (!db || !state.ok) return { items: [], commits: [] };
-    const where = `i.deleted_at IS NULL AND i.done_at IS NOT NULL${days == null ? '' : ' AND i.done_at > ?'}`;
+    const where = `i.deleted_at IS NULL AND i.done_at IS NOT NULL AND i.kind IN ('inbox','todo','waiting')${days == null ? '' : ' AND i.done_at > ?'}`;
     const stmt = db.prepare(
       `SELECT i.id, i.title, i.kind, i.done_at, i.project_id, p.name AS project_name,
               i.note, i.waiting_for, i.cancelled
@@ -717,7 +768,7 @@ export function createStore(file) {
                 i.waiting_for, i.captured_at, i.done_at, i.deleted_at, i.note, i.cancelled
          FROM item i
          LEFT JOIN project p ON p.id = i.project_id
-         WHERE i.deleted_at IS NOT NULL OR i.done_at <= ?
+         WHERE i.kind IN ('inbox','todo','waiting') AND (i.deleted_at IS NOT NULL OR i.done_at <= ?)
          ORDER BY coalesce(i.deleted_at, i.done_at) DESC`
       )
       .all(doneCutoff());
@@ -795,11 +846,13 @@ export function createStore(file) {
       item: db
         .prepare(
           `SELECT id, project_id, kind, title, due, waiting_for, captured_at, done_at,
-                  source, context, note, nudged_at, nudge_count, deleted_at, cancelled, postponed
+                  source, context, note, nudged_at, nudge_count, deleted_at, cancelled, postponed,
+                  starts_at, ends_at, all_day, rrule, exdates, location
              FROM item ORDER BY captured_at`
         )
         .all(),
       event: db.prepare('SELECT id, at, kind, detail FROM event ORDER BY at').all(),
+      occurrence: db.prepare('SELECT item_id, recurrence_id, starts_at, ends_at, title, cancelled FROM occurrence ORDER BY id').all(),
     };
   }
 
@@ -818,6 +871,7 @@ export function createStore(file) {
     withTransaction(db, () => {
       db.exec('DELETE FROM item');
       db.exec('DELETE FROM event');
+      db.exec('DELETE FROM occurrence');
       db.exec('DELETE FROM project');
       const ip = db.prepare('INSERT INTO project (id, name, status, sort) VALUES (?, ?, ?, ?)');
       // 옛 내보내기 파일에는 abbr이 들어 있다 — 그 필드는 그냥 버린다(스키마에 자리가 없다).
@@ -825,8 +879,9 @@ export function createStore(file) {
       for (const r of data.project) ip.run(r.id, r.name, r.status ?? 'active', r.sort ?? 0);
       const ii = db.prepare(
         `INSERT INTO item (id, project_id, kind, title, due, waiting_for, captured_at, done_at,
-                           source, context, note, nudged_at, nudge_count, deleted_at, cancelled, postponed)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                           source, context, note, nudged_at, nudge_count, deleted_at, cancelled, postponed,
+                           starts_at, ends_at, all_day, rrule, exdates, location)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       );
       for (const r of data.item) {
         ii.run(
@@ -836,11 +891,16 @@ export function createStore(file) {
           r.context == null ? null : typeof r.context === 'string' ? r.context : JSON.stringify(r.context),
           r.note ?? null, r.nudged_at ?? null, Number(r.nudge_count ?? 0), r.deleted_at ?? null,
           // v3 이하에서 내보낸 파일에는 두 칸이 없다 — 열린 일·미룬 적 없음으로 들어온다
-          r.cancelled ? 1 : 0, Number(r.postponed ?? 0)
+          r.cancelled ? 1 : 0, Number(r.postponed ?? 0),
+          // v4 이하 파일에는 일정 칸이 없다 — 할 일만 들어온다
+          r.starts_at ?? null, r.ends_at ?? null, r.all_day ? 1 : 0, r.rrule ?? null,
+          r.exdates == null ? null : typeof r.exdates === 'string' ? r.exdates : JSON.stringify(r.exdates), r.location ?? null
         );
       }
       const ie = db.prepare('INSERT INTO event (id, at, kind, detail) VALUES (?, ?, ?, ?)');
       for (const r of data.event ?? []) ie.run(r.id ?? null, r.at, r.kind, r.detail ?? null);
+      const io = db.prepare('INSERT INTO occurrence (item_id, recurrence_id, starts_at, ends_at, title, cancelled) VALUES (?, ?, ?, ?, ?, ?)');
+      for (const r of data.occurrence ?? []) io.run(r.item_id, r.recurrence_id, r.starts_at ?? null, r.ends_at ?? null, r.title ?? null, r.cancelled ? 1 : 0);
     });
     return { backup, project: data.project.length, item: data.item.length, event: (data.event ?? []).length };
   }
@@ -861,7 +921,202 @@ export function createStore(file) {
     return dest;
   }
 
+  // ── 일정(kind='event') — 원래 캘린더 저장소가 하던 일을 같은 item 표에서 한다.
+  // 밖으로 나가는 모양은 옛 캘린더 저장소의 toDomain과 같게 둔다(startsAt·endsAt·allDay·rrule·exdates…)
+  // — recur.expand·도메인·덱·Command가 그 모양을 그대로 먹는다. 반복은 미리 펼치지 않고 조회 범위만큼 펼친다.
+  const EVENT_SELECT = `SELECT i.id, i.title, i.starts_at, i.ends_at, i.all_day, i.location, i.note, i.rrule, i.exdates,
+                               i.project_id, p.name AS project_name, i.captured_at, i.deleted_at
+                          FROM item i LEFT JOIN project p ON p.id = i.project_id`;
+  function eventRow(r) {
+    return {
+      id: r.id, title: r.title, startsAt: r.starts_at, endsAt: r.ends_at, allDay: !!r.all_day,
+      location: r.location, note: r.note, rrule: r.rrule, exdates: r.exdates ? JSON.parse(r.exdates) : null,
+      projectId: r.project_id ?? null, project: r.project_name ?? '', capturedAt: r.captured_at, deleted: !!r.deleted_at,
+    };
+  }
+  const nowIso = () => new Date().toISOString();
+  function mustDb() { if (!db || !state.ok) throw new Error('store not open'); }
+
+  function addEvent({ id = crypto.randomUUID(), title, startsAt, endsAt = null, allDay = false, location = null, note = null, rrule = null, exdates = null, projectId = null, capturedAt = nowIso() }) {
+    mustDb();
+    db.prepare(
+      `INSERT INTO item (id, project_id, kind, title, captured_at, starts_at, ends_at, all_day, location, note, rrule, exdates)
+       VALUES (?, ?, 'event', ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(id, projectId, title, capturedAt, startsAt, endsAt, allDay ? 1 : 0, location, note, rrule, exdates?.length ? JSON.stringify(exdates) : null);
+    return id;
+  }
+  function getEvent(id) {
+    mustDb();
+    const r = db.prepare(`${EVENT_SELECT} WHERE i.id = ? AND i.kind = 'event'`).get(id);
+    return r ? eventRow(r) : null;
+  }
+  function listOverrides(itemId) {
+    mustDb();
+    return db.prepare('SELECT * FROM occurrence WHERE item_id = ?').all(itemId).map((r) => ({
+      recurrenceId: r.recurrence_id, startsAt: r.starts_at, endsAt: r.ends_at, title: r.title, cancelled: !!r.cancelled,
+    }));
+  }
+  // 범위와 겹치는 일정. 반복 일정은 시작이 범위보다 한참 앞일 수 있어 따로 가져와 범위만큼 펼친다.
+  // 끝이 없는 일정은 시작 시각 한 점이다 — 범위 시작과 같은 시각이면 범위 안이다.
+  function eventsBetween(fromISO, toISO, expand) {
+    mustDb();
+    const plain = db.prepare(
+      `${EVENT_SELECT} WHERE i.kind = 'event' AND i.deleted_at IS NULL AND i.rrule IS NULL
+          AND i.starts_at < ? AND (i.ends_at > ? OR i.starts_at >= ?)`
+    ).all(toISO, fromISO, fromISO).map(eventRow);
+    const repeating = db.prepare(`${EVENT_SELECT} WHERE i.kind = 'event' AND i.deleted_at IS NULL AND i.rrule IS NOT NULL AND i.starts_at < ?`)
+      .all(toISO).map(eventRow).map((ev) => ({ ...ev, overrides: listOverrides(ev.id) }));
+    return [...plain, ...expand(repeating, fromISO, toISO)].sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt));
+  }
+  function allEvents() {
+    mustDb();
+    return db.prepare(`${EVENT_SELECT} WHERE i.kind = 'event' AND i.deleted_at IS NULL ORDER BY i.starts_at, i.id`).all().map(eventRow);
+  }
+  function updateEvent(id, patch) {
+    mustDb();
+    const cols = { title: 'title', startsAt: 'starts_at', endsAt: 'ends_at', allDay: 'all_day', location: 'location', note: 'note', rrule: 'rrule', projectId: 'project_id' };
+    const sets = [], vals = [];
+    for (const [k, col] of Object.entries(cols)) {
+      if (!(k in patch)) continue;
+      sets.push(`${col} = ?`);
+      vals.push(typeof patch[k] === 'boolean' ? (patch[k] ? 1 : 0) : patch[k]);
+    }
+    if (!sets.length) return true;
+    return !!db.prepare(`UPDATE item SET ${sets.join(', ')} WHERE id = ? AND kind = 'event'`).run(...vals, id).changes;
+  }
+  // 이 회차만 고친다. 규칙은 그대로 두고 예외를 하나 남긴다.
+  function setOverride(itemId, recurrenceId, patch) {
+    mustDb();
+    if (!getEvent(itemId)) return false;
+    db.prepare(
+      `INSERT INTO occurrence (item_id, recurrence_id, starts_at, ends_at, title, cancelled)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT(item_id, recurrence_id) DO UPDATE SET
+         starts_at = COALESCE(excluded.starts_at, occurrence.starts_at),
+         ends_at   = COALESCE(excluded.ends_at,   occurrence.ends_at),
+         title     = COALESCE(excluded.title,     occurrence.title),
+         cancelled = excluded.cancelled`
+    ).run(itemId, recurrenceId, patch.startsAt ?? null, patch.endsAt ?? null, patch.title ?? null, patch.cancelled ? 1 : 0);
+    return true;
+  }
+  // 반복 시리즈를 통째로 옮기면 회차를 가리키는 키(제외일·회차 수정)도 같은 만큼 옮긴다.
+  // 회차를 따로 옮겨 둔 수정은 사람이 정한 시각이라 그대로 두고, 제자리 수정만 함께 옮긴다.
+  function shiftExceptions(itemId, deltaMs) {
+    mustDb();
+    if (!deltaMs) return true;
+    const row = db.prepare("SELECT exdates FROM item WHERE id = ? AND kind = 'event'").get(itemId);
+    if (!row) return false;
+    const move = (iso) => (iso ? new Date(Date.parse(iso) + deltaMs).toISOString() : iso);
+    return withTransaction(db, () => {
+      if (row.exdates) db.prepare('UPDATE item SET exdates = ? WHERE id = ?').run(JSON.stringify(JSON.parse(row.exdates).map(move)), itemId);
+      const overrides = db.prepare('SELECT * FROM occurrence WHERE item_id = ?').all(itemId);
+      if (overrides.length) {
+        db.prepare('DELETE FROM occurrence WHERE item_id = ?').run(itemId);
+        const insert = db.prepare('INSERT INTO occurrence (item_id, recurrence_id, starts_at, ends_at, title, cancelled) VALUES (?, ?, ?, ?, ?, ?)');
+        for (const o of overrides) {
+          const inPlace = !o.starts_at || Date.parse(o.starts_at) === Date.parse(o.recurrence_id);
+          insert.run(itemId, move(o.recurrence_id), inPlace ? move(o.starts_at) : o.starts_at, inPlace ? move(o.ends_at) : o.ends_at, o.title, o.cancelled);
+        }
+      }
+      return true;
+    });
+  }
+  function excludeOccurrence(itemId, recurrenceId) {
+    mustDb();
+    const row = db.prepare("SELECT exdates FROM item WHERE id = ? AND kind = 'event'").get(itemId);
+    if (!row) return false;
+    const list = row.exdates ? JSON.parse(row.exdates) : [];
+    if (!list.includes(recurrenceId)) list.push(recurrenceId);
+    db.prepare('UPDATE item SET exdates = ? WHERE id = ?').run(JSON.stringify(list), itemId);
+    return true;
+  }
+  // 이 회차부터 뒤를 끊는다 — 규칙에 UNTIL을 박아 직전 회차까지만 살린다.
+  function truncateSeries(itemId, fromRecurrenceId) {
+    mustDb();
+    const row = db.prepare("SELECT rrule FROM item WHERE id = ? AND kind = 'event'").get(itemId);
+    if (!row?.rrule) return false;
+    const until = new Date(Date.parse(fromRecurrenceId) - 1000);
+    const pad = (n) => String(n).padStart(2, '0');
+    const stamp = `${until.getUTCFullYear()}${pad(until.getUTCMonth() + 1)}${pad(until.getUTCDate())}T${pad(until.getUTCHours())}${pad(until.getUTCMinutes())}${pad(until.getUTCSeconds())}Z`;
+    const cleaned = String(row.rrule).replace(/^RRULE:/, '').split(';').filter((part) => !/^(UNTIL|COUNT)=/.test(part)).join(';');
+    db.prepare('UPDATE item SET rrule = ? WHERE id = ?').run(`${cleaned};UNTIL=${stamp}`, itemId);
+    return true;
+  }
+  // 반복 분리의 두 쓰기(앞 시리즈 자르기·뒤 시리즈 만들기)를 한 트랜잭션으로 묶는다.
+  function splitEventSeries(itemId, recurrenceId, patch) {
+    mustDb();
+    const current = getEvent(itemId);
+    if (!current?.rrule) return null;
+    return withTransaction(db, () => {
+      if (!truncateSeries(itemId, recurrenceId)) throw new Error('반복 일정을 나누지 못했습니다.');
+      const id = addEvent({ ...current, ...patch, id: crypto.randomUUID(), exdates: null, projectId: patch.projectId ?? current.projectId });
+      db.prepare('UPDATE occurrence SET item_id = ? WHERE item_id = ? AND recurrence_id >= ?').run(id, itemId, recurrenceId);
+      const futureExdates = (current.exdates ?? []).filter((value) => value >= recurrenceId);
+      if (futureExdates.length) db.prepare('UPDATE item SET exdates = ? WHERE id = ?').run(JSON.stringify(futureExdates), id);
+      return id;
+    });
+  }
+  // 회차 삭제(제외일·뒤 자르기)를 되돌린다.
+  function setSeriesShape(itemId, rrule, exdates) {
+    mustDb();
+    return !!db.prepare("UPDATE item SET rrule = ?, exdates = ? WHERE id = ? AND kind = 'event'")
+      .run(rrule ?? null, exdates?.length ? JSON.stringify(exdates) : null, itemId).changes;
+  }
+
+  // ── 한 줄 메모(kind='note') — 완료가 없는 불릿. 긴 글은 Note(컬렉션)가 맡는다.
+  function addNoteItem({ id = crypto.randomUUID(), title, capturedAt = nowIso(), projectId = null, note = null }) {
+    mustDb();
+    db.prepare("INSERT INTO item (id, project_id, kind, title, captured_at, note) VALUES (?, ?, 'note', ?, ?, ?)").run(id, projectId, title, capturedAt, note);
+    return id;
+  }
+
+  // 한 번만 하는 데이터 옮기기의 표시. 지표 기록(event 표)에 남겨 두면 백업·내보내기에도 함께 실린다.
+  function hasLog(kind) {
+    mustDb();
+    return !!db.prepare('SELECT 1 FROM event WHERE kind = ? LIMIT 1').get(kind);
+  }
+  // 옛 캘린더 저장소의 일정·회차 수정을 한 트랜잭션으로 들인다. 표시(kind)도 같은 트랜잭션에 남겨
+  // 반쯤 들어온 채로 다시 시도되는 일이 없게 한다.
+  function importEvents(events, mark) {
+    mustDb();
+    return withTransaction(db, () => {
+      let count = 0;
+      for (const ev of events) {
+        const id = addEvent(ev);
+        const insert = db.prepare('INSERT INTO occurrence (item_id, recurrence_id, starts_at, ends_at, title, cancelled) VALUES (?, ?, ?, ?, ?, ?)');
+        for (const o of ev.overrides ?? []) insert.run(id, o.recurrenceId, o.startsAt ?? null, o.endsAt ?? null, o.title ?? null, o.cancelled ? 1 : 0);
+        count += 1;
+      }
+      db.prepare('INSERT INTO event (at, kind, detail) VALUES (?, ?, ?)').run(nowIso(), mark, String(count));
+      return count;
+    });
+  }
+  function importNoteItems(notes, mark) {
+    mustDb();
+    return withTransaction(db, () => {
+      for (const n of notes) addNoteItem(n);
+      db.prepare('INSERT INTO event (at, kind, detail) VALUES (?, ?, ?)').run(nowIso(), mark, String(notes.length));
+      return notes.length;
+    });
+  }
+
   return {
+    addEvent,
+    getEvent,
+    listOverrides,
+    eventsBetween,
+    allEvents,
+    updateEvent,
+    setOverride,
+    shiftExceptions,
+    excludeOccurrence,
+    truncateSeries,
+    splitEventSeries,
+    setSeriesShape,
+    addNoteItem,
+    hasLog,
+    importEvents,
+    importNoteItems,
     open,
     close,
     reopen,

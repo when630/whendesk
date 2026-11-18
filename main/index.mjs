@@ -213,10 +213,6 @@ async function bootstrap(){
     const chosen=await dialog.showSaveDialog(win,{title:'WHENDESK 백업 내보내기',defaultPath:'WHENDESK-'+new Date().toISOString().slice(0,10)+'.json',filters:[{name:'WHENDESK 백업',extensions:['json']}]});if(chosen.canceled)return {cancelled:true};
     const bundle=await exportWorkspace(dataDir,preferences.get());fs.writeFileSync(chosen.filePath,JSON.stringify(bundle,null,2));return {ok:true,file:chosen.filePath};
    }
-   if(kind==='ics'){
-    const chosen=await dialog.showSaveDialog(win,{title:'캘린더 내보내기',defaultPath:'WHENDESK-calendar.ics',filters:[{name:'iCalendar',extensions:['ics']}]});if(chosen.canceled)return {cancelled:true};
-    const result=await domain.mutate('ics.export',payload);const text=typeof result==='string'?result:result.text;if(typeof text!=='string')throw new Error('캘린더 내용을 만들 수 없습니다.');fs.writeFileSync(chosen.filePath,text,'utf8');return {ok:true,file:chosen.filePath};
-   }
    let prepared;
    if(kind==='restore'){
     const selected=await dialog.showOpenDialog(win,{title:'WHENDESK 백업 선택',properties:['openFile'],filters:[{name:'WHENDESK 백업',extensions:['json']}]});if(selected.canceled)return {cancelled:true};
@@ -225,7 +221,7 @@ async function bootstrap(){
     // Validate copied schemas before replacing active files.
     const probe=createDomain({dataDir:prepared.stage});probe.close();
    }else{
-    const selected=await dialog.showOpenDialog(win,{title:'whenwork·whennote·whencalendar·whencommand 폴더가 있는 상위 폴더 선택',defaultPath:app.getPath('appData'),properties:['openDirectory']});if(selected.canceled)return {cancelled:true};
+    const selected=await dialog.showOpenDialog(win,{title:'whenwork·whennote·whencommand 폴더가 있는 상위 폴더 선택',defaultPath:app.getPath('appData'),properties:['openDirectory']});if(selected.canceled)return {cancelled:true};
     prepared=await prepareLegacy(dataDir,selected.filePaths[0]);const probe=createDomain({dataDir:prepared.stage});probe.close();
    }
    const confirmation=await dialog.showMessageBox(win,{type:'question',buttons:['취소','백업 후 가져오기'],defaultId:0,cancelId:0,title:'WHENDESK 데이터 가져오기',message:'WHENDESK의 해당 데이터를 선택한 파일의 내용으로 교체합니다.',detail:'현재 WHENDESK 데이터는 backups 폴더에 먼저 보존합니다. 기존 개별 앱의 소스와 사용자 데이터는 변경하지 않습니다.'});if(confirmation.response!==1)return {cancelled:true};
@@ -258,7 +254,6 @@ async function bootstrap(){
   'update.install':()=>installUpdate(),
   'app.info':()=>({name:'WHENDESK',version:app.getVersion(),dataDir,launchAtLoginSupported:app.isPackaged&&!testMode,...shortcutManager.status(),commandReady,commandFailure,platform:process.platform,isPackaged:app.isPackaged}),
   'data.export':()=>dataOperation('export'),
-  'data.exportIcs':payload=>dataOperation('ics',payload),
   'data.restore':()=>dataOperation('restore'),
   'data.importLegacy':()=>dataOperation('legacy'),
   'data.openFolder':async()=>{const error=await shell.openPath(dataDir);if(error)throw new Error(error);return true;},
@@ -308,7 +303,8 @@ async function bootstrap(){
    capture:async raw=>{
     const intent=captureIntent(raw,rapid);if(!intent)throw new Error('담을 글이 없어요');
     let result;
-    if(intent.kind==='note'){await mutateNow('note.create',{body:intent.text});result={kind:'note',message:'메모에 담았어요'};}
+    // - 로 담은 한 줄 메모는 불릿 저널의 – 항목이다(Work). 긴 글은 Note에서 쓴다.
+    if(intent.kind==='note'){await mutateNow('task.create',{title:intent.text.trim().slice(0,10_000),kind:'note'});result={kind:'note',message:'메모를 적었어요'};}
     else if(intent.kind==='event'){
      const parsed=await mutateNow('calendar.parse',{text:intent.text});if(!parsed?.ok)throw new Error('일정의 날짜를 알아듣지 못했어요');
      await mutateNow('event.create',parsed);result={kind:'event',message:'일정에 담았어요'};
@@ -322,7 +318,7 @@ async function bootstrap(){
    open:(view,{id=null,date=null}={})=>{
     if(view==='command')showCommand();
     else if(['inbox','todo','waiting'].includes(view))showDashboard(id?{view:'tasks',id}:{view:'tasks',tab:view});
-    else if(view==='calendar')showDashboard(id?{view:'calendar',id:Number(id),date:/^\d{4}-\d{2}-\d{2}$/.test(date||'')?date:undefined}:{view:'calendar'});
+    else if(view==='calendar')showDashboard(id?{view:'calendar',id:String(id),date:/^\d{4}-\d{2}-\d{2}$/.test(date||'')?date:undefined}:{view:'calendar'});
     else showDashboard();
     raiseWindow();
    },

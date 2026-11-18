@@ -149,8 +149,8 @@ async function openQuick(){
       await waitUntil(async()=>{const list=await events();return list.filter(e=>e.title==='아침 달리기').length===1&&list.filter(e=>e.title==='아침 운동').length===before-1;},'반복 일정의 이 회차만 제목이 바뀌지 않았습니다.');
       // 이름을 바꾼 회차는 제외하고 남은 '아침 운동' 회차로 삭제를 검증한다.
       const remaining=(await events()).filter(e=>e.title==='아침 운동').length;
-      // 이름을 바꾼 회차의 날에는 '아침 운동'이 없다. 다음 날(→)로 넘겨 그 회차를 고른다.
-      await press('ArrowRight');
+      // 이름을 바꾼 회차의 날에는 '아침 운동'이 없다. 월 격자에서 다음 날(→)로 넘겨 그 회차를 고른다.
+      await page.evaluate(()=>document.querySelector('.td-main .td-day.selected')?.focus());await press('ArrowRight');
       await waitUntil(()=>page.evaluate(()=>{const row=[...document.querySelectorAll('.td-main [data-event]')].find(row=>row.textContent.includes('아침 운동'));row?.focus();return !!row&&document.activeElement===row;}),'다음 날의 반복 회차에 포커스를 두지 못했습니다.');
       await press('x');await page.locator('.scope-form').waitFor();
       assert.equal(await page.evaluate(()=>document.activeElement?.dataset.scope),'one','3지선다 커서가 이 회차만에서 시작하지 않습니다.');
@@ -162,18 +162,20 @@ async function openQuick(){
       await waitUntil(async()=>(await events()).filter(e=>e.title==='아침 운동').length===remaining,'회차 삭제를 되돌리지 못했습니다.');
     });
 
-    await test('앞으로(Future Log): Tab으로 넷째 보기, 달마다 단발 일정 ○와 마감 할 일, 반복 일정은 빠지고 Space·U가 같은 줄에서 동작한다',async()=>{
+    await test('앞으로(Future Log): 월에서 Tab으로 넘어가는 보기, 달마다 단발 일정 ○와 마감 할 일, 반복 일정은 빠지고 Space·U가 같은 줄에서 동작한다',async()=>{
       await call('mutate',{type:'event.create',payload:{title:'앞으로 출장',date:dayKey(plusDays(10)),time:'14:00',end:'15:00',allDay:false}});
       const task=await call('mutate',{type:'task.create',payload:{title:'앞으로 마감'}});await call('mutate',{type:'task.update',payload:{id:task.id,kind:'todo',due:dayKey(plusDays(20))}});
       await go('calendar');await waitUntil(()=>page.evaluate(()=>!!document.activeElement?.closest('.td-main')),'캘린더에 포커스가 없습니다.');
       for(let step=0;step<4&&!(await page.locator('.cal-future').count());step++){await press('Tab');await page.waitForTimeout(80);}
       await page.locator('.cal-future').waitFor();
-      assert.equal(await page.locator('.cal-views [aria-selected=true]').innerText(),'앞으로');
+      assert.equal(await page.locator('.work-views [aria-selected=true]').innerText(),'앞으로');
       assert.equal(await page.locator('.cal-future .future-month').count()>=6,true,'여섯 달 칸이 없습니다.');
       const rows=()=>page.locator('.cal-future [data-future-row]').evaluateAll(list=>list.map(row=>row.innerText));
       await waitUntil(async()=>(await rows()).some(row=>row.includes('앞으로 출장')),'단발 일정이 앞으로 보기에 없습니다.');
       assert.ok((await rows()).some(row=>row.includes('앞으로 마감')),'마감 할 일이 앞으로 보기에 없습니다.');
       assert.ok(!(await rows()).some(row=>row.includes('아침 운동')),'반복 일정이 앞으로 보기에 섞였습니다.');
+      // 공휴일(관보 기준 데이터)은 항목이 아니라 날짜 머리의 붉은 이름이다. 여섯 달 안에는 늘 하나 이상 있다.
+      assert.ok(await page.locator('.cal-future .future-day b.is-holiday').count()>0,'앞으로 보기에 공휴일이 보이지 않습니다.');
       await waitUntil(()=>page.evaluate(()=>!!document.activeElement?.matches('.cal-future [data-future-row]')),'앞으로 보기의 첫 줄에 포커스가 없습니다.');
       for(let step=0;step<20&&!(await page.evaluate(id=>document.activeElement?.dataset.reveal===id,task.id));step++)await press('ArrowDown');
       assert.equal(await page.evaluate(id=>document.activeElement?.dataset.reveal===id,task.id),true,'↓로 마감 할 일에 가지 못했습니다.');

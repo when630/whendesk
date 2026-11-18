@@ -20,7 +20,8 @@ export function actionsFor(item) {
   if (a.type === 'route' && a.route?.id != null && ['tasks', 'notes', 'calendar'].includes(a.route.view)) {
     const id = a.route.id;
     push('open', '열기', a);
-    if (a.route.view === 'tasks') {
+    if (a.route.view === 'tasks' && item.memo) push('delete', '삭제', { type: 'task-delete', id });
+    else if (a.route.view === 'tasks') {
       push('complete', item.done && !item.cancelled ? '완료 해제' : '완료', { type: 'task-complete', id, done: !(item.done && !item.cancelled) });
       push('cancel', item.cancelled ? '취소 해제' : '취소', { type: 'task-cancel', id, cancelled: !item.cancelled });
       if (!item.done) {

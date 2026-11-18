@@ -124,7 +124,7 @@ function setOwnedFixtureDoneDates(entries){
 
     await test('Work 하위 분류는 화면 안 탭이며 Tab·ShiftTab으로 순환하고 주 메뉴는 네 개만 표시',async()=>{
       await press('Tab');await page.locator('#cf-dashboard-panel').waitFor();await gotoTab('inbox');
-      assert.deepEqual((await page.locator('.td-nav>button').allTextContents()).map(value=>value.trim()),['Dashboard','Work','Note','Calendar']);
+      assert.deepEqual((await page.locator('.td-nav>button').allTextContents()).map(value=>value.trim()),['Dashboard','Work','Note']);
       assert.equal(await page.locator('.td-sidebar .td-work-nav').count(),0);
       assert.equal(await page.locator('.td-main>.td-work-nav').count(),1);
       assert.deepEqual(await page.locator('.td-work-nav [role=tab]').evaluateAll(rows=>rows.map(row=>row.dataset.tab)),tabs);

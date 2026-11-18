@@ -51,6 +51,7 @@
     A('work.dueFilter','work','ToDo 마감 필터',['KeyF']),
     A('work.doneHistory','work','완료 기록',['KeyH']),
     A('work.undo','work','되돌리기',['KeyU']),
+    A('work.view','work','보기 전환 (목록 · 월 · 앞으로)',['KeyV','Shift+KeyV'],{display:'V · Shift+V'}),
     A('project.new','work','프로젝트 추가',['Mod+Shift+KeyN']),
 
     A('task.open','task','편집',['Mod+KeyE','Enter']),
@@ -86,11 +87,8 @@
     A('event.new','calendar','새 일정',['KeyN']),
     A('agenda.up','agenda','이전 일정',['ArrowUp','KeyK']),
     A('agenda.down','agenda','다음 일정',['ArrowDown','KeyJ']),
-    A('agenda.prevDay','agenda','이전 날 · 이전 주',['ArrowLeft']),
-    A('agenda.nextDay','agenda','다음 날 · 다음 주',['ArrowRight']),
-    A('agenda.today','agenda','오늘',['KeyT']),
     A('agenda.new','agenda','새 일정',['KeyN']),
-    A('calendar.view','calview','오늘 · 주 · 월 · 앞으로 보기 순환',['Tab','Shift+Tab']),
+    A('calendar.view','calview','월 · 앞으로 보기 순환',['Tab','Shift+Tab']),
     A('pick.open','picker','목록 열기',['Enter','Space','ArrowDown','Alt+ArrowDown']),
     A('pick.down','pick','목록 아래',['ArrowDown','KeyJ']),
     A('pick.up','pick','목록 위',['ArrowUp','KeyK']),
@@ -203,8 +201,8 @@
       [null,['command.actions']],['검색어 전체 선택',['command.open']],['입력 지우기 → 창 숨기기',['back']],['빠른 담기: 담기 · 담고 열기 · 앱에서 열기',['capture.save','capture.saveOpen','capture.open']],['스크립트 출력: 다시 실행 · 열기 · 복사',['output.rerun','output.open','output.copy']],[null,['command.media'],{media:true}],
     ] },
     { title:'화면 이동', rows:[
-      ['왼쪽 메뉴 순환 (Dashboard · Work · Note · Calendar)',['nav.next','nav.prev']],[null,['nav.settings']],[null,['app.new']],[null,['app.save']],
-      ['화면 안 분류 순환 (Work · 메모)',['work.tab.cycle']],['한 단계 뒤로 (편집 → 필터 → 화면 → Command)',['back']],
+      ['왼쪽 메뉴 순환 (Dashboard · Work · Note)',['nav.next','nav.prev']],[null,['nav.settings']],[null,['app.new']],[null,['app.save']],
+      ['화면 안 분류 순환 (Work · 메모)',['work.tab.cycle']],['Work 보기 전환 (목록 · 월 · 앞으로)',['work.view']],['한 단계 뒤로 (편집 → 필터 → 화면 → Command)',['back']],
     ] },
     { title:'Dashboard', rows:[
       ['항목 이동 (넘길 일 → 오늘 → ToDo · InBox · Waiting)',['list.up','list.down','list.first','list.last']],['할 일 완료 · 취소 · 되돌리기',['task.complete','task.cancel','work.undo']],['지난 마감: 오늘로 넘기기 · 다른 날',['task.migrate','task.due']],['열기',['task.open']],
@@ -224,9 +222,9 @@
       ['메모 · 보관함 · 휴지통',['note.scope.cycle','note.scope.active','note.scope.archived','note.scope.trash']],['목록에서 삭제 · 되돌리기 · 휴지통에서 복원',['note.delete','note.undo','note.restore']],
       ['이미지 첨부 · Markdown 내보내기',['note.attach','note.export']],
     ] },
-    { title:'캘린더', rows:[
+    { title:'Work 월 · 앞으로', rows:[
       ['날짜 이동 · 달 이동',['date.prev','date.prevWeek','date.nextWeek','date.next','date.prevMonth','date.nextMonth']],
-      [null,['calendar.view']],['오늘 · 새 일정 (한 줄 입력)',['date.today','event.new','app.new']],[null,['quickEvent.detail']],['날짜의 일정 목록 · 자세히 편집',['date.open','event.edit']],['제목 · 날짜·시각 한 줄로 고치기',['event.rename','event.move']],['선택 일정 삭제 · 되돌리기',['event.delete','agenda.undo']],
+      [null,['work.view']],[null,['calendar.view']],['오늘 · 새 일정 (한 줄 입력)',['date.today','event.new','app.new']],[null,['quickEvent.detail']],['날짜의 일정 목록 · 자세히 편집',['date.open','event.edit']],['제목 · 날짜·시각 한 줄로 고치기',['event.rename','event.move']],['선택 일정 삭제 · 되돌리기',['event.delete','agenda.undo']],
     ] },
     { title:'설정', rows:[
       ['설정 분류 (일반 · 단축키)',['settings.prev','settings.next']],[null,['nav.settings']],
@@ -250,10 +248,9 @@
     pickNumbered:[['pick.down','고르기','↑↓'],[null,'번호로 바로','1 ~ 9'],['pick.choose','확정','Enter'],['back','닫기']],
     settings:[['settings.next','분류','← →'],['help.toggle','단축키 전체']],
     settingsShortcuts:[['settings.next','분류','← →'],[null,'기록하면 바로 저장','조합'],[null,'되돌리기','Esc'],['help.toggle','단축키 전체']],
-    calendarMonth:[['date.open','일정'],['event.new','새 일정'],['date.today','오늘'],['calendar.view','보기','Tab']],
-    calendarFuture:[['agenda.down','이동','↑↓'],[null,'열기','Enter'],['agenda.new','새 일정'],['calendar.view','보기','Tab']],
+    calendarMonth:[['date.open','일정'],['event.new','새 일정'],['date.today','오늘'],['work.view','보기','V']],
+    calendarFuture:[['agenda.down','이동','↑↓'],[null,'열기','Enter'],['agenda.new','새 일정'],['work.view','보기','V']],
     futureTask:[['agenda.down','이동','↑↓'],['task.complete','완료'],['task.due','마감'],['task.cancel','취소']],
-    calendarList:[['agenda.new','새 일정'],['agenda.nextDay','이동','← →'],['agenda.today','오늘'],['calendar.view','보기','Tab']],
     event:[['event.rename','제목'],['event.move','옮기기'],['event.edit','자세히'],['event.delete','삭제'],['agenda.undo','되돌리기']],
     lineEdit:[[null,'저장','Enter'],['back','닫기']],
     dialog:[['app.save','저장'],['back','닫기']],
