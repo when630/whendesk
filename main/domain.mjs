@@ -324,6 +324,8 @@ export function createDomain({ dataDir, fetchImpl = globalThis.fetch } = {}) {
       archivedProjects: deletedProjects,
       deletedProjects,
       events: calendar.listBetween(from.toISOString(), to.toISOString()).map(normalizeEvent),
+      // 대시보드 저널은 캘린더가 어느 달을 보고 있든 오늘 일정이 필요하다.
+      todayEvents: calendar.listBetween(new Date(new Date().setHours(0, 0, 0, 0)).toISOString(), new Date(new Date().setHours(24, 0, 0, 0)).toISOString()).map(normalizeEvent),
       calendars: calendar.listCalendars(),
       notes: note.listNotes().map(item => noteView(item)),
       noteTags: note.listTags(),

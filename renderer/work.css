@@ -79,3 +79,14 @@
 #whendesk-command-first .task-form .td-inline-foot .td-modal-delete{margin-right:auto}
 #whendesk-command-first .task-form .td-inline-foot button:not(.td-primary):not(.td-modal-delete){font-size:12px;color:var(--td-text);padding:6px 4px}
 #whendesk-command-first .td-done-at{flex:0 0 auto;font-size:11px;color:var(--td-muted);white-space:nowrap;padding-top:2px}
+/* 대시보드 저널: 일정 ○·메모 – 기호는 할 일 기호와 같은 칸에 선다. 오른쪽 작은 글자는 시각·완료 시각. */
+#whendesk-command-first .td-app .journal-glyph{flex:0 0 15px;width:15px;font:600 15px/20px ui-monospace,"Cascadia Mono",Consolas,monospace;text-align:center;color:var(--td-muted)}
+#whendesk-command-first .td-app .journal-row{align-items:flex-start}
+#whendesk-command-first .td-app .journal-row>button:not(.task-mark):not(.td-due):not(.journal-today){text-align:left}
+#whendesk-command-first .td-app .journal-row.done>button[data-reveal]>span{color:var(--td-muted)}
+#whendesk-command-first .td-app .journal-row.cancelled>button[data-reveal]>span{text-decoration:line-through}
+#whendesk-command-first .td-app .journal-at{flex-shrink:0;white-space:nowrap;padding-top:2px;font-size:11px;color:var(--td-muted);font-variant-numeric:tabular-nums}
+#whendesk-command-first .td-app .journal-at.today{color:var(--td-accent)}
+#whendesk-command-first .td-app .journal-today{flex:0 0 auto;padding:2px 4px;font-size:11px;color:var(--td-accent)}
+#whendesk-command-first .td-app .journal-row .td-due{flex:0 0 auto;font-size:11px}
+#whendesk-command-first .td-app .journal-tip{margin:10px 0 4px;font-size:11px;color:var(--td-muted)}

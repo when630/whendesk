@@ -14,8 +14,17 @@
   const icon = name => `<i data-lucide="${/^[a-z0-9-]+$/.test(name || '') ? name : 'circle'}" aria-hidden="true"></i>`;
   const icons = () => window.lucide?.createIcons({ attrs: { width:17, height:17 } });
   const dateKey = (date = new Date()) => `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
-  const today = dateKey();
-  const tomorrow = dateKey(new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()+1));
+  // 앱은 트레이에 상주하며 자정을 넘긴다. 오늘·내일은 그릴 때마다 syncDay()로 맞추고, 바뀌었으면 날짜 칸도 따라 옮긴다.
+  let today = dateKey();
+  let tomorrow = dateKey(new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()+1));
+  function syncDay() {
+    const now = new Date(), key = dateKey(now);
+    if (key === today) return false;
+    const previous = today;
+    today = key; tomorrow = dateKey(new Date(now.getFullYear(), now.getMonth(), now.getDate()+1));
+    if (state.date === previous) { state.date = today; state.year = now.getFullYear(); state.month = now.getMonth(); }
+    return true;
+  }
   const state = { shell:'command', view:'dashboard', tab:'todo', calView:'today',settingsTab:'general', selected:null, project:null, dueOnly:false, year:new Date().getFullYear(), month:new Date().getMonth(), date:today, theme:'zen-sage', tasks:[], projects:[], events:[], calendars:[], info:{}, prefs:{}, media:{ sessions:[] } };
   // 스킨·테마 목록은 themes.js(WHENTERMINAL과 같은 목록). 스킨은 모양, 테마는 그 스킨의 색
   const { SKINS, THEMES, APP_ICONS, themesOf } = window.WhendeskThemes;
@@ -157,10 +166,11 @@
     if (state.shell === 'command') { await call('shell', { mode:'command', height:saved?.height }); resizeCommand(); }
   }
   async function loadState({ renderMain = true } = {}) {
+    syncDay();
     const data = await call('state', { year:state.year, month:state.month, includeDeleted:true });
     state.allTasks = data.tasks || [];
     state.tasks = state.allTasks.filter(t => !t.deleted);
-    state.projects = data.projects || []; state.archivedProjects=data.deletedProjects||data.archivedProjects||[]; state.events = data.events || []; state.calendars = data.calendars || [];
+    state.projects = data.projects || []; state.archivedProjects=data.deletedProjects||data.archivedProjects||[]; state.events = data.events || []; state.todayEvents = data.todayEvents || []; state.notes = data.notes || []; state.calendars = data.calendars || [];
     for (const [id, patch] of pending) { const task = state.tasks.find(t => t.id === id); if (task) Object.assign(task, patch); }
     renderNav(); renderCalendar(); if (renderMain) renderMainView(); syncProjectOptions();
     if (!command.query.trim()) safe(() => queryCommand('', true));
@@ -403,16 +413,46 @@
   function taskEditor(task,{modal=false}={}) {
     return `<div class="td-inline"><div class="td-fields"><label class="td-field">상태${pickButton('data-field="kind" aria-label="할 일 상태"',task.kind,[{value:'inbox',label:'InBox'},{value:'todo',label:'ToDo'},{value:'waiting',label:'Waiting'}])}</label><label class="td-field">마감<input data-field="due" aria-label="할 일 마감" value="${esc(task.due)}" placeholder="오늘 / 내일 / +3 / 8-12" autocomplete="off" spellcheck="false"></label><label class="td-field">프로젝트${pickButton('data-field="project_id" aria-label="할 일 프로젝트"',task.project_id??'',projectOptions())}</label>${task.kind === 'waiting' ? `<label class="td-field">대기 상대<input data-field="waitingFor" aria-label="대기 상대" value="${esc(task.waitingFor)}"></label>` : ''}</div><textarea class="td-note" data-field="note" aria-label="할 일 상세 내용" placeholder="상세 내용" spellcheck="false">${esc(task.note)}</textarea><div class="td-inline-foot"><span data-save-status>수정 내용 자동 저장</span><div><button type="button" class="td-modal-delete" data-delete-task="${esc(task.id)}">삭제</button>${task.kind === 'waiting' ? `<button type="button" data-nudge="${esc(task.id)}">재촉 기록</button>` : ''}<button type="button" data-cancel-task="${esc(task.id)}" title="취소 (C)">${task.cancelled ? '취소 해제' : '취소'}</button>${task.cancelled ? '' : `<button type="button" data-complete-task="${esc(task.id)}" title="완료 (Space)">${task.done ? '완료 해제' : '완료'}</button>`}${modal?'<button type="submit" class="td-primary">닫기</button>':`<button type="button" data-action="collapse">${icon('chevron-up')}접기</button>`}</div></div></div>`;
   }
+  /* 대시보드 = 불릿 저널의 오늘 칸. 할 일이 어느 날에 놓이는지는 마감(due) 하나로 정한다.
+   * 맨 위 '넘길 일'은 마감이 지난 열린 일 — 하나씩 오늘로(T·>), 다른 날로(D), 취소(C), 완료(Space) 한다.
+   * 그 아래 오늘 칸은 그날의 일정 ○, 오늘 마감·오늘 담은 할 일 •, 오늘 마친 일 ×, 오늘 만든 메모 – 를 시각 순으로 모은다.
+   * 앱은 자정을 넘겨 켜져 있으므로 오늘은 그릴 때마다 새로 구한다. */
+  function lateTasks(day = dateKey()) { return state.tasks.filter(t => !t.done && t.due && t.due < day).sort((a, b) => a.due.localeCompare(b.due) || String(a.capturedAt).localeCompare(String(b.capturedAt))); }
+  function journalRows(day = dateKey()) {
+    const localDay = iso => iso ? dateKey(new Date(iso)) : '';
+    const rows = [];
+    // 정렬 열쇠: 종일 일정 0 → 전부터 오늘 마감으로 잡혀 있던 일 1 → 나머지는 시각.
+    for (const e of (state.todayEvents || []).filter(e => occursOn(e, day))) rows.push({ kind:'event', at:e.allDay || e.date !== day ? 0 : Date.parse(e.startsAt), item:e });
+    for (const t of state.tasks) {
+      const closedToday = t.done && localDay(t.doneAt) === day;
+      const capturedToday = !t.done && localDay(t.capturedAt) === day && !(t.due && t.due < day);
+      const dueToday = !t.done && t.due === day;
+      if (closedToday) rows.push({ kind:'task', at:Date.parse(t.doneAt), item:t });
+      else if (capturedToday) rows.push({ kind:'task', at:Date.parse(t.capturedAt), item:t });
+      else if (dueToday) rows.push({ kind:'task', at:1, item:t });
+    }
+    for (const n of (state.notes || []).filter(n => !n.deleted && localDay(n.createdAt) === day)) rows.push({ kind:'note', at:Date.parse(n.createdAt), item:n });
+    return rows.sort((a, b) => a.at - b.at);
+  }
   function home() {
-    const tasks = state.tasks.filter(t => !t.done && t.kind === 'todo').sort((a,b) => (a.due || '9999').localeCompare(b.due || '9999'));
-    // 마감 표시는 Work 목록과 같은 배지(D-3·오늘·D+2)다. 아래 입구는 왼쪽 메뉴를 되풀이하지 않고, 쌓여 있는 것(분류할 InBox·기다리는 일·오늘 일정)을 센다.
-    const due = t => { const badge = workRules.dueBadge(t.due); return `<small class="td-due ${badge?.cls === 'today' ? 'today' : ''} ${badge?.cls === 'over' ? 'work-overdue' : ''}" title="${esc(t.due || '마감 없음')}">${esc(badge?.text || '마감 없음')}</small>`; };
+    const day = dateKey(), clock = iso => new Date(iso).toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit', hour12:false });
+    const badgeOf = t => { const badge = workRules.dueBadge(t.due); return `<button type="button" class="td-due ${badge?.cls === 'today' ? 'today' : ''} ${badge?.cls === 'over' ? 'work-overdue' : ''}" data-edit-due="${esc(t.id)}" tabindex="-1" title="${esc(t.due || '마감 없음')} · 마감 바꾸기 (D)">${esc(badge?.text || '마감 없음')}</button>`; };
+    const sub = t => [t.project ? esc(t.project) : '', postponedMeta(t)].filter(Boolean).join(' · ');
+    const taskLine = (t, right) => `<div class="cf-home-task journal-row${t.done ? ' done' : ''}${t.cancelled ? ' cancelled' : ''}" data-journal="task">${taskMark(t)}<button data-reveal="${esc(t.id)}"><span>${esc(t.title)}</span>${sub(t) ? `<small>${sub(t)}</small>` : ''}</button>${right}</div>`;
+    const late = lateTasks(day), open = state.migrateOpen !== false;
+    const migrate = late.length ? `<section class="cf-home-section journal-migrate"><div class="cf-home-head"><h2>넘길 일 <small>${late.length}개</small></h2><button type="button" data-action="toggle-migrate" aria-expanded="${open}">${open ? '접기' : '펼치기'}</button></div>${open ? late.map(t => taskLine(t, `${badgeOf(t)}<button type="button" class="journal-today" data-migrate-today="${esc(t.id)}" tabindex="-1" title="오늘로 넘기기 (T)">오늘로</button>`)).join('') + '<p class="journal-tip">T 오늘로 · D 다른 날 · C 취소 · Space 완료</p>' : ''}</section>` : '';
+    const rows = journalRows(day).map(({ kind, item }) => {
+      if (kind === 'event') return `<div class="cf-home-task journal-row is-event" data-journal="event"><b class="journal-glyph" aria-hidden="true">○</b><button data-event="${eventKey(item)}"><span>${esc(item.title)}</span>${item.location ? `<small>${esc(item.location)}</small>` : ''}</button><small class="journal-at">${item.allDay || item.date !== day ? '종일' : esc(item.time)}</small></div>`;
+      if (kind === 'note') return `<div class="cf-home-task journal-row is-note" data-journal="note"><b class="journal-glyph" aria-hidden="true">–</b><button data-open-note="${esc(item.id)}"><span>${esc(item.title || '제목 없음')}</span></button><small class="journal-at">${esc(clock(item.createdAt))}</small></div>`;
+      if (item.done) return taskLine(item, `<small class="journal-at">${esc(clock(item.doneAt))} ${item.cancelled ? '취소' : '완료'}</small>`);
+      return taskLine(item, item.due && item.due !== day ? badgeOf(item) : item.due === day ? '<small class="journal-at today">오늘 마감</small>' : `<small class="journal-at">${esc(clock(item.capturedAt))}</small>`);
+    }).join('');
     const count = kind => state.tasks.filter(t => !t.done && t.kind === kind).length;
-    const todays = state.events.filter(e => occursOn(e, today)).length;
     const entry = (action, iconName, label, value, note) => `<button class="cf-entry" data-action="${action}">${icon(iconName)}<span>${label}${note ? `<small>${esc(note)}</small>` : ''}</span><b>${value}</b>${icon('chevron-right')}</button>`;
-    return `<section class="cf-home-section"><div class="cf-home-head"><h2>ToDo <small>${tasks.length}개</small></h2><button data-tab="todo">전체 보기 →</button></div>${tasks.slice(0,5).map(t => `<div class="cf-home-task">${taskMark(t)}<button data-reveal="${esc(t.id)}">${esc(t.title)}<small>${esc(t.project || '프로젝트 미지정')}</small></button>${due(t)}</div>`).join('') || '<div class="cf-home-empty">할 일이 없어요. Ctrl+N으로 InBox에 담으세요.</div>'}</section>${entry('inbox','inbox','InBox',count('inbox'),'분류할 일')}${entry('waiting','hourglass','Waiting',count('waiting'),'답을 기다리는 일')}${entry('calendar','calendar-days','오늘 일정',todays,'')}`;
+    return `${migrate}<section class="cf-home-section journal-today"><div class="cf-home-head"><h2>오늘</h2><button data-action="calendar">Calendar →</button></div>${rows || '<div class="cf-home-empty">오늘 기록이 없어요. Ctrl+N으로 할 일을 담거나, 빠른 담기에서 o 일정 · - 메모로 적으세요.</div>'}</section>${entry('todo','list-todo','ToDo',count('todo'),'해야 할 일 전체')}${entry('inbox','inbox','InBox',count('inbox'),'분류할 일')}${entry('waiting','hourglass','Waiting',count('waiting'),'답을 기다리는 일')}`;
   }
   function renderMainView() {
+    syncDay();
     if (pick && !pick.button.isConnected) closePick(false);
     const focus = captureFocus();
     notes?.setActive(state.view === 'notes' && state.shell === 'dashboard');
@@ -441,7 +481,7 @@
     return Date.parse(event.endsAt) > new Date(key + 'T00:00:00').getTime();
   }
   function eventKey(event) { return encodeURIComponent(String(event.id) + '|' + (event.recurrenceId || event.startsAt || event.date)); }
-  function findEvent(key) { return state.events.find(e => eventKey(e) === key || String(e.id) === String(key)); }
+  function findEvent(key) { const match = e => eventKey(e) === key || String(e.id) === String(key); return state.events.find(match) || state.todayEvents?.find(match); }
   /* full: 캘린더 화면의 큰 월 격자. 칸이 넓으므로 점 대신 일정·마감 제목을 두 줄까지 보이고 나머지는 +n으로 줄인다. */
   function calendarMonth({ full = false } = {}) {
     const first = new Date(state.year, state.month, 1), offset = (first.getDay()+6)%7, count = Math.ceil((offset + new Date(state.year,state.month+1,0).getDate())/7)*7;
@@ -806,7 +846,7 @@
     }
     if (state.view === 'calendar') return active?.closest('[data-event]') ? 'event' : state.calView === 'month' ? 'calendarMonth' : 'calendarList';
     if (state.view === 'settings') return state.settingsTab === 'shortcuts' ? 'settingsShortcuts' : 'settings';
-    return 'home';
+    return active?.closest('.journal-migrate .cf-home-task') ? 'homeLate' : 'home';
   }
   let hintsFrame = 0, hintsShown = '';
   function syncHints() {
@@ -1234,7 +1274,8 @@
     if(state.view==='tasks'){if(state.tab==='projects'){focusWorkProject();return;}syncTaskCursor();if(taskCursor)focusTask();else root.querySelector('.td-work-nav [aria-selected=true]')?.focus({preventScroll:true});return;}
     if(state.view==='calendar'){if(state.calView==='month'){body.querySelector(`[data-date="${state.date}"]`)?.focus({preventScroll:true});return;}(body.querySelector(`[data-cal-day="${state.date}"] [data-event]`)||body.querySelector('[data-cal-home]'))?.focus({preventScroll:true});return;}
     if(state.view==='settings'){body.querySelector('.settings-tabs [aria-selected=true]')?.focus({preventScroll:true});return;}
-    (dashboardItems()[0]||body.querySelector('button'))?.focus({preventScroll:true});
+    // 저널에 들어오면 첫 줄(넘길 일이 있으면 그 첫 일)에 선다. 넘길 일 접기 버튼은 ↑로만 간다.
+    (dashboardItems().find(item=>!item.matches('[data-action=toggle-migrate]'))||body.querySelector('button'))?.focus({preventScroll:true});
   }
   /* 화면 안의 필터·하위 화면을 하나 푼다. 푼 것이 있으면 true. */
   function clearViewFilter() {
@@ -1389,19 +1430,29 @@
     else{next=new Date(current);next.setDate(next.getDate()+days);}
     await selectDate(dateKey(next));const area=side?root.querySelector('.td-calendar-side'):body;area.querySelector(`[data-date="${state.date}"]`)?.focus({preventScroll:true});
   }
-  /* 대시보드는 위아래 한 줄 목록이다: 할 일 다섯 개와 Work·Note·Calendar 입구. ↑↓·J/K로 옮기고 할 일은 Space로 완료한다. */
-  function dashboardItems() { return [...body.querySelectorAll('.cf-home-task [data-reveal],.cf-entry')]; }
+  /* 대시보드(저널)는 위아래 한 줄 목록이다: 넘길 일 → 오늘 칸(일정·할 일·메모) → ToDo·InBox·Waiting 입구. ↑↓·J/K로 옮긴다.
+   * 할 일 줄에서 Space 완료·C 취소(다시 누르면 해제), 마감이 지난 일은 T(>) 오늘로·D 다른 날. 줄이 남으므로 포커스는 같은 할 일에 머문다. */
+  function dashboardItems() { return [...body.querySelectorAll('.cf-home-task :is([data-reveal],[data-event],[data-open-note]),.cf-home-head [data-action=toggle-migrate],.cf-entry')]; }
+  async function migrateToday(id) {
+    const task=state.tasks.find(item=>item.id===id);if(!task||task.done)return;
+    const previous=task.due||'',postponed=task.postponed??0;
+    await mutate('task.update',{id,due:dateKey()});
+    rememberWorkUndo(task.title,()=>mutate('task.update',{id,due:previous,postponed}),'오늘로 넘겼어요.');
+  }
   function dashboardKeys(event) {
     const items=dashboardItems();if(!items.length)return false;
-    const index=items.indexOf(event.target.closest('[data-reveal],.cf-entry'));
+    const current=event.target.closest('[data-reveal],[data-event],[data-open-note],[data-action=toggle-migrate],.cf-entry'),index=items.indexOf(current);
     const to=K.is(event,'list.up')?index-1:K.is(event,'list.down')?index+1:K.is(event,'list.first')?0:K.is(event,'list.last')?items.length-1:null;
     if(to!==null){event.preventDefault();items[index<0?0:Math.max(0,Math.min(items.length-1,to))].focus({preventScroll:false});return true;}
-    if(K.is(event,'work.undo')){event.preventDefault();if(!event.repeat)safe(undoLastAction);return true;}
-    const id=event.target.closest('.cf-home-task [data-reveal]')?.dataset.reveal,task=id&&state.tasks.find(item=>item.id===id);
-    if(task&&K.is(event,'task.complete')){event.preventDefault();if(!event.repeat)safe(async()=>{
-      await mutate('task.complete',{id,done:true});rememberWorkUndo(task.title,()=>mutate('task.complete',{id,done:false}),'완료했어요.');
-      const rest=dashboardItems();rest[Math.max(0,Math.min(index,rest.length-1))]?.focus({preventScroll:true});
-    });return true;}
+    const id=current?.closest('.cf-home-task')&&current.dataset.reveal,task=id&&state.tasks.find(item=>item.id===id);
+    // 같은 할 일이 다른 칸으로 옮겨 가도(넘길 일 → 오늘) 그 줄을 따라간다. 사라졌으면 같은 자리로.
+    const keep=run=>{event.preventDefault();if(!event.repeat)safe(async()=>{await run();const again=id&&body.querySelector(`.cf-home-task [data-reveal="${CSS.escape(id)}"]`),rest=dashboardItems();(again||rest[Math.max(0,Math.min(index,rest.length-1))])?.focus({preventScroll:false});});return true;};
+    if(K.is(event,'work.undo'))return keep(undoLastAction);
+    if(!task)return false;
+    if(K.is(event,'task.complete'))return keep(async()=>{const before={...task};if(task.cancelled)await mutate('task.cancel',{id,cancelled:false});else await mutate('task.complete',{id,done:!task.done});rememberWorkUndo(task.title,restoreClosure(before),before.done?(before.cancelled?'취소를 해제했어요.':'완료를 해제했어요.'):'완료했어요.');});
+    if(K.is(event,'task.cancel'))return keep(()=>toggleCancel(id));
+    if(K.is(event,'task.migrate')){if(task.done||!task.due||task.due>=dateKey())return false;return keep(()=>migrateToday(id));}
+    if(K.is(event,'task.due')){event.preventDefault();if(!event.repeat)dueModal(id);return true;}
     return false;
   }
   function workspaceKeys(event) {
@@ -1485,6 +1536,8 @@
     if (data.task) { taskCursor=data.task; await openTaskField(data.task);return; }
     if (data.reveal) return reveal(data.reveal);
     if (data.editDue) return dueModal(data.editDue);
+    if (data.migrateToday) return migrateToday(data.migrateToday);
+    if (data.openNote) return navigate({ view:'notes', id:data.openNote });
     if (data.mark) { const task=state.tasks.find(item=>item.id===data.mark); if(!task)return; await mutate('task.complete',{id:task.id,done:!task.done}); rememberWorkUndo(task.title,restoreClosure(task),task.done?'완료를 해제했어요.':'완료했어요.'); return; }
     if (data.reviveTask) return reviveTask(data.reviveTask);
     if (data.date) {const side=!!button.closest('.td-calendar-side');await selectDate(data.date);(side?root.querySelector('.td-calendar-side'):body).querySelector(`[data-date="${state.date}"]`)?.focus({preventScroll:true});return;}
@@ -1512,7 +1565,8 @@
       case 'work': await flushPending(); state.view='tasks'; state.project=null; state.selected=null; renderNav(); renderMainView(); await shell('dashboard',false); focusView();break;
       case 'calendar': await flushPending(); state.view='calendar'; renderNav(); renderMainView(); await shell('dashboard',false);focusView();break;
       case 'notes': return navigate({view:'notes'});
-      case 'inbox': case 'waiting': return goSection(data.action);
+      case 'todo': case 'inbox': case 'waiting': return goSection(data.action);
+      case 'toggle-migrate': state.migrateOpen=state.migrateOpen===false; renderMainView(); body.querySelector('[data-action=toggle-migrate]')?.focus({preventScroll:true}); break;
       case 'command': return shell('command');
       case 'collapse': await collapseTaskEditor(); break;
       case 'new-project': projectModal(); break;
@@ -1708,6 +1762,8 @@
   root.addEventListener('drop',event=>{const target=event.target.closest('[data-date]');if(target){event.preventDefault();safe(()=>changeDue(event.dataTransfer.getData('text/plain'),target.dataset.date));}});
   api.on('command.more',message=>{if(message.ready){if(!command.running&&!command.activating&&!command.actions&&!command.composing)safe(()=>queryCommand(commandInput.value,true));return;}if(message.error){command.notice=message.error;renderCommand();return;}applyCommandMore(message);});
   api.on('navigate',route=>safe(()=>navigate(route)));
+  // 자정이 지나면 오늘 일정·넘길 일·마감 배지를 새 날짜로 다시 불러온다.
+  setInterval(()=>{if(syncDay())safe(()=>loadState());},60_000);
   api.on('media.changed',media=>renderMedia(media));
   api.on('update.changed',syncUpdate);
   api.on('state.changed',()=>{clearTimeout(refreshTimer);refreshTimer=setTimeout(()=>safe(()=>loadState({renderMain:!helpOpen&&pending.size===0&&!body.contains(document.activeElement)})),70);});

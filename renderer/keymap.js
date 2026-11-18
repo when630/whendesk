@@ -56,6 +56,7 @@
     A('task.open','task','편집',['Mod+KeyE','Enter']),
     A('task.complete','task','완료',['Space']),
     A('task.cancel','task','취소',['KeyC']),
+    A('task.migrate','task','오늘로 넘기기 (>)',['KeyT','Shift+Period'],{display:'T · >'}),
     A('task.collapse','task','상세 편집 접기',['Mod+Enter']),
     A('task.title','task','제목',['KeyE']),
     A('task.due','task','마감',['KeyD']),
@@ -206,7 +207,7 @@
       ['화면 안 분류 순환 (Work · 메모)',['work.tab.cycle']],['한 단계 뒤로 (편집 → 필터 → 화면 → Command)',['back']],
     ] },
     { title:'Dashboard', rows:[
-      ['항목 이동 (할 일 → InBox · Waiting · 오늘 일정)',['list.up','list.down','list.first','list.last']],['할 일 완료 · 되돌리기',['task.complete','work.undo']],['열기',['task.open']],
+      ['항목 이동 (넘길 일 → 오늘 → ToDo · InBox · Waiting)',['list.up','list.down','list.first','list.last']],['할 일 완료 · 취소 · 되돌리기',['task.complete','task.cancel','work.undo']],['지난 마감: 오늘로 넘기기 · 다른 날',['task.migrate','task.due']],['열기',['task.open']],
     ] },
     { title:'할 일 목록', rows:[
       ['항목 선택',['list.up','list.down','list.first','list.last']],['검색 · 마감 필터 · 완료 기록',['work.search','work.dueFilter','work.doneHistory']],
@@ -257,7 +258,8 @@
     dialogClose:[['focus.cycle','이동','Tab'],['back','닫기']],
     scopeDialog:[[null,'고르기','1 ~ 3'],[null,'실행','Enter'],['back','취소']],
     quickEvent:[[null,'추가','Enter'],['quickEvent.detail','자세히'],['back','닫기']],
-    home:[['list.down','이동','↑↓'],['task.complete','완료'],[null,'열기','Enter'],['help.toggle','단축키 전체']],
+    home:[['list.down','이동','↑↓'],['task.complete','완료'],['task.cancel','취소'],[null,'열기','Enter']],
+    homeLate:[['task.migrate','오늘로','T'],['task.due','다른 날'],['task.complete','완료'],['task.cancel','취소']],
   });
   for (const items of Object.values(HINTS)) for (const [id, , keys] of items) { if (id) entry(id); else if (!keys) throw new Error('힌트에 키가 없습니다.'); }
   /* 힌트 한 칸: { keys, label } */
