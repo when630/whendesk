@@ -1,5 +1,5 @@
 /* 키보드 재설계 3a 검증: Command에서 찾은 할 일·일정을 화면을 열지 않고 다루고, 일정 추가는 해석을 미리 보여 주며,
- * 전역 담기 단축키의 수집 모드는 Enter로 담아도 남아 연달아 담는다. 캘린더는 N 한 줄 입력과 오늘·주·월 보기를 쓴다.
+ * 전역 담기 단축키의 수집 모드는 Enter로 담아도 남아 연달아 담는다. 캘린더는 N 한 줄 입력과 오늘·주·월·앞으로 보기를 쓴다.
  * 테스트 모드는 OS 전역 단축키를 등록하지 않으므로, 메인이 단축키에서 보내는 것과 같은 navigate 신호를 직접 보낸다.
  * 실제 개발 main·격리된 프로필에서 키보드 입력만 사용한다. fixture는 desk API로 만든다. */
 const fs = require('node:fs');
@@ -170,12 +170,15 @@ async function closeApp(){
       assert.equal(errors.length,0,errors.join('\n'));
     });
 
-    await test('캘린더는 Tab으로 오늘·주·월을 순환하고, N 한 줄 입력은 해석을 미리 보여 주며 Enter로 추가·Ctrl+Enter로 자세히 편집한다',async()=>{
+    await test('캘린더는 Tab으로 오늘·주·월·앞으로를 순환하고, N 한 줄 입력은 해석을 미리 보여 주며 Enter로 추가·Ctrl+Enter로 자세히 편집한다',async()=>{
       const view=()=>page.locator('.cal-views [aria-selected=true]').getAttribute('data-cal-view');
       await press('Control+k');await page.locator('#cf-command-panel').waitFor();await press('Tab');await page.locator('#cf-dashboard-panel').waitFor();
       // 캘린더는 오늘 보기로 열린다. Shift+Tab으로 월 보기에 간 뒤 순환을 확인한다.
       await page.evaluate(section=>window.__whendeskGo(section),'calendar');await waitUntil(async()=>await view()==='today','캘린더가 오늘 보기로 열리지 않았습니다.');await waitUntil(()=>within('.cal-list'),'오늘 보기에 포커스가 없습니다.');
+      // 보기는 오늘·주·월·앞으로 넷이다. Shift+Tab은 앞으로, 한 번 더 월이다.
+      await press('Shift+Tab');await waitUntil(async()=>await view()==='future','Shift+Tab이 앞으로 보기로 가지 않았습니다.');
       await press('Shift+Tab');await waitFocus('.td-main [data-date]');assert.equal(await view(),'month');
+      await press('Tab');await waitUntil(async()=>await view()==='future','Tab이 월에서 앞으로 보기로 가지 않았습니다.');
       await press('Tab');await waitUntil(async()=>await view()==='today','Tab이 오늘 보기로 가지 않았습니다.');
       await waitUntil(()=>within('.cal-list'),'오늘 보기의 기본 자리에 포커스가 없습니다.');
       // 앞 시나리오에서 모레 일정을 열어 선택 날짜가 옮겨져 있다. T로 오늘에 맞춘다.

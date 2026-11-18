@@ -332,6 +332,15 @@ export function createDomain({ dataDir, fetchImpl = globalThis.fetch } = {}) {
       notices: [work.status().notice, note.status().notice, calendar.state.reason === 'recovered' ? '손상된 이전 캘린더 파일을 보관했습니다.' : null].filter(Boolean),
     };
   }
+  /* 불릿 저널의 Future Log: 내일부터 months달 뒤 1일 전까지의 단발 일정. 반복 일정은 매번 같은 줄이 쌓여 계획이 묻히므로 뺀다. */
+  function future({ months = 6 } = {}) {
+    mustOpen();
+    months = Number(months);
+    if (!Number.isInteger(months) || months < 1 || months > 24) throw new Error('조회할 기간이 올바르지 않습니다.');
+    const now = new Date(), from = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1), to = new Date(now.getFullYear(), now.getMonth() + months, 1);
+    const events = calendar.listBetween(from.toISOString(), to.toISOString()).map(normalizeEvent).filter(event => !event.rrule && !event.recurrenceId && !event.occurrenceOf);
+    return { from: day(from.toISOString()), to: day(to.toISOString()), events };
+  }
   async function mutate(type, payload = {}) {
     mustOpen();
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error('요청 형식이 올바르지 않습니다.');
@@ -585,5 +594,5 @@ export function createDomain({ dataDir, fetchImpl = globalThis.fetch } = {}) {
     closed = true;
     work.close(); calendar.close(); note.close();
   }
-  return { state, mutate, exportAll, close, work, calendar, note, searchNotes, noteAttachmentPath };
+  return { state, future, mutate, exportAll, close, work, calendar, note, searchNotes, noteAttachmentPath };
 }

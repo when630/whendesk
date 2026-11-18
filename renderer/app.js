@@ -172,6 +172,7 @@
     state.tasks = state.allTasks.filter(t => !t.deleted);
     state.projects = data.projects || []; state.archivedProjects=data.deletedProjects||data.archivedProjects||[]; state.events = data.events || []; state.todayEvents = data.todayEvents || []; state.notes = data.notes || []; state.calendars = data.calendars || [];
     for (const [id, patch] of pending) { const task = state.tasks.find(t => t.id === id); if (task) Object.assign(task, patch); }
+    if (state.view === 'calendar' && state.calView === 'future') await loadFuture().catch(() => {});
     renderNav(); renderCalendar(); if (renderMain) renderMainView(); syncProjectOptions();
     if (!command.query.trim()) safe(() => queryCommand('', true));
     return data;
@@ -468,7 +469,7 @@
     else if (state.view === 'calendar') {
       // 월 보기는 고른 날의 일정·마감을 격자 바로 아래에 둔다. 구독·ICS는 드물게 쓰므로 맨 아래 작은 글자 버튼이다.
       const monthAgenda = () => { const deadlines = deadlineRows(state.date); return `<div class="td-main-calendar-agenda"><h2>${esc(dayLabel(state.date))}</h2>${eventRows(state.date)}${deadlines ? `<div class="cal-deadlines"><small>마감</small>${deadlines}</div>` : ''}</div>`; };
-      body.innerHTML = `<section class="td-full-calendar">${calendarViews()}${state.calView === 'month' ? calendarMonth({ full:true }) + monthAgenda() : calendarList()}<div class="calendar-tools"><button class="work-text-button" data-action="subscriptions">${icon('rss')}구독 관리</button><button class="work-text-button" data-action="import-ics">${icon('download')}ICS 가져오기</button><button class="work-text-button" data-action="export-ics">${icon('upload')}ICS 내보내기</button></div></section>`;
+      body.innerHTML = `<section class="td-full-calendar">${calendarViews()}${state.calView === 'month' ? calendarMonth({ full:true }) + monthAgenda() : state.calView === 'future' ? futureLog() : calendarList()}<div class="calendar-tools"><button class="work-text-button" data-action="subscriptions">${icon('rss')}구독 관리</button><button class="work-text-button" data-action="import-ics">${icon('download')}ICS 가져오기</button><button class="work-text-button" data-action="export-ics">${icon('upload')}ICS 내보내기</button></div></section>`;
     }
     else body.innerHTML = workView();
     restoreFocus(focus); icons();
@@ -481,7 +482,7 @@
     return Date.parse(event.endsAt) > new Date(key + 'T00:00:00').getTime();
   }
   function eventKey(event) { return encodeURIComponent(String(event.id) + '|' + (event.recurrenceId || event.startsAt || event.date)); }
-  function findEvent(key) { const match = e => eventKey(e) === key || String(e.id) === String(key); return state.events.find(match) || state.todayEvents?.find(match); }
+  function findEvent(key) { const match = e => eventKey(e) === key || String(e.id) === String(key); return state.events.find(match) || state.todayEvents?.find(match) || state.future?.events.find(match); }
   /* full: 캘린더 화면의 큰 월 격자. 칸이 넓으므로 점 대신 일정·마감 제목을 두 줄까지 보이고 나머지는 +n으로 줄인다. */
   function calendarMonth({ full = false } = {}) {
     const first = new Date(state.year, state.month, 1), offset = (first.getDay()+6)%7, count = Math.ceil((offset + new Date(state.year,state.month+1,0).getDate())/7)*7;
@@ -494,7 +495,7 @@
     return deadlineTasks(date).map(t => { const glyph = state.prefs?.taskMarker === 'checkbox' ? { glyph:'□' } : taskGlyph(t), late = t.due < today; return `<button class="td-deadline${late ? ' is-late' : ''}" data-reveal="${esc(t.id)}"><b class="td-deadline-glyph" aria-hidden="true">${glyph.glyph}</b><span>${esc(t.title)}</span>${late ? `<small class="work-overdue">${esc(workRules.dueBadge(t.due)?.text || '지남')}</small>` : ''}</button>`; }).join('');
   }
   /* 캘린더 보기: 오늘·주는 키보드로 훑기 빠른 목록, 월은 격자(원본 WHENCALENDAR). Tab·Shift+Tab으로 순환한다. */
-  const CAL_VIEWS = [['today','오늘'],['week','주'],['month','월']];
+  const CAL_VIEWS = [['today','오늘'],['week','주'],['month','월'],['future','앞으로']];
   function calendarViews() { return `<div class="cal-views" role="tablist" aria-label="캘린더 보기">${CAL_VIEWS.map(([value,label]) => `<button role="tab" data-cal-view="${value}" aria-selected="${state.calView === value}" tabindex="-1">${label}</button>`).join('')}</div>`; }
   function weekDates(date) { const start = new Date(date + 'T12:00:00'); start.setDate(start.getDate() - (start.getDay() + 6) % 7); return Array.from({ length:7 }, (_, index) => { const day = new Date(start); day.setDate(start.getDate() + index); return dateKey(day); }); }
   function dayLabel(date) { return new Date(date + 'T12:00:00').toLocaleDateString('ko-KR', { month:'long', day:'numeric', weekday:'short' }); }
@@ -506,7 +507,23 @@
     const head = `<div class="td-cal-head cal-list-head"><h2>${esc(range)}${relative ? `<small>${relative}</small>` : ''}</h2><div><button data-cal-step="-1" aria-label="이전 ${unit}">${icon('chevron-left')}</button><button data-action="today">오늘</button><button data-cal-step="1" aria-label="다음 ${unit}">${icon('chevron-right')}</button></div></div>`;
     return head + `<div class="td-main-calendar-agenda cal-list" tabindex="-1" data-cal-home aria-label="${week ? '이번 주 일정' : '이날 일정'}">${dates.map(date => { const hasEvents = state.events.some(event => occursOn(event, date)), deadlines = deadlineRows(date), empty = !hasEvents && !deadlines; return `<section class="cal-list-day${date === today ? ' is-today' : ''}${date === state.date ? ' is-selected' : ''}${empty ? ' is-empty' : ''}" data-cal-day="${date}">${week ? `<h2>${esc(dayLabel(date))}${empty ? '<small>일정 없음</small>' : ''}</h2>` : empty ? '<p class="td-empty">일정도 마감도 없어요. N으로 일정을 추가하세요.</p>' : ''}${hasEvents ? eventRows(date) : ''}${deadlines ? `<div class="cal-deadlines"><small>마감</small>${deadlines}</div>` : ''}</section>`; }).join('')}</div>`;
   }
-  function setCalView(value) { if (!CAL_VIEWS.some(([view]) => view === value)) return; state.calView = value; renderMainView(); focusView(); }
+  async function setCalView(value) { if (!CAL_VIEWS.some(([view]) => view === value)) return; state.calView = value; if (value === 'future') await loadFuture(); renderMainView(); focusView(); }
+  /* Future Log(불릿 저널): 이번 달부터 여섯 달을 달마다 한 칸씩. 내일부터의 단발 일정 ○와 마감이 남은 열린 할 일 < 를 날짜순으로 적는다.
+   * 여섯 달 너머 마감은 맨 아래 '그 뒤'에 모은다. 반복 일정은 매번 같은 줄이 쌓여 계획이 묻히므로 뺀다. */
+  const FUTURE_MONTHS = 6;
+  async function loadFuture() { state.future = await call('calendar.future', { months:FUTURE_MONTHS }); }
+  function futureLog() {
+    const data = state.future || { events:[], to:'' }, now = new Date(), first = dateKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
+    const months = Array.from({ length:FUTURE_MONTHS }, (_, index) => { const date = new Date(now.getFullYear(), now.getMonth() + index, 1); return { key:dateKey(date).slice(0, 7), label:`${date.getFullYear() === now.getFullYear() ? '' : date.getFullYear() + '년 '}${date.getMonth() + 1}월` }; });
+    const rows = [
+      ...data.events.filter(e => e.date >= first).map(e => ({ date:e.date, order:e.allDay ? '' : e.time, html:`<button class="future-row" data-future-row data-event="${eventKey(e)}"><b class="journal-glyph" aria-hidden="true">○</b><span>${esc(e.title)}${e.location ? `<small>${esc(e.location)}</small>` : ''}</span><small class="journal-at">${e.allDay ? '종일' : esc(e.time)}</small></button>` })),
+      ...state.tasks.filter(t => !t.done && t.due && t.due >= first).map(t => ({ date:t.due, order:'~', html:`<div class="future-row is-task">${taskMark(t)}<button data-future-row data-reveal="${esc(t.id)}"><span>${esc(t.title)}${t.project || t.postponed ? `<small>${[t.project ? esc(t.project) : '', postponedMeta(t)].filter(Boolean).join(' · ')}</small>` : ''}</span></button><small class="journal-at">마감</small></div>` })),
+    ].sort((a, b) => a.date.localeCompare(b.date) || a.order.localeCompare(b.order));
+    const dayHead = date => { const value = new Date(date + 'T12:00:00'); return `${value.getMonth() + 1}.${value.getDate()} ${'일월화수목금토'[value.getDay()]}`; };
+    const block = (label, list) => { let last = ''; return `<section class="future-month"><h2>${esc(label)}<small>${list.length ? list.length + '개' : ''}</small></h2>${list.map(row => { const head = row.date !== last ? `<time class="future-day" datetime="${row.date}">${dayHead(row.date)}</time>` : ''; last = row.date; return head + row.html; }).join('') || '<p class="future-empty">비어 있음</p>'}</section>`; };
+    const later = rows.filter(row => data.to && row.date >= data.to);
+    return `<div class="td-cal-head cal-list-head"><h2>앞으로<small>반복 일정 제외</small></h2><div><button data-action="new-event">${icon('plus')}일정</button></div></div><div class="td-main-calendar-agenda cal-future" tabindex="-1" data-cal-home aria-label="앞으로의 일정과 마감">${months.map(month => block(month.label, rows.filter(row => row.date.slice(0, 7) === month.key && (!data.to || row.date < data.to)))).join('')}${later.length ? block('그 뒤', later) : ''}</div>`;
+  }
   function focusEvent(id, date) {
     const item = state.events.find(event => String(event.id) === String(id) && (!date || event.date === date)) || state.events.find(event => String(event.id) === String(id));
     const button = item && body.querySelector(`.td-main-calendar-agenda [data-event="${eventKey(item)}"]`);
@@ -844,7 +861,7 @@
       if (active?.matches('[data-note-search]')) return 'noteSearch';
       return 'notes';
     }
-    if (state.view === 'calendar') return active?.closest('[data-event]') ? 'event' : state.calView === 'month' ? 'calendarMonth' : 'calendarList';
+    if (state.view === 'calendar') return active?.closest('[data-event]') ? 'event' : state.calView === 'month' ? 'calendarMonth' : state.calView === 'future' ? (active?.closest('[data-reveal]') ? 'futureTask' : 'calendarFuture') : 'calendarList';
     if (state.view === 'settings') return state.settingsTab === 'shortcuts' ? 'settingsShortcuts' : 'settings';
     return active?.closest('.journal-migrate .cf-home-task') ? 'homeLate' : 'home';
   }
@@ -1272,7 +1289,7 @@
     quietFocus(); syncHints();
     if(state.view==='notes'){notes?.focus();return;}
     if(state.view==='tasks'){if(state.tab==='projects'){focusWorkProject();return;}syncTaskCursor();if(taskCursor)focusTask();else root.querySelector('.td-work-nav [aria-selected=true]')?.focus({preventScroll:true});return;}
-    if(state.view==='calendar'){if(state.calView==='month'){body.querySelector(`[data-date="${state.date}"]`)?.focus({preventScroll:true});return;}(body.querySelector(`[data-cal-day="${state.date}"] [data-event]`)||body.querySelector('[data-cal-home]'))?.focus({preventScroll:true});return;}
+    if(state.view==='calendar'){if(state.calView==='month'){body.querySelector(`[data-date="${state.date}"]`)?.focus({preventScroll:true});return;}if(state.calView==='future'){(body.querySelector('[data-future-row]')||body.querySelector('[data-cal-home]'))?.focus({preventScroll:true});return;}(body.querySelector(`[data-cal-day="${state.date}"] [data-event]`)||body.querySelector('[data-cal-home]'))?.focus({preventScroll:true});return;}
     if(state.view==='settings'){body.querySelector('.settings-tabs [aria-selected=true]')?.focus({preventScroll:true});return;}
     // 저널에 들어오면 첫 줄(넘길 일이 있으면 그 첫 일)에 선다. 넘길 일 접기 버튼은 ↑로만 간다.
     (dashboardItems().find(item=>!item.matches('[data-action=toggle-migrate]'))||body.querySelector('button'))?.focus({preventScroll:true});
@@ -1455,6 +1472,20 @@
     if(K.is(event,'task.due')){event.preventDefault();if(!event.repeat)dueModal(id);return true;}
     return false;
   }
+  /* 앞으로 보기: ↑↓·J/K·Home·End로 일정과 할 일 줄을 함께 오간다. 할 일 줄은 Space 완료·C 취소·D 마감, 일정 줄은 캘린더 일정 키(E·R·M·Delete)를 그대로 쓴다. */
+  function futureKeys(event) {
+    const target=event.target,rows=[...body.querySelectorAll('.cal-future [data-future-row]')],current=target.closest('[data-future-row]'),index=rows.indexOf(current);
+    const to=K.is(event,'agenda.up')?index-1:K.is(event,'agenda.down')?index+1:K.is(event,'agenda.first')?0:K.is(event,'agenda.last')?rows.length-1:null;
+    if(to!==null){event.preventDefault();rows[index<0?0:Math.max(0,Math.min(rows.length-1,to))]?.focus({preventScroll:false});return true;}
+    if(K.is(event,'agenda.new')){event.preventDefault();quickEventModal();return true;}
+    const id=current?.dataset.reveal;if(!id)return false;
+    const keep=run=>{event.preventDefault();if(!event.repeat)safe(async()=>{await run();const again=body.querySelector(`.cal-future [data-reveal="${CSS.escape(id)}"]`),rest=[...body.querySelectorAll('.cal-future [data-future-row]')];(again||rest[Math.max(0,Math.min(index,rest.length-1))]||body.querySelector('[data-cal-home]'))?.focus({preventScroll:false});});return true;};
+    if(K.is(event,'task.complete'))return keep(async()=>{const task=state.tasks.find(item=>item.id===id);if(!task)return;await mutate('task.complete',{id,done:true});rememberWorkUndo(task.title,restoreClosure(task),'완료했어요.');});
+    if(K.is(event,'task.cancel'))return keep(()=>toggleCancel(id));
+    if(K.is(event,'task.due')){event.preventDefault();if(!event.repeat)dueModal(id);return true;}
+    if(K.is(event,'agenda.undo'))return keep(undoLastAction);
+    return false;
+  }
   function workspaceKeys(event) {
     const target=event.target;
     if(state.shell!=='dashboard'){
@@ -1475,6 +1506,7 @@
     }
     if(workKeys(event))return true;
     if(state.view==='calendar'&&!editingTarget(target)&&target.closest('.td-full-calendar')&&K.is(event,'calendar.view')){event.preventDefault();if(!event.repeat){const order=CAL_VIEWS.map(([view])=>view);safe(()=>setCalView(order[(order.indexOf(state.calView)+(event.shiftKey?order.length-1:1))%order.length]));}return true;}
+    if(state.view==='calendar'&&state.calView==='future'&&!editingTarget(target)&&target.closest('.cal-future')&&futureKeys(event))return true;
     if(state.view==='calendar'&&state.calView!=='month'&&!editingTarget(target)&&target.closest('.cal-list')){
       const span=state.calView==='week'?7:1;
       if(K.is(event,'agenda.prevDay')||K.is(event,'agenda.nextDay')){event.preventDefault();safe(async()=>{await moveCalendarDate(K.is(event,'agenda.prevDay')?-span:span);focusView();});return true;}

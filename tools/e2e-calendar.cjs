@@ -162,6 +162,31 @@ async function openQuick(){
       await waitUntil(async()=>(await events()).filter(e=>e.title==='아침 운동').length===remaining,'회차 삭제를 되돌리지 못했습니다.');
     });
 
+    await test('앞으로(Future Log): Tab으로 넷째 보기, 달마다 단발 일정 ○와 마감 할 일, 반복 일정은 빠지고 Space·U가 같은 줄에서 동작한다',async()=>{
+      await call('mutate',{type:'event.create',payload:{title:'앞으로 출장',date:dayKey(plusDays(10)),time:'14:00',end:'15:00',allDay:false}});
+      const task=await call('mutate',{type:'task.create',payload:{title:'앞으로 마감'}});await call('mutate',{type:'task.update',payload:{id:task.id,kind:'todo',due:dayKey(plusDays(20))}});
+      await go('calendar');await waitUntil(()=>page.evaluate(()=>!!document.activeElement?.closest('.td-main')),'캘린더에 포커스가 없습니다.');
+      for(let step=0;step<4&&!(await page.locator('.cal-future').count());step++){await press('Tab');await page.waitForTimeout(80);}
+      await page.locator('.cal-future').waitFor();
+      assert.equal(await page.locator('.cal-views [aria-selected=true]').innerText(),'앞으로');
+      assert.equal(await page.locator('.cal-future .future-month').count()>=6,true,'여섯 달 칸이 없습니다.');
+      const rows=()=>page.locator('.cal-future [data-future-row]').evaluateAll(list=>list.map(row=>row.innerText));
+      await waitUntil(async()=>(await rows()).some(row=>row.includes('앞으로 출장')),'단발 일정이 앞으로 보기에 없습니다.');
+      assert.ok((await rows()).some(row=>row.includes('앞으로 마감')),'마감 할 일이 앞으로 보기에 없습니다.');
+      assert.ok(!(await rows()).some(row=>row.includes('아침 운동')),'반복 일정이 앞으로 보기에 섞였습니다.');
+      await waitUntil(()=>page.evaluate(()=>!!document.activeElement?.matches('.cal-future [data-future-row]')),'앞으로 보기의 첫 줄에 포커스가 없습니다.');
+      for(let step=0;step<20&&!(await page.evaluate(id=>document.activeElement?.dataset.reveal===id,task.id));step++)await press('ArrowDown');
+      assert.equal(await page.evaluate(id=>document.activeElement?.dataset.reveal===id,task.id),true,'↓로 마감 할 일에 가지 못했습니다.');
+      await waitUntil(async()=>(await page.locator('.td-hints').innerText()).includes('완료'),'할 일 줄의 하단 힌트가 없습니다.');
+      await screenshot('future-log');
+      await press('Space');
+      await waitUntil(async()=>(await call('state',{})).tasks.find(item=>item.id===task.id)?.done,'Space가 완료하지 않았습니다.');
+      await waitUntil(async()=>!(await rows()).some(row=>row.includes('앞으로 마감')),'완료한 일이 앞으로 보기에 남았습니다.');
+      await press('u');
+      await waitUntil(async()=>(await rows()).some(row=>row.includes('앞으로 마감')),'U가 완료를 되돌리지 않았습니다.');
+      await page.evaluate(()=>window.__whendeskGo?.('dashboard'));
+    });
+
     assert.equal(errors.length,0,errors.join('\n'));
   }catch(error){failure=error.stack||String(error);if(page&&!page.isClosed())await screenshot('failure').catch(()=>{});}
   finally{

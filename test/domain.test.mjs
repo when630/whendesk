@@ -230,3 +230,18 @@ test('자연어 파서·프로젝트 보관·내보내기와 닫힌 저장소 �
   domain.close();
   assert.throws(() => domain.state(range), /닫혀/);
 });
+
+test('Future Log는 내일부터 정한 달 수만큼의 단발 일정만 돌려주고 반복 일정과 오늘·기간 밖 일정은 뺀다', async t => {
+  const { domain } = setup(t);
+  const key = (days, months = 0) => { const now = new Date(), d = new Date(now.getFullYear(), now.getMonth() + months, now.getDate() + days); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+  await domain.mutate('event.create', { title: '오늘 일정', date: key(0), time: '09:00', end: '10:00' });
+  await domain.mutate('event.create', { title: '내일 일정', date: key(1), time: '09:00', end: '10:00' });
+  await domain.mutate('event.create', { title: '두 달 뒤', date: key(0, 2), allDay: true });
+  await domain.mutate('event.create', { title: '반복 회의', date: key(1), time: '11:00', end: '12:00', rrule: 'FREQ=WEEKLY;COUNT=10' });
+  await domain.mutate('event.create', { title: '일곱 달 뒤', date: key(0, 7), allDay: true });
+  const result = domain.future({ months: 6 });
+  assert.deepEqual(result.events.map(event => event.title).sort(), ['내일 일정', '두 달 뒤']);
+  assert.equal(result.from, key(1));
+  assert.throws(() => domain.future({ months: 0 }), /기간/);
+  assert.equal(domain.future({ months: 12 }).events.some(event => event.title === '일곱 달 뒤'), true);
+});

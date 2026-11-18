@@ -238,6 +238,7 @@ async function bootstrap(){
 
  const methods={
   state:payload=>domain.state(payload),
+  'calendar.future':payload=>domain.future(payload||{}),
   mutate:async payload=>{if(dataBusy)throw new Error('데이터 가져오기를 마친 후 다시 시도해 주세요.');const value=await enqueueMutation(()=>domain.mutate(payload?.type,payload?.payload||{}));if(!/^(?:note\.(?:get|open|search|tags|attachments?|export)|work\.(?:history|archive))$/.test(payload?.type||''))changed();return value;},
   'command.query':async payload=>{if(dataBusy)return {items:[],notice:'데이터를 가져오는 중입니다.'};const result=await command.query(payload?.q||'',payload?.seq||0);if(!commandReady&&!result.notice)result.notice=commandFailure||'앱 목록을 준비하고 있습니다.';return result;},
   'command.run':async payload=>{if(dataBusy)throw new Error('데이터 작업 중입니다.');const result=await enqueueMutation(()=>command.run(payload?.key,payload?.actionId,{query:payload?.query}));if(result?.route)changed();if(result?.toast&&!testMode)(toast??=createToast()).show(result.toast);if(result?.reshow&&win&&!win.isDestroyed()&&!win.isVisible()){if(win.isMinimized())win.restore();win.show();win.focus();}return result;},
