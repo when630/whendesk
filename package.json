@@ -1,6 +1,6 @@
 {
   "name": "whendesk",
-  "version": "0.3.37",
+  "version": "0.3.38",
   "private": true,
   "type": "module",
   "description": "WHENCOMMAND에서 Tab으로 펼치는 통합 작업 공간",
