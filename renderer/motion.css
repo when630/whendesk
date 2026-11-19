@@ -100,7 +100,9 @@
 
 /* ── 탭·메뉴·잔상(renderer/glide.js) ── */
 /* 선택 알약(.tab-glide)·고른 메뉴 줄(.pick-glide)이 하나의 면으로 옆·아래로 미끄러진다. 탭 자신의 선택 배경은 면이 대신한다. */
-#whendesk-command-first .mark-host{position:relative;isolation:isolate}
+/* 표시를 까는 곳은 기준(position)이 있어야 한다. 이미 자리 잡힌 것(선택 메뉴는 position:fixed)은 그대로 둔다 —
+   relative로 덮으면 메뉴가 앱 맨 아래 흐름에 끼어 창 밖에 열리고 화면이 그쪽으로 끌려갔다(0.3.35). */
+#whendesk-command-first .mark-host{isolation:isolate} /* 기준(position)은 glide.js anchor가 static일 때만 준다 */
 #whendesk-command-first :is(.tab-glide,.pick-glide){position:absolute;top:0;left:0;z-index:-1;background:var(--td-sel);pointer-events:none;will-change:transform;
   transition:transform 260ms var(--td-ease-soft),width 260ms var(--td-ease-soft),height 260ms var(--td-ease-soft)}
 #whendesk-command-first .tab-glide{border-radius:999px}

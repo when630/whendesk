@@ -89,6 +89,20 @@ async function openQuick(){
       await waitUntil(()=>page.evaluate(()=>!!document.activeElement?.closest('.td-main [data-event], .td-calendar-side [data-event]')&&document.activeElement.textContent.includes('야간 배포')),'추가한 일정에 포커스가 없습니다.');
       await press('Enter');await page.locator('.event-form').waitFor();
       const value = name => page.locator(`.event-form [name=${name}]`).inputValue();
+      // 폼의 드롭다운은 버튼 바로 옆에, 화면에 고정된 채(창 안) 열리고 아무것도 굴리지 않는다.
+      // 0.3.35: 고른 줄 표시(glide.js)가 메뉴에 position:relative를 덮어 메뉴가 창 밖(1281px)에 열리고 화면이 끌려갔다.
+      for(const pick of await page.locator('.event-form .td-pick').all()){
+        const placed=await pick.evaluate(async button=>{
+          const scrolls=()=>JSON.stringify([document.scrollingElement.scrollTop,...[...document.querySelectorAll('#whendesk-command-first *')].filter(element=>!element.closest('.td-pick-menu')&&(element.scrollTop||element.scrollLeft)).map(element=>[String(element.className),element.scrollTop,element.scrollLeft])]); // 굴러가 있는 것만 비교한다(메뉴를 열면 키 안내가 다시 그려져 요소 수가 바뀐다). 메뉴 자신은 뺀다
+          const before=scrolls(),b=button.getBoundingClientRect();button.click();await new Promise(resolve=>setTimeout(resolve,50));
+          const menu=document.querySelector('.td-pick-menu'),m=menu?.getBoundingClientRect();
+          const result={label:button.getAttribute('aria-label'),position:menu&&getComputedStyle(menu).position,near:!!m&&(Math.abs(m.top-b.bottom)<=8||Math.abs(m.bottom-b.top)<=8),inWindow:!!m&&m.top>=0&&m.bottom<=innerHeight,still:scrolls()===before};
+          return result;
+        });
+        measurements.formPicks=[...(measurements.formPicks||[]),placed];
+        assert.deepEqual([placed.position,placed.near,placed.inWindow,placed.still],['fixed',true,true,true],'일정 폼 드롭다운이 엉뚱한 곳에 열리거나 화면을 움직였습니다: '+JSON.stringify(placed));
+        await press('Escape');await page.locator('.td-pick-menu').waitFor({state:'detached'});
+      }
       assert.equal(await value('time'),'23:00');assert.equal(await value('end'),'01:00');assert.equal(await value('endDate'),nextKey);
       await page.evaluate(()=>{const f=document.querySelector('.event-form [name=time]');f.value='21:00';f.dispatchEvent(new Event('change',{bubbles:true}));});
       assert.equal(await value('end'),'23:00','시작을 옮겼는데 종료가 따라오지 않았습니다.');assert.equal(await value('endDate'),lateKey);

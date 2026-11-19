@@ -23,7 +23,9 @@
     return null;
   }
   // 면을 깔 스크롤 영역을 기준(position)으로 삼는다. 기준이 생긴 뒤에 위치를 재야 offsetParent 사슬이 영역에서 끝난다.
-  function host(container) { if (!container.classList.contains('glide-host')) container.classList.add('glide-host'); return container; }
+  // 기준이 없을 때(static)만 relative를 준다. 이미 자리 잡힌 것(fixed·absolute·sticky)을 relative로 덮으면 그 요소가 흐름에 끼어 엉뚱한 곳에 그려진다.
+  function anchor(container) { if (getComputedStyle(container).position === 'static') container.style.position = 'relative'; }
+  function host(container) { if (!container.classList.contains('glide-host')) { container.classList.add('glide-host'); anchor(container); } return container; }
   function offsetWithin(element, container) {
     let x = 0, y = 0, node = element;
     while (node && node !== container) { x += node.offsetLeft; y += node.offsetTop; node = node.offsetParent; }
@@ -130,7 +132,7 @@
     if (!element) { marker?.remove(); return; }
     // 숨은 상태(Command 모드에서 그린 대시보드)에서는 크기가 0으로 재진다. 그때는 재지도 기억하지도 않는다 — 보이게 된 뒤 tabs()가 다시 잰다.
     if (!element.offsetWidth || !element.offsetHeight) return;
-    container.classList.add('mark-host');
+    if (!container.classList.contains('mark-host')) { container.classList.add('mark-host'); anchor(container); }
     const box = { x:element.offsetLeft, y:element.offsetTop, w:element.offsetWidth, h:element.offsetHeight };
     if (!marker) {
       marker = document.createElement('span'); marker.className = className; marker.setAttribute('aria-hidden', 'true'); container.prepend(marker);

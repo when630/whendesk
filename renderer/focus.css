@@ -89,7 +89,7 @@
 /* 미끄러지는 포커스 면(renderer/glide.js): 줄이 속한 스크롤 영역 안에 면 하나가 깔려 줄 사이를 미끄러진다.
  * 영역(.glide-host)이 기준이자 쌓임 맥락이라 면(z-index -1)은 영역 바탕 위, 줄 글자 아래에 그려진다.
  * 면이 있는 동안(.glide-active) 줄 자신의 포커스 배경은 지운다 — 면이 대신 알린다. 목록 커서(.keyboard-current)의 옅은 면은 그대로. */
-#whendesk-command-first .td-app .glide-host{position:relative;isolation:isolate}
+#whendesk-command-first .td-app .glide-host{isolation:isolate} /* 기준(position)은 glide.js anchor가 static일 때만 준다 */
 #whendesk-command-first .td-app .focus-glide{position:absolute;top:0;left:0;z-index:-1;border-radius:8px;background:var(--td-sel);opacity:0;pointer-events:none;will-change:transform;
   transition:transform 180ms cubic-bezier(.16,1,.3,1),width 180ms cubic-bezier(.16,1,.3,1),height 180ms cubic-bezier(.16,1,.3,1),opacity 120ms ease-out}
 #whendesk-command-first .td-app .focus-glide.on{opacity:1}
