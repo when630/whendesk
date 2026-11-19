@@ -24,7 +24,7 @@ async function waitRowFocus(id){await waitFocus(`[data-task-row="${id}"]`);}
 async function currentRow(){return page.evaluate(()=>document.activeElement?.closest('[data-task-row]')?.dataset.taskRow||null);}
 const SECTION_BY_KEY={h:'dashboard',t:'dashboard',i:'inbox',d:'done',n:'notes',c:'journey'};
 async function section(key,selector){if(key==='s')await press('Control+Comma');else await page.evaluate(section=>window.__whendeskGo(section),SECTION_BY_KEY[key]);await page.locator(selector).first().waitFor();}
-async function screenshot(name){const file=path.join(shots,name+'.png');await page.screenshot({path:file});screenshots.push(file);}
+async function screenshot(name){const file=path.join(shots,name+'.png');await page.screenshot({path:file,animations:'disabled'});screenshots.push(file);}
 async function test(name,run){const started=Date.now();try{await run();results.push({name,ok:true,durationMs:Date.now()-started});}catch(error){results.push({name,ok:false,durationMs:Date.now()-started,error:error.message});throw error;}}
 function normalize(value){return String(value).replace(/\\"/g,'"').replace(/"/g,'').replace(/\\/g,'/').toLowerCase();}
 async function closeApp(){
@@ -83,11 +83,14 @@ async function probe(selector,label,variant){
   }
   measurements.checks.push({variant,label,selector,focusVisible:await locator.evaluate(element=>element.matches(':focus-visible')),backgroundChanged:after[0].background!==before[0].background});
 }
-async function changeLook(theme,mode){
-  await section('s','[data-theme-pick]');
-  await page.locator(`[data-theme-pick=${theme}]`).click();
+// os: OS 밝기를 따르는 테마(FOG, mode system)는 Windows 설정 대신 nativeTheme을 그 밝기로 두어 자동 전환을 확인한다.
+async function changeLook(theme,mode,os){
+  await section('s','[data-pref="taskMarker"]'); // 테마는 FOG 하나라 고를 카드가 없다 — 설정에 들어가 밝기만 OS로 바꾼다
   await waitUntil(async()=>{const preferences=await call('preferences.get');return preferences.theme===theme&&preferences.mode===mode;},'테마 설정 저장 실패');
-  await page.waitForFunction(({theme,mode})=>{const app=document.querySelector('.td-app');return app.dataset.theme===theme&&getComputedStyle(app).colorScheme===mode;},{theme,mode});
+  // Playwright는 페이지의 prefers-color-scheme을 light로 고정해 두므로 OS 밝기는 그 에뮬레이션으로 흉내 낸다(실제 앱은 nativeTheme system이 OS를 따른다).
+  if(os){await app.evaluate(({nativeTheme},os)=>{nativeTheme.themeSource=os;},os);await page.emulateMedia({colorScheme:os});}
+  const scheme=os||mode;
+  try{await page.waitForFunction(({theme,scheme})=>{const app=document.querySelector('.td-app');return app.dataset.theme===theme&&getComputedStyle(app).colorScheme===scheme;},{theme,scheme},{timeout:5000});}catch(error){throw new Error('LOOK '+JSON.stringify(await page.evaluate(()=>({dark:matchMedia('(prefers-color-scheme: dark)').matches,theme:document.querySelector('.td-app').dataset.theme,scheme:getComputedStyle(document.querySelector('.td-app')).colorScheme,bg:getComputedStyle(document.querySelector('.td-app')).getPropertyValue('--td-bg')})))+' native '+JSON.stringify(await app.evaluate(({nativeTheme})=>({source:nativeTheme.themeSource,dark:nativeTheme.shouldUseDarkColors}))));}
 }
 async function sendMockMedia(active){
   await app.evaluate(({BrowserWindow},active)=>{
@@ -185,11 +188,11 @@ async function withDelayedTaskSelection(run){
       measurements.selectionSaveFocus={delayMs:450,projectNextField:'note',kindNextField:'due',restoredSelection:false};
     });
 
-    for(const [theme,mode] of [['zen-sage','light'],['zen-dim','dark'],['zen-ink','dark'],['zen-snow','light']]){
-      const variant=theme+'/'+mode;
+    for(const [theme,mode,os] of [['zen-fog','system','light'],['zen-fog','system','dark']]){
+      const variant=theme+'/'+(os?'os-'+os:mode);
       await test(variant+' 전 화면 키보드 포커스 표시·배치 유지',async()=>{
-        await changeLook(theme,mode);measurements.matrix.push({theme,mode});
-        await probe('[data-theme-pick][aria-checked=true]','테마 선택',variant);
+        await changeLook(theme,mode,os);measurements.matrix.push({theme,mode,os});
+        await probe('[data-pref="taskMarker"]','완료 표시 방식',variant);
         await page.locator('[data-settings-tab=general]').focus();await press('ArrowRight');await page.locator('[data-settings-tab=projects][aria-selected=true]').waitFor();await press('ArrowRight');await page.locator('[data-shortcut=hotkey]').waitFor();
         await probe('[data-settings-tab=shortcuts]','설정 분류 탭',variant);
         await probe('[data-shortcut=hotkey]','단축키 입력',variant);
@@ -245,7 +248,7 @@ async function withDelayedTaskSelection(run){
 
         await section('t','.td-tabs');await waitTab('today');
         await page.locator(`.cf-home-task [data-reveal="${fixture.todo.id}"]`).focus();
-        await screenshot('focus-'+theme);
+        await screenshot('focus-'+theme+(os?'-'+os:''));
       });
     }
     assert.deepEqual(errors,[]);

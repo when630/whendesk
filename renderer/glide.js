@@ -64,7 +64,7 @@
     if (!container) { watch(null); return; }
     host(container);
     const at = offsetWithin(row, container); if (!at) return;
-    const reach = row.matches('.cf-home-task,.future-row') ? 8 : 0; // Today·Journey 줄은 좌우 여백이 없어 양옆으로 8px 넓힌다(focus.css와 같은 폭)
+    const reach = 0; // 줄마다 좌우 여백이 있어(brand.css) 면은 줄 크기 그대로다
     const box = { x:at.x - reach, y:at.y, w:row.offsetWidth + reach * 2, h:row.offsetHeight };
     const glide = glideIn(container), moving = glide.classList.contains('on');
     place(glide, box, moving && !reduced());
@@ -120,7 +120,7 @@
   document.addEventListener('focusin', () => update());
   document.addEventListener('focusout', () => setTimeout(update));
   new MutationObserver(() => update()).observe(root, { attributes:true, attributeFilter:['class'] });
-  window.addEventListener('resize', () => update());
+  window.addEventListener('resize', () => { update(); tabs(); });
   /* 선택 표시가 옆으로 미끄러진다(머리 탭·설정 분류 탭의 알약, 선택 메뉴의 고른 줄). 탭 막대는 다시 그릴 때마다 새로 생기므로
    * 지난 자리(marks, 이름별)를 기억했다가 새 표시를 그 자리에서 시작해 새 자리로 보낸다. */
   const marks = new Map();
@@ -128,6 +128,8 @@
     if (!container) return;
     let marker = container.querySelector(`:scope>.${className}`);
     if (!element) { marker?.remove(); return; }
+    // 숨은 상태(Command 모드에서 그린 대시보드)에서는 크기가 0으로 재진다. 그때는 재지도 기억하지도 않는다 — 보이게 된 뒤 tabs()가 다시 잰다.
+    if (!element.offsetWidth || !element.offsetHeight) return;
     container.classList.add('mark-host');
     const box = { x:element.offsetLeft, y:element.offsetTop, w:element.offsetWidth, h:element.offsetHeight };
     if (!marker) {

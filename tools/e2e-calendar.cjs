@@ -28,7 +28,7 @@ const press = key => page.keyboard.press(key);
 const text = value => page.keyboard.insertText(value);
 const go = section => page.evaluate(section=>window.__whendeskGo(section),section);
 async function waitUntil(predicate,message){const deadline=Date.now()+12000;do{if(await predicate())return;await page.waitForTimeout(35);}while(Date.now()<deadline);assert.fail(message);}
-async function screenshot(name){const file=path.join(shots,name+'.png');await page.screenshot({path:file});screenshots.push(file);}
+async function screenshot(name){const file=path.join(shots,name+'.png');await page.screenshot({path:file,animations:'disabled'});screenshots.push(file);}
 async function test(name,action){const start=Date.now();try{await action();results.push({name,ok:true,durationMs:Date.now()-start});}catch(error){results.push({name,ok:false,durationMs:Date.now()-start,error:error.message});throw error;}}
 const preview = () => page.locator('.quick-event-preview').innerText();
 const modalOpen = selector => page.evaluate(selector=>!document.querySelector('.td-modal-layer, [data-modal-layer]')?.hidden&&!!document.querySelector(selector),selector);

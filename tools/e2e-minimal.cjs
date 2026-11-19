@@ -51,7 +51,7 @@ function bounds() {
 
 async function screenshot(name) {
   const file = path.join(shots, name + '.png');
-  await page.screenshot({ path: file });
+  await page.screenshot({ path: file, animations: 'disabled' });
   screenshots.push(file);
 }
 
@@ -241,49 +241,37 @@ function durableData(state) {
       assert.equal(savedTask.due, today);
 
       await page.keyboard.press('Control+Comma');
-      const cards = page.locator('[data-theme-pick]');
-      await cards.first().waitFor();
-      assert.equal(await cards.count(), 9, '테마 카드는 WHENTERMINAL zen 테마 9개여야 합니다.');
+      await page.locator('[data-pref="taskMarker"]').waitFor();
+      // 테마는 브랜드 FOG 하나라 고를 카드가 없다. Windows 밝기를 따른다(mode system).
+      assert.equal(await page.locator('[data-theme-pick]').count(), 0, '테마 카드가 남아 있습니다(FOG 하나뿐이어야 합니다).');
       assert.equal(await page.locator('#cf-dashboard-panel').isVisible(), true);
       assert.equal(await page.locator('[data-look]').count(), 0, '옛 스킨·모드 선택이 남아 있습니다.');
-      assert.equal(await page.locator('[data-theme-pick][aria-checked=true]').count(), 1);
-      await page.locator('[data-theme-pick=zen-dim]').click();
-      await waitUntil(async () => (await call('preferences.get')).theme === 'zen-dim', '테마 변경이 저장되지 않았습니다.');
-      assert.equal((await call('preferences.get')).mode, 'dark', '어두운 테마가 화면 모드를 바꾸지 않았습니다.');
-      assert.deepEqual(durableData(await call('state', {})), before);
-      assert.equal(await page.locator('.td-app').getAttribute('data-theme'), 'zen-dim');
-      assert.equal(await page.locator('.td-app').evaluate(element => getComputedStyle(element).colorScheme), 'dark');
-      assert.equal(await page.locator('[data-theme-pick=zen-dim]').getAttribute('aria-checked'), 'true');
-      await noPersistentKeycaps('설정 테마');
-      await screenshot('06-settings-dim');
-
-      // 라디오 묶음: 화살표로 옆 테마를 바로 고른다
-      await page.locator('[data-theme-pick=zen-dim]').focus();
-      await page.keyboard.press('Home');
-      await waitUntil(async () => (await call('preferences.get')).theme === 'zen-sage', 'Home으로 첫 테마가 골라지지 않았습니다.');
-      await page.keyboard.press('ArrowRight');
-      await waitUntil(async () => (await call('preferences.get')).theme === 'zen-paper', '→로 다음 테마가 골라지지 않았습니다.');
-      assert.equal(await page.evaluate(() => document.activeElement?.dataset.themePick), 'zen-paper');
-      assert.equal((await call('preferences.get')).mode, 'light');
-      assert.deepEqual(durableData(await call('state', {})), before);
-      await screenshot('07-settings-paper');
-
-      // 스킨은 ZEN 하나라 스킨 고르기가 없고, 테마 9개만 보인다
       assert.equal(await page.locator('[data-skin-pick]').count(), 0, '스킨 고르기가 남아 있습니다.');
-      assert.equal(await page.locator('[data-theme-pick]').count(), 9, 'ZEN 테마 9개가 보여야 합니다.');
+      assert.equal(await page.locator('.td-app').getAttribute('data-theme'), 'zen-fog');
       assert.equal(await page.locator('.td-app').getAttribute('data-skin'), 'zen');
-      // 앱 아이콘: 6개 중 하나를 고르면 저장되고, 화살표로 옆 아이콘을 바로 고른다
-      assert.equal(await page.locator('[data-icon-pick]').count(), 6);
-      assert.equal(await page.locator('[data-icon-pick=brand]').getAttribute('aria-checked'), 'true');
-      assert.equal(await page.locator('[data-icon-pick] img').first().evaluate(image => image.complete && image.naturalWidth > 0), true, '아이콘 미리보기 이미지가 보이지 않습니다.');
-      await page.locator('[data-icon-pick=wordmark]').click();
-      await waitUntil(async () => (await call('preferences.get')).appIcon === 'wordmark', '앱 아이콘 변경이 저장되지 않았습니다.');
-      await page.keyboard.press('ArrowRight');
-      await waitUntil(async () => (await call('preferences.get')).appIcon === 'command', '→로 다음 아이콘이 골라지지 않았습니다.');
-      await screenshot('07-app-icon');
-      await page.locator('[data-icon-pick=brand]').click();
-      await waitUntil(async () => (await call('preferences.get')).appIcon === 'brand', '기본 아이콘으로 돌아가지 않았습니다.');
-      assert.equal((await call('preferences.get')).theme, 'zen-paper', '아이콘을 바꿔도 테마는 그대로여야 합니다.');
+      assert.deepEqual(await call('preferences.get').then(prefs => [prefs.theme, prefs.mode]), ['zen-fog', 'system']);
+      await noPersistentKeycaps('설정 외관');
+      // 설정 분류 탭의 선택 알약은 스크롤 영역 위 끝에 잘리지 않는다(예전 margin -6px).
+      const tabClip = await page.evaluate(() => { const body = document.querySelector('.td-main>.td-body'), tab = document.querySelector('.settings-tabs [aria-selected=true]'); return { bodyTop:body.getBoundingClientRect().top, tabTop:tab.getBoundingClientRect().top, scroll:body.scrollTop }; });
+      assert.ok(tabClip.scroll > 0 || tabClip.tabTop >= tabClip.bodyTop, '설정 분류 탭 윗부분이 잘립니다: ' + JSON.stringify(tabClip));
+      // 설정 분류 탭의 고른 탭 뒤에는 회색 알약(glide.js .tab-glide)이 같은 자리·크기로 깔린다.
+      const settingsPill = await page.evaluate(() => { const tab = document.querySelector('.settings-tabs [aria-selected=true]'), pill = document.querySelector('.settings-tabs>.tab-glide'); if (!pill) return { missing:true }; const t = tab.getBoundingClientRect(), p = pill.getBoundingClientRect(), style = getComputedStyle(pill); return { dx:Math.round(p.left - t.left), dy:Math.round(p.top - t.top), dw:Math.round(p.width - t.width), dh:Math.round(p.height - t.height), background:style.backgroundColor, opacity:style.opacity, z:style.zIndex }; });
+      assert.ok(!settingsPill.missing && [settingsPill.dx, settingsPill.dy, settingsPill.dw, settingsPill.dh].every(value => Math.abs(value) <= 1), '설정 분류 탭의 선택 알약이 고른 탭에 겹치지 않습니다: ' + JSON.stringify(settingsPill));
+      await screenshot('07-settings-fog');
+      // 선택 메뉴를 열어도 화면이 밀려 올라가지 않는다(예전: 고른 줄을 scrollIntoView해 .td-app·본문까지 굴렀다). 창 아래쪽의 '완료 표시 방식' 메뉴로 잰다.
+      const scrolls = () => page.evaluate(() => [document.querySelector('.td-app').scrollTop, document.querySelector('.td-main>.td-body').scrollTop, document.scrollingElement.scrollTop]);
+      const beforePick = await scrolls();
+      await page.locator('[data-pref="taskMarker"]').click();
+      await page.locator('.td-pick-menu').waitFor();
+      for (const key of ['ArrowDown', 'ArrowUp']) await page.keyboard.press(key);
+      assert.deepEqual(await scrolls(), beforePick, '선택 메뉴를 열자 화면이 밀렸습니다.');
+      await page.keyboard.press('Escape');
+      await page.locator('.td-pick-menu').waitFor({ state: 'detached' });
+
+      // 앱 아이콘은 시리즈 브랜드 아이콘 하나라 고를 카드가 없다
+      assert.equal(await page.locator('[data-icon-pick]').count(), 0, '앱 아이콘 고르기가 남아 있습니다.');
+      assert.equal((await call('preferences.get')).appIcon, 'brand');
+      assert.equal((await call('preferences.get')).theme, 'zen-fog');
       assert.deepEqual(durableData(await call('state', {})), before);
 
       await page.locator('[data-settings-tab=shortcuts]').click();

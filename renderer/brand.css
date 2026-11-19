@@ -1,0 +1,89 @@
+/* 브랜드 모양: WHENDESK 시리즈 "안개 + 라임"의 화면 말투를 whenwork(renderer/today.html·tokens.css)에서 옮겼다.
+ * 색은 renderer/themes.css(FOG), 여기는 모양만 — 둥글기·면·테두리·글꼴·칩. 다른 CSS보다 뒤에 읽어 덮는다.
+ *
+ * 규칙(whenwork docs/08_브랜드.md)
+ * - 라임은 고른 것·지금 볼 것에만: 고른 줄(옅은 라임 면 + 왼쪽 2px 포인트 선), 고른 탭의 개수 칩, 주 버튼.
+ * - 둥글기: 줄·탭·입력칸·칩 안쪽 6px, 카드·대화상자·메뉴 10px, 칩은 알약.
+ * - 숫자·날짜·개수·키캡은 고정폭(--td-mono). 줄 사이 구분선 없이 띄운 둥근 줄. 입력칸은 움푹한 면(--td-inset). */
+#whendesk-command-first{--R-row:6px;--R-card:10px}
+
+/* ── 숫자는 폭을 맞춘다. 고정폭 글꼴은 숫자뿐인 칸(개수)에만 — 한글('마감 없음'·'오늘')에 걸면 글자 사이가 벌어진다 */
+#whendesk-command-first .td-app :is(.td-due,.journal-at,.td-done-at,.td-cal-legend){font-variant-numeric:tabular-nums}
+#whendesk-command-first .td-app :is(.td-tabs small,[data-note-count],.work-group small){font-family:var(--td-mono);font-variant-numeric:tabular-nums}
+
+/* ── 바탕은 안개, 카드·팝업만 밝은 카드색(whenwork: bg-app 위에 bg-raised). 머리·본문·달력·아래 힌트 줄을 바탕으로 */
+#whendesk-command-first .td-app :is(.td-main,.td-main-head,.td-calendar-side,.td-hints,.td-sidebar,.work-toolbar){background:var(--td-bg)}
+#whendesk-command-first:not(.is-command) .td-app .minimal-help-layer{background:var(--td-bg)}
+
+/* ── 머리 탭·설정 분류 탭: 각진 둥근 칸, 고른 탭은 회색 면(whenwork .tab.on), 고른 탭의 개수 칩만 라임 */
+#whendesk-command-first .td-app :is(.td-tabs,.cal-views) [role=tab]{border-radius:var(--R-row);font-size:13px;color:var(--td-text2)}
+#whendesk-command-first .td-app :is(.td-tabs,.cal-views) [role=tab][aria-selected=true]{color:var(--td-text);background:var(--td-wash)}
+#whendesk-command-first .td-app :is(.td-tabs,.cal-views) [role=tab]:not([aria-selected=true]):hover{background:var(--td-surface)}
+#whendesk-command-first .td-app :is(.td-tabs,.cal-views) .tab-glide{border-radius:var(--R-row);background:var(--td-wash)}
+#whendesk-command-first .td-app .td-tabs small{font-size:10px;line-height:16px;min-width:18px;padding:0 6px;border-radius:99px;background:var(--td-inset);color:var(--td-muted);text-align:center}
+#whendesk-command-first .td-app .td-tabs [aria-selected=true] small{background:var(--td-sel);color:var(--td-accent)}
+
+/* ── 목록 줄: 구분선 없이 띄운 둥근 줄. 마우스를 올리면 카드색, 고른 줄은 포커스 면(아래)이 칠한다 */
+#whendesk-command-first .td-app .cf-home-task{padding:9px 12px;margin:1px 0;border:0;border-radius:var(--R-row)}
+#whendesk-command-first .td-app .td-task,#whendesk-command-first .td-app .td-task.selected:not([data-editor]){border:0;border-radius:var(--R-row);background-image:none;margin:1px 0}
+#whendesk-command-first .td-app .td-task .td-row{padding:9px 0}
+#whendesk-command-first .td-app .cal-future .future-row{padding:6px 12px;border-radius:var(--R-row)}
+#whendesk-command-first .td-app .desk-notes-list .desk-note-row{border:0;border-radius:var(--R-row);margin:1px 0}
+#whendesk-command-first .td-app :is(.cf-home-task,.td-task:not([data-editor]),.cal-future .future-row,.desk-note-row,[data-work-project-row]):hover{background-color:var(--td-surface)}
+/* 펼친 할 일 편집기는 카드 */
+#whendesk-command-first .td-app .td-task[data-editor]{background:var(--td-surface);border:1px solid var(--td-line);border-radius:var(--R-card);box-shadow:none}
+
+/* ── 고른 줄: 옅은 라임 면 + 왼쪽 2px 포인트 선(whenwork .item.selected). 미끄러지는 포커스 면과, 면이 없을 때의 줄 자신 모두 */
+#whendesk-command-first .td-app .focus-glide{border-radius:var(--R-row);background:var(--td-sel);box-shadow:inset 2px 0 0 var(--td-accent)}
+#whendesk-command-first:not(.glide-active) .td-app :is([data-task-row],[data-work-project-row],.desk-note-row,[data-event]):focus-visible{border-radius:var(--R-row);box-shadow:inset 2px 0 0 var(--td-accent)!important}
+#whendesk-command-first:not(.focus-quiet):not(.glide-active) .td-app .cf-home-task:has(> :is([data-reveal],[data-event]):focus-visible){border-radius:var(--R-row);box-shadow:inset 2px 0 0 var(--td-accent)}
+/* 포커스가 목록 밖에 있을 때 남는 목록 커서는 회색 면 */
+#whendesk-command-first .td-app :is([data-task-row].keyboard-current,.desk-notes-list .desk-note-row.selected):not(:focus-visible){border-radius:var(--R-row)}
+
+/* ── 묶음 머리: 작은 회색 글자 + 오른쪽으로 이어지는 가는 선(whenwork .group-h) */
+#whendesk-command-first .td-app .work-group{font-size:12px;color:var(--td-muted);padding:12px 12px 4px}
+#whendesk-command-first .td-app .work-group::after{content:"";flex:1;height:1px;background:var(--td-line);opacity:.6}
+
+/* ── 마감 칩: 고정폭 알약. 오늘은 주황, 지남은 빨강의 옅은 면 */
+#whendesk-command-first .td-app .td-due{font-size:11px;line-height:18px;padding:0 8px;border-radius:99px;background:var(--td-inset);color:var(--td-muted);font-weight:400}
+#whendesk-command-first .td-app .td-due.today{color:var(--td-warning);background:var(--td-warning-dim);font-weight:500}
+#whendesk-command-first .td-app :is(.td-due,.journal-at).work-overdue{color:var(--td-danger);background:var(--td-danger-dim);padding:0 8px;border-radius:99px;font-weight:500}
+
+/* ── 입력칸: 움푹한 면 + 테두리(whenwork #dlg input). 포커스 때 테두리 색은 바꾸지 않는다 — 시리즈 규칙(focus.css): 글자 입력칸은 캐럿이 위치를 알린다 */
+#whendesk-command-first .td-app :is(.td-field input:not([type=checkbox]):not([type=radio]),.td-field select,.td-field textarea,.td-field .td-pick,.td-modal .td-note,.td-inline .td-note){background:var(--td-inset);border:1px solid var(--td-line);border-radius:var(--R-row);color:var(--td-text)}
+#whendesk-command-first .td-app .td-quick{background:var(--td-inset);border:1px solid var(--td-line);border-radius:var(--R-row)}
+
+/* ── 대화상자·선택 메뉴·알림: 카드색 + 그림자. 대화상자는 포인트색 테두리(whenwork #dlg) */
+#whendesk-command-first .td-modal{background:var(--td-surface);border:1px solid var(--td-focus);border-radius:var(--R-card);box-shadow:var(--td-shadow-pop)}
+#whendesk-command-first .td-pick-menu{background:var(--td-surface);border:1px solid var(--td-line);border-radius:var(--R-card);box-shadow:var(--td-shadow-pop)}
+#whendesk-command-first .td-pick-menu .pick-glide{border-radius:var(--R-row);background:var(--td-sel)}
+#whendesk-command-first .td-feedback{background:var(--td-surface);border:1px solid var(--td-line);border-radius:var(--R-row);box-shadow:var(--td-shadow-pop);color:var(--td-text2);font-size:13px}
+
+/* ── 버튼 */
+#whendesk-command-first .td-app :is(.td-primary,.td-secondary){border-radius:var(--R-row)!important}
+#whendesk-command-first .td-app .td-secondary{background:var(--td-surface)!important}
+
+/* ── 키캡: 고정폭, 움푹한 면, 아래 테두리 2px(whenwork kbd) */
+#whendesk-command-first :is(.td-hints,.minimal-help,.quick-event-foot,.scope-choice,.help-group) kbd{font:10.5px/1.4 var(--td-mono);background:var(--td-inset);border:1px solid var(--td-line);border-bottom-width:2px;border-radius:5px;padding:1px 6px;color:var(--td-text2)}
+#whendesk-command-first .td-hints{font-size:12px;color:var(--td-muted)}
+
+/* ── 설정 카드(앱 아이콘)·대시보드 카드 */
+#whendesk-command-first .td-app .theme-card{border-radius:var(--R-card)}
+#whendesk-command-first .td-app .theme-card.on{background:var(--td-sel)}
+
+/* ── 마감 없음은 아무것도 달지 않는다(안 달린 것이 마감 없음). 버튼은 남아 있어 줄에 마우스를 올리거나 키보드로 오면 옅은 '+ 마감'으로 마감을 정할 수 있다 */
+#whendesk-command-first .td-app .td-due.is-empty{background:none;opacity:0;transition:opacity 120ms ease-out}
+#whendesk-command-first .td-app .td-due.is-empty::before{content:'+ 마감';color:var(--td-muted)}
+#whendesk-command-first .td-app :is(.td-task:hover .td-due.is-empty,.td-due.is-empty:focus-visible){opacity:1}
+
+/* ── InBox 담기 줄: 양끝 아이콘(+ · ↵)이 테두리에 붙지 않게 안쪽 여백 */
+#whendesk-command-first .td-app .td-quick{padding:9px 12px;gap:10px}
+#whendesk-command-first .td-app .td-quick>svg{color:var(--td-accent)}
+#whendesk-command-first .td-app .td-quick input{caret-color:var(--td-accent)}
+
+/* ── 라임을 조금 더: 고른 것·누를 것에만(브랜드 규칙). 고른 화면 탭·고른 날짜는 옅은 라임 면, 주 버튼은 라임 면 + 먹색 글자 */
+#whendesk-command-first .td-app :is(.td-tabs,.cal-views) .tab-glide,
+#whendesk-command-first .td-app :is(.td-tabs,.cal-views) [role=tab][aria-selected=true]:not(.mark-host *){background:var(--td-sel)}
+#whendesk-command-first .td-app .td-tabs [aria-selected=true] small{background:var(--td-lime);color:var(--td-on-lime)}
+#whendesk-command-first .td-app .td-day.selected{background:var(--td-sel);color:var(--td-text);border-radius:var(--R-row)}
+#whendesk-command-first .td-app .td-primary{background:var(--td-lime)!important;color:var(--td-on-lime)!important}

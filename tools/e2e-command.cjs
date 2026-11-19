@@ -43,7 +43,7 @@ async function waitForMore(request) {
 async function executionDone() {
   await page.waitForFunction(() => !document.querySelector('#cf-command-panel').hasAttribute('aria-busy'));
 }
-async function screenshot(name) { await page.screenshot({path:path.join(shots,name+'.png')}); }
+async function screenshot(name) { await page.screenshot({path:path.join(shots,name+'.png'),animations:'disabled'}); }
 async function noPersistentKeycaps() {
   assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll('kbd')].filter(element=>!element.closest('.minimal-help-layer,.td-hints'/* 하단 상황 힌트는 상시 표시 */)&&element.getClientRects().length).map(element=>element.textContent)),[]);
 }

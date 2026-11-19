@@ -186,6 +186,7 @@
     root.querySelector('#cf-dashboard-panel').hidden = next !== 'dashboard';
     root.querySelector('.cf-entry-name').textContent = next === 'command' ? 'WHENCOMMAND' : '대시보드';
     status(); icons(); syncHints();
+    if (next === 'dashboard') motion?.tabs(root); // 숨어 있는 동안 그린 탭은 크기가 0이라, 보이게 된 지금 선택 알약을 다시 잰다
     if (expanding) { const morph = morphDashboard(morphFrom, resized?.bounds); requestAnimationFrame(() => requestAnimationFrame(() => call('window.painted').catch(() => {}).finally(() => morph.forEach(animation => animation.play())))); }
     else await call('shell', { mode:next });
     if (next === 'command') {
@@ -362,7 +363,9 @@
     pick.menu.querySelectorAll('[data-pick-index]').forEach(option=>option.classList.toggle('active',Number(option.dataset.pickIndex)===pick.index));
     motion?.mark(pick.menu,pick.menu.querySelector('.active'),'pick:'+(pick.button.getAttribute('aria-label')||''),'pick-glide'); // 고른 줄 표시가 미끄러진다
     pick.button.setAttribute('aria-activedescendant','td-pick-'+pick.index);
-    pick.menu.querySelector('.active')?.scrollIntoView({block:'nearest'});
+    // 고른 줄이 메뉴 밖이면 메뉴 안만 굴린다. scrollIntoView는 바깥 스크롤 영역(본문·설정)까지 굴려 메뉴를 열 때 화면이 확 내려갔다.
+    const active=pick.menu.querySelector('.active'),menu=pick.menu;
+    if(active){if(active.offsetTop<menu.scrollTop)menu.scrollTop=active.offsetTop-4;else if(active.offsetTop+active.offsetHeight>menu.scrollTop+menu.clientHeight)menu.scrollTop=active.offsetTop+active.offsetHeight-menu.clientHeight+4;}
   }
   function closePick(focus=true) {
     if(!pick)return;const {button,menu}=pick;pick=null;ghostOut(menu,'pick');menu.remove();syncHints();
@@ -405,10 +408,18 @@
   document.addEventListener('pointerdown',event=>{if(pick&&!pick.menu.contains(event.target)&&event.target.closest('.td-pick')!==pick.button)closePick(false);},true);
   window.addEventListener('blur',()=>closePick(false));
   /* 왼쪽 메뉴는 없다. 탭은 머리(renderMainView)에 있고, 여기서는 그 탭 줄만 새 상태로 바꾼다. */
+  /* 탭 막대는 버리지 않고 안의 탭만 바꿔 끼운다 — 선택 알약(.tab-glide)이 살아남아 지금 보이는 자리에서 이어 미끄러진다.
+   * 막대를 통째로 새로 만들면 알약 없는 선택 배경이 한 번 그려졌다가 옛 자리에서 알약이 다시 생겨 미끄러진다(깜빡임). */
+  function swapTabs(list, html) {
+    const template = document.createElement('template'); template.innerHTML = html.trim();
+    const fresh = template.content.firstElementChild; if (!list || !fresh) return;
+    const marker = list.querySelector(':scope>.tab-glide');
+    list.replaceChildren(...(marker ? [marker] : []), ...fresh.children);
+  }
   function renderNav() {
     root.querySelector('.td-sidebar').innerHTML = '';
     const tabs = root.querySelector('.td-main-head .td-tabs'), focused = tabs?.contains(document.activeElement) ? document.activeElement.dataset.topTab : null;
-    if (tabs) { tabs.outerHTML = topTabs(); if (focused) root.querySelector(`.td-main-head [data-top-tab="${focused}"]`)?.focus({ preventScroll:true }); }
+    if (tabs) { swapTabs(tabs, topTabs()); motion?.tabs(root); if (focused) root.querySelector(`.td-main-head [data-top-tab="${focused}"]`)?.focus({ preventScroll:true }); }
     renderWorkTabs();
   }
   const workTabs = [['inbox','InBox'],['todo','ToDo'],['waiting','Waiting'],['done','Done'],['projects','Projects']];
@@ -482,7 +493,7 @@
     const open = state.selected === task.id;
     const wait=task.kind==='waiting'?workRules.waitMeta(workItem(task)):null,badge=workRules.dueBadge(task.due);
     const meta=[inProjectGroup||state.tab==='inbox'&&task.project_id==null?'':projectChip(task.project_id,task.project),task.waitingFor?esc(task.waitingFor):'',wait?`<span class="${wait.hot?'work-overdue':''}">${esc(wait.label)}</span>${wait.nudges?' · 재촉 '+wait.nudges+'회':''}`:'',postponedMeta(task)].filter(Boolean).join(' · ');
-    return `<article class="td-task ${open ? 'selected' : ''} ${task.done ? 'done' : ''} ${task.cancelled ? 'cancelled' : ''}" data-task-row="${esc(task.id)}" ${open ? `data-editor="${esc(task.id)}"` : ''}><div class="td-row">${taskMark(task)}${open ? `<div class="td-task-open"><input class="td-row-title" data-field="title" aria-label="할 일 제목" value="${esc(task.title)}">${meta?`<small>${meta}</small>`:''}</div>` : `<button class="td-task-open" data-task="${esc(task.id)}" draggable="true" aria-expanded="false"><span>${esc(task.title)}</span>${meta?`<small>${meta}</small>`:''}</button>`}${state.tab==='done'&&task.doneAt?`<small class="td-done-at" title="${esc(task.doneAt)}">${esc(new Date(task.doneAt).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',hour12:false}))} ${task.cancelled?'취소':'완료'}</small>`:`<button class="td-due ${badge?.cls==='today'?'today':''} ${badge?.cls==='over'?'work-overdue':''}" data-edit-due="${esc(task.id)}" title="${esc(task.due||'마감 없음')}">${badge?esc(badge.text):'마감 없음'}</button>`}${open ? `<button class="td-drag-handle" data-task="${esc(task.id)}" draggable="true" aria-label="할 일 끌기">${icon('grip-vertical')}</button>` : ''}</div>${open ? taskEditor(task) : ''}</article>`;
+    return `<article class="td-task ${open ? 'selected' : ''} ${task.done ? 'done' : ''} ${task.cancelled ? 'cancelled' : ''}" data-task-row="${esc(task.id)}" ${open ? `data-editor="${esc(task.id)}"` : ''}><div class="td-row">${taskMark(task)}${open ? `<div class="td-task-open"><input class="td-row-title" data-field="title" aria-label="할 일 제목" value="${esc(task.title)}">${meta?`<small>${meta}</small>`:''}</div>` : `<button class="td-task-open" data-task="${esc(task.id)}" draggable="true" aria-expanded="false"><span>${esc(task.title)}</span>${meta?`<small>${meta}</small>`:''}</button>`}${state.tab==='done'&&task.doneAt?`<small class="td-done-at" title="${esc(task.doneAt)}">${esc(new Date(task.doneAt).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',hour12:false}))} ${task.cancelled?'취소':'완료'}</small>`:`<button class="td-due ${badge?'':'is-empty'} ${badge?.cls==='today'?'today':''} ${badge?.cls==='over'?'work-overdue':''}" data-edit-due="${esc(task.id)}" title="${esc(task.due||'마감 지정')}" aria-label="${badge?'마감 '+esc(badge.text):'마감 지정'}">${badge?esc(badge.text):''}</button>`}${open ? `<button class="td-drag-handle" data-task="${esc(task.id)}" draggable="true" aria-label="할 일 끌기">${icon('grip-vertical')}</button>` : ''}</div>${open ? taskEditor(task) : ''}</article>`;
   }
   function taskEditor(task,{modal=false}={}) {
     if(task.kind==='note')return `<div class="td-inline"><div class="td-fields"><label class="td-field">프로젝트${pickButton('data-field="project_id" aria-label="메모 프로젝트"',task.project_id??'',projectOptions())}</label></div><textarea class="td-note" data-field="note" aria-label="메모 상세 내용" placeholder="상세 내용" spellcheck="false">${esc(task.note)}</textarea><div class="td-inline-foot"><span data-save-status>수정 내용 자동 저장</span><div><button type="button" class="td-modal-delete" data-delete-task="${esc(task.id)}">삭제</button>${modal?'<button type="submit" class="td-primary">닫기</button>':''}</div></div></div>`;
@@ -515,7 +526,7 @@
       if (kind === 'note') return `<small class="journal-at">${esc(clock(item.capturedAt))}</small>`;
       if (item.done) return `<small class="journal-at">${esc(clock(item.doneAt))} ${item.cancelled ? '취소' : '완료'}</small>`;
       if (item.kind === 'waiting' && !item.due) { const wait = workRules.waitMeta(workItem(item)); return `<small class="journal-at ${wait?.hot ? 'work-overdue' : ''}">${esc(wait?.label || '대기')}</small>`; }
-      return item.due ? dueBadge(item) : '<small class="journal-at">마감 없음</small>';
+      return item.due ? dueBadge(item) : ''; // 마감이 없으면 아무것도 달지 않는다 — 안 달린 것이 마감 없음
     };
     const line = row => {
       const { kind, item } = row;
@@ -563,7 +574,9 @@
     const title = settingsLike ? 'Settings' : state.view === 'dashboard' ? 'Today' : state.view === 'calendar' ? 'Journey' : state.view === 'notes' ? 'Note' : state.tab === 'done' ? '완료 기록' : state.projects.find(p => p.id === state.project)?.name || 'InBox';
     const subtitle = settingsLike ? '외관 · 프로젝트 · 단축키' : state.view === 'dashboard' ? new Date().toLocaleDateString('ko-KR', { year:'numeric', month:'long', day:'numeric', weekday:'long' }) : state.view === 'calendar' ? '앞으로 여섯 달 · 반복 일정 제외' : state.view === 'notes' ? '긴 글 · 한 줄 메모는 Today에 –로' : state.tab === 'done' ? '마친 일의 기록 · Esc로 Today' : '담아둔 일을 분류하세요';
     const actions = `${state.view === 'tasks' && Number.isInteger(state.project) ? `<button class="td-secondary" data-edit-project="${state.project}">프로젝트 관리</button>` : ''}<button class="td-settings-button" data-action="settings" aria-label="설정 (Ctrl+,)" title="설정 (Ctrl+,)">${icon('settings-2')}</button>`;
+    const keptTabs = root.querySelector('.td-main-head .td-tabs');
     root.querySelector('.td-main-head').innerHTML = `<span class="drag-grip head-grip" aria-hidden="true" title="끌어서 창 옮기기">${icon('grip-horizontal')}</span><div><h1>${esc(title)}</h1><p>${esc(subtitle)}</p></div>${topTabs()}<div class="td-main-actions">${actions}</div>`;
+    { const freshTabs = root.querySelector('.td-main-head .td-tabs'); if (keptTabs && freshTabs) { swapTabs(keptTabs, freshTabs.outerHTML); freshTabs.replaceWith(keptTabs); } }
     if (state.view === 'dashboard') body.innerHTML = home();
     else if (state.view === 'settings') body.innerHTML = settingsView();
     else if (state.view === 'notes') notes?.mount(body);
@@ -1030,15 +1043,10 @@
   function lookCard(kind,id,name,note,colors,skin,on){
     return `<button type="button" role="radio" class="theme-card ${on ? 'on' : ''}" data-${kind}-pick="${id}" aria-checked="${on}" tabindex="${on ? 0 : -1}">${swatch(colors,skin)}<span class="theme-name">${esc(name)}<span class="theme-on" ${on ? '' : 'hidden'}>사용 중</span></span><span class="theme-note">${esc(note)}</span></button>`;
   }
-  function themeCards(){
-    const current = themeById(state.theme);
-    return `<h3>테마</h3><div class="theme-grid" role="radiogroup" aria-label="색 테마" data-theme-grid>${THEMES.map(theme => lookCard('theme',theme.id,theme.name,theme.note,theme.colors,theme.skin,theme.id === current.id)).join('')}</div>`;
-  }
-  // 앱 아이콘: 고르면 창·트레이 아이콘이 바로 바뀐다(메인 applyAppIcon). 설치 파일 아이콘은 첫 아이콘으로 고정
-  function iconCards(){
-    const current = state.prefs.appIcon || APP_ICONS[0].id;
-    return `<div class="theme-grid icon-grid" role="radiogroup" aria-label="앱 아이콘">${APP_ICONS.map((item,index) => { const on = item.id === current; return `<button type="button" role="radio" class="theme-card ${on ? 'on' : ''}" data-icon-pick="${item.id}" aria-checked="${on}" tabindex="${on ? 0 : -1}"><img src="../assets/icons/${item.id}.png" alt="" width="64" height="64"><span class="theme-name">${String(index+1).padStart(2,'0')} ${esc(item.name)}<span class="theme-on" ${on ? '' : 'hidden'}>사용 중</span></span><span class="theme-note">${esc(item.note)}</span></button>`; }).join('')}</div><p class="icon-help">고르면 트레이와 창 아이콘이 바로 바뀌어요. 설치 파일의 아이콘은 01 ${esc(APP_ICONS[0].name)}예요.</p>`;
-  }
+  // 테마는 브랜드 FOG 하나라 고를 카드가 없다(0.3.35). Windows 밝기를 따라 라이트·다크만 바뀐다.
+  function themeCards(){ return ''; }
+  // 앱 아이콘은 시리즈 브랜드 아이콘 "한 줄" 하나다(0.3.35, tools/make-icon.mjs). 고를 카드가 없다.
+  function iconCards(){ return ''; }
   async function pickIcon(id){
     if(id===(state.prefs.appIcon||APP_ICONS[0].id)||!APP_ICONS.some(item=>item.id===id))return;
     state.prefs={...state.prefs,appIcon:id}; look(); state.prefs=await call('preferences.set',{appIcon:id});
@@ -1064,7 +1072,7 @@
     const shortcutFields = SHORTCUT_UI, tab = state.settingsTab;
     const tabs = settingsTabsBar();
     if (tab === 'shortcuts') return tabs + `<form class="preferences-form"><section class="settings-section"><h2>어디서나 쓰는 단축키</h2><p class="settings-lead">다른 앱을 쓰는 중에도 바로 부르는 전역 단축키입니다. 칸을 고른 뒤 조합을 누르면 바로 저장되고, Delete는 해제, Esc는 저장된 값으로 되돌립니다.</p>${shortcutFields.map(([field,label,aria,fallback]) => `<label class="td-field">${label}<input name="${field}" data-shortcut="${field}" aria-label="${aria}" aria-describedby="shortcut-error-${field}" aria-invalid="${!!state.info.shortcutErrors?.[field]}" value="${esc(hotkey(state.prefs[field] ?? fallback))}" placeholder="사용 안 함" autocomplete="off" spellcheck="false"><span id="shortcut-error-${field}" class="settings-warning" data-shortcut-error="${field}" ${state.info.shortcutErrors?.[field] ? '' : 'hidden'}>${esc(state.info.shortcutErrors?.[field])}</span></label>`).join('')}<div class="settings-actions"><button class="td-secondary" type="button" data-action="help">앱 안 단축키 보기 (Ctrl+/)</button></div></section></form>`;
-    return tabs + `<section class="settings-section theme-section"><h2>모양</h2>${themeCards()}<h3>앱 아이콘</h3>${iconCards()}<h3>할 일 표시</h3><label class="td-field settings-marker">완료 표시 방식${pickButton('data-pref="taskMarker" aria-label="할 일 완료 표시 방식"',state.prefs.taskMarker||'symbol',[{value:'symbol',label:'불릿 저널 기호 (• × < …)'},{value:'checkbox',label:'체크박스'}])}</label><small class="settings-path">기호: • 할 일 · × 완료 · 줄 그음 취소(C) · &lt; 마감 있음(미룬 횟수는 줄에 표시) · … 대기. 어느 쪽이든 Space는 완료, C는 취소입니다.</small></section>
+    return tabs + `<section class="settings-section theme-section"><h2>모양</h2>${themeCards()}${iconCards()}<h3>할 일 표시</h3><label class="td-field settings-marker">완료 표시 방식${pickButton('data-pref="taskMarker" aria-label="할 일 완료 표시 방식"',state.prefs.taskMarker||'symbol',[{value:'symbol',label:'불릿 저널 기호 (• × < …)'},{value:'checkbox',label:'체크박스'}])}</label><small class="settings-path">기호: • 할 일 · × 완료 · 줄 그음 취소(C) · &lt; 마감 있음(미룬 횟수는 줄에 표시) · … 대기. 어느 쪽이든 Space는 완료, C는 취소입니다.</small></section>
     <section class="settings-section"><h2>시작과 알림</h2><label class="settings-check"><input type="checkbox" data-pref="launchAtLogin" ${state.prefs.launchAtLogin ? 'checked' : ''} ${state.info.launchAtLoginSupported ? '' : 'disabled'}>로그인할 때 트레이에 숨겨 실행</label>${state.info.launchAtLoginSupported ? '' : '<small class="settings-path">배포본에서만 설정할 수 있습니다.</small>'}<label class="settings-check"><input type="checkbox" data-pref="briefEnabled" ${state.prefs.briefEnabled !== false ? 'checked' : ''}>아침 브리핑 알림</label><label class="td-field settings-time">브리핑 시각<input type="time" data-pref="briefAt" aria-label="아침 브리핑 시각" value="${esc(state.prefs.briefAt || '09:00')}"></label><small class="settings-path">하루 한 번, 정한 시각부터 3시간 안에 켜져 있으면 오늘 마감·지연·일정·Waiting·InBox를 알립니다.</small></section>
     <section class="settings-section"><h2>업데이트</h2><p class="settings-update" data-update-line role="status">${esc(state.update?.line || '')}</p><div class="settings-actions"><button class="td-secondary" type="button" data-action="update-check" ${state.update?.supported ? '' : 'disabled'}>지금 확인</button><button class="td-secondary" type="button" data-action="update-install" ${state.update?.status === 'ready' ? '' : 'disabled'}>재시작해 설치</button></div></section>
     <section class="settings-section"><h2>데이터</h2><div class="settings-actions"><button class="td-secondary" data-data="importLegacy">기존 데이터 복사해 가져오기</button><button class="td-secondary" data-data="export">백업 내보내기</button><button class="td-secondary" data-data="restore">백업 복원</button><button class="td-secondary" data-data="openFolder">저장 폴더 열기</button></div><small class="settings-path">${esc(state.info.dataDir)}</small></section><section class="settings-section"><h2>WHENCOMMAND</h2><label class="settings-check"><input type="checkbox" data-pref="clipboardRow" ${state.prefs.clipboardRow !== false ? 'checked' : ''}>빈 입력에 클립보드로 할 수 있는 것 보이기</label><button class="td-secondary" data-action="refresh-command">검색 목록 새로고침</button></section><section class="settings-section"><h2>WHENDESK ${esc(state.info.version || '')}</h2><button class="td-secondary" data-action="quit">앱 종료</button></section>`;
@@ -1823,7 +1831,7 @@
       catch(error){element.value=previous;feedback(error.message,null,true);if(document.activeElement===element)element.select();return;}
       const due=updated?.due||'';if(element.isConnected)element.value=due;
       const label=element.closest('.td-task')?.querySelector('.td-due'),badge=workRules.dueBadge(due);
-      if(label){label.textContent=badge?.text||'마감 없음';label.title=due||'마감 없음';label.classList.toggle('today',badge?.cls==='today');label.classList.toggle('work-overdue',badge?.cls==='over');}
+      if(label){label.textContent=badge?.text||'';label.title=due||'마감 지정';label.classList.toggle('is-empty',!badge);label.classList.toggle('today',badge?.cls==='today');label.classList.toggle('work-overdue',badge?.cls==='over');}
       rememberWorkUndo('마감일',()=>mutate('task.update',{id,due:previous,postponed}),due?`마감을 ${dueLabel(due)}로 정했어요.`:'마감을 해제했어요.');
       if(element.closest('.task-form'))renderMainView();
       return;
@@ -1831,7 +1839,7 @@
     if(element.matches('[data-field]') && ['kind','due','project_id'].includes(element.dataset.field)) {
       const id=element.closest('[data-editor]').dataset.editor;const field=element.dataset.field;const value=field==='project_id'?(element.value?Number(element.value):null):element.value;
       const activeAtRequest=document.activeElement,updated=await mutate('task.update',{id,[field]:value},{renderMain:false});
-      if(field==='due') {const due=element.closest('.td-task')?.querySelector('.td-due'),badge=workRules.dueBadge(value);if(due){due.textContent=badge?.text||'마감 없음';due.title=value||'마감 없음';due.classList.toggle('today',badge?.cls==='today');due.classList.toggle('work-overdue',badge?.cls==='over');}return;}
+      if(field==='due') {const due=element.closest('.td-task')?.querySelector('.td-due'),badge=workRules.dueBadge(value);if(due){due.textContent=badge?.text||'';due.title=value||'마감 지정';due.classList.toggle('is-empty',!badge);due.classList.toggle('today',badge?.cls==='today');due.classList.toggle('work-overdue',badge?.cls==='over');}return;}
       // 대화상자에서 바꾸면 뒤의 목록도 바로 따라간다(분류 이동 포함). 포커스는 대화상자에 그대로 둔다.
       if(element.closest('.task-form')){if(state.view==='tasks'&&!['done','projects'].includes(state.tab)&&(field==='kind'||field==='project_id')&&updated.kind!==state.tab){state.tab=updated.kind;taskModalKind=updated.kind;}if(field==='project_id'&&state.project&&state.project!==updated.project_id)state.project=null;renderNav();renderMainView();return;}
       if(state.view!=='tasks'||state.selected!==id||!element.isConnected)return;
@@ -1961,7 +1969,13 @@
   api.on('command.more',message=>{if(message.ready){if(!command.running&&!command.activating&&!command.actions&&!command.composing)safe(()=>queryCommand(commandInput.value,true));return;}if(message.error){command.notice=message.error;renderCommand();return;}applyCommandMore(message);});
   api.on('navigate',route=>safe(()=>navigate(route)));
   // 창이 숨기 전에 등장의 역순으로 접힌다(main hideWindow → motion.css .command-leave).
-  api.on('command.leave',()=>{const panel=root.querySelector('.cf-command-panel');clearTimeout(commandEnterTimer);panel.classList.remove('command-enter','command-hold');panel.classList.add('command-leave');});
+  api.on('command.leave',()=>{
+    const panel=root.querySelector('.cf-command-panel');clearTimeout(commandEnterTimer);panel.classList.remove('command-enter','command-hold');
+    // 아래 목록이 보이면 먼저 말려 올라가고(140ms) 그 뒤에 막대 조각이 접힌다(240ms). 다 접히면 메인에 알려 창을 숨긴다.
+    const withList=[...panel.querySelectorAll(':scope>:is(.td-command-results,.command-actions,.command-output)')].some(element=>!element.hidden&&element.getClientRects().length&&element.offsetHeight>0&&(element.childElementCount>0));
+    panel.classList.toggle('leave-with-list',withList);panel.classList.add('command-leave');
+    setTimeout(()=>call('window.left').catch(()=>{}),(withList?140:0)+250);
+  });
   // 자정이 지나면 오늘 일정·넘길 일·마감 배지를 새 날짜로 다시 불러온다.
   setInterval(()=>{if(syncDay())safe(()=>loadState());},60_000);
   api.on('media.changed',media=>renderMedia(media));

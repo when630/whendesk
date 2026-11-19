@@ -39,7 +39,7 @@ async function tabTo(selector,{reverse=false,limit=100}={}){
 }
 const sections={home:{key:'h',go:'dashboard',title:'Today'},todo:{key:'t',go:'dashboard',title:'Today'},inbox:{key:'i',go:'inbox',title:'InBox'},done:{key:'d',go:'done',title:'완료 기록'},notes:{key:'n',go:'notes',title:'Note'},calendar:{key:'c',go:'journey',title:'Journey'},settings:{key:'s',title:'Settings'}};
 async function section(name){const target=sections[name];assert.ok(target,'알 수 없는 화면: '+name);if(target.key==='s')await press('Control+Comma');else await page.evaluate(section=>window.__whendeskGo(section),target.go);await page.locator('.td-main-head h1').filter({hasText:target.title}).waitFor();await page.locator('#cf-dashboard-panel').waitFor();}
-async function screenshot(name){await page.screenshot({path:path.join(shots,name+'.png')});}
+async function screenshot(name){await page.screenshot({path:path.join(shots,name+'.png'),animations:'disabled'});}
 async function test(name,action){const started=Date.now();try{await action();results.push({name,ok:true,durationMs:Date.now()-started});}catch(error){results.push({name,ok:false,durationMs:Date.now()-started,error:error.message});throw error;}}
 function normalize(value){return String(value).replace(/\\"/g,'"').replace(/"/g,'').replace(/\\/g,'/').toLowerCase();}
 async function closeApp(){
@@ -108,14 +108,15 @@ async function closeApp(){
   await test('메모 작성·저장과 도움말·스킨·모드 왕복에서 본문과 커서를 유지',async()=>{
    await section('notes');await press('Control+n');await waitFocus('[data-note-editor]');await text(noteBody);await press('Control+s');
    await waitUntil(async()=>{const note=(await state()).notes.find(note=>note.title===noteTitle);noteId=note?.id;return note?.body===noteBody;},'메모 본문이 저장되지 않았습니다.');
-   await press('Control+Shift+3');await page.waitForTimeout(100);assert.equal(await page.locator('[data-note-scope]').inputValue(),'active','이전 Ctrl+Shift+3 숫자 키가 메모 범위를 바꿨습니다.');await waitFocus('[data-note-editor]');
+   await press('Control+Shift+3');await page.waitForTimeout(100);assert.equal(await page.locator('[data-note-scope]').evaluate(element=>element.value),'active','이전 Ctrl+Shift+3 숫자 키가 메모 범위를 바꿨습니다.');await waitFocus('[data-note-editor]');
    const editor=await page.$('[data-note-editor]');
    await press('Control+Home');await press('ArrowRight');await press('ArrowRight');for(let index=0;index<5;index++)await press('Shift+ArrowRight');
    const selection=await editor.evaluate(element=>[element.selectionStart,element.selectionEnd]);assert.deepEqual(selection,[2,7]);
    await press('Control+Slash');await page.locator('.minimal-help-layer').waitFor();await press('Escape');await page.locator('.minimal-help-layer').waitFor({state:'hidden'});
    assert.deepEqual(await editor.evaluate(element=>[element.selectionStart,element.selectionEnd]),selection);
-   await section('settings');await tabTo('[data-theme-pick][aria-checked=true]');await press('End');await waitFocus('[data-theme-pick=zen-dim]');await press('Tab');await waitFocus('[data-icon-pick][aria-checked=true]');await press('Tab');
-   await waitUntil(async()=>{const prefs=await preferences();return prefs.theme==='zen-dim'&&prefs.mode==='dark';},'키보드 테마 선택이 저장되지 않았습니다.');
+   // 외관 선택은 키보드로: 테마는 FOG 하나라 앱 아이콘 묶음에서 End로 마지막 아이콘을 고른다
+   await section('settings');await tabTo('[data-pref="taskMarker"]');await press('Enter');await page.locator('.td-pick-menu').waitFor();await press('End');await press('Enter');
+   await waitUntil(async()=>{const prefs=await preferences();return prefs.taskMarker==='checkbox';},'키보드 외관(완료 표시 방식) 선택이 저장되지 않았습니다.');
    await waitFocus('[data-pref]');await section('notes');await waitFocus('[data-note-editor]');
    assert.equal(await editor.evaluate(element=>element===document.querySelector('[data-note-editor]')),true);assert.equal(await editor.inputValue(),noteBody);assert.deepEqual(await editor.evaluate(element=>[element.selectionStart,element.selectionEnd]),selection);
    await screenshot('03-note-editor-keyboard');
@@ -150,11 +151,11 @@ async function closeApp(){
    await press('Escape');await waitFocus(`[data-note-row="${trashNoteId}"]`);await press('Delete');
    await waitUntil(async()=>(await state()).notes.find(note=>note.id===trashNoteId)?.deleted===true,'메모 B가 휴지통으로 이동하지 않았습니다.');
    await press('Control+Shift+t');await page.locator(`[data-note-row="${trashNoteId}"]`).waitFor();await waitFocus(`[data-note-row="${trashNoteId}"]`);await press('Enter');await waitFocus('[data-note-preview]');
-   assert.equal(await page.locator('[data-note-scope]').inputValue(),'trash');assert.ok((await page.locator('[data-note-preview]').textContent()).includes(trashNoteTitle));
+   assert.equal(await page.locator('[data-note-scope]').evaluate(element=>element.value),'trash');assert.ok((await page.locator('[data-note-preview]').textContent()).includes(trashNoteTitle));
    await press('Control+k');await waitFocus('.td-command input');await replaceText(noteTitle);await page.locator('.td-command-result[data-result-key="notes:'+noteId+'"]').waitFor();
    const keys=await page.locator('.td-command-result').evaluateAll(elements=>elements.map(element=>element.dataset.resultKey));const index=keys.indexOf('notes:'+noteId);assert.ok(index>=0,'활성 메모 A의 Command 결과가 없습니다.');
    for(let step=0;step<index;step++)await press('ArrowDown');await press('Enter');await waitFocus('[data-note-preview]');await press('e');await waitFocus('[data-note-editor]');
-   assert.equal(await page.locator('[data-note-scope]').inputValue(),'active');assert.equal(await page.locator('[data-note-list] [aria-selected=true]').getAttribute('data-note-row'),noteId);assert.equal(await page.locator('[data-note-editor]').inputValue(),noteBody);assert.equal(await page.locator('[data-note-editor]').getAttribute('readonly'),null);
+   assert.equal(await page.locator('[data-note-scope]').evaluate(element=>element.value),'active');assert.equal(await page.locator('[data-note-list] [aria-selected=true]').getAttribute('data-note-row'),noteId);assert.equal(await page.locator('[data-note-editor]').inputValue(),noteBody);assert.equal(await page.locator('[data-note-editor]').getAttribute('readonly'),null);
    const pinned=(await state()).notes.find(note=>note.id===noteId).pinned;await press('Control+p');
    await waitUntil(async()=>(await state()).notes.find(note=>note.id===noteId)?.pinned===!pinned,'휴지통에서 이동한 뒤 활성 메모 A의 고정 동작이 작동하지 않았습니다.');
    assert.equal((await state()).notes.find(note=>note.id===trashNoteId).deleted,true);measurements.noteScopeTransition={trashNoteId,activeNoteId:noteId,scope:'active',pinToggled:true};await screenshot('03b-trash-to-command-note');

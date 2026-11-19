@@ -78,13 +78,16 @@
 @keyframes td-shrink{0%{clip-path:inset(0 0 0 0 round 20px);opacity:1;transform:none}65%{clip-path:inset(0 calc(100% - 54px) 0 0 round 27px);opacity:1;transform:none}100%{clip-path:inset(0 calc(100% - 54px) 0 0 round 27px);opacity:0;transform:scale(.6)}}
 @keyframes td-rollup{from{clip-path:inset(0 0 0 0 round 20px)}to{clip-path:inset(0 0 100% 0 round 20px)}}
 @keyframes td-fade-out{from{opacity:1}to{opacity:0}}
-#whendesk-command-first .cf-command-panel.command-leave :is(.td-command-results,.command-actions,.command-output){animation:td-rollup 130ms cubic-bezier(.5,0,.75,0) forwards}
+/* 아래 목록(결과·동작·출력)이 있으면 그것이 먼저 말려 올라가 다 사라진 뒤에(--leave-after) 막대 조각이 접힌다. 순서와 합계는 app.js command.leave와 맞춘다. */
+#whendesk-command-first .cf-command-panel.command-leave{--leave-after:0ms}
+#whendesk-command-first .cf-command-panel.command-leave.leave-with-list{--leave-after:140ms}
+#whendesk-command-first .cf-command-panel.command-leave :is(.td-command-results,.command-actions,.command-output){animation:td-rollup 140ms cubic-bezier(.4,0,.2,1) forwards}
 #whendesk-command-first .cf-command-panel.command-leave .td-command :is(.td-media,.command-field){transform-origin:27px 50%} /* 원이 왼쪽 끝 제자리에서 작아진다 */
-#whendesk-command-first .cf-command-panel.command-leave .td-command .td-media{animation:td-shrink 130ms cubic-bezier(.4,0,.2,1) forwards}
-#whendesk-command-first .cf-command-panel.command-leave .td-command .td-media>*{animation:td-fade-out 60ms ease-in forwards}
-#whendesk-command-first .cf-command-panel.command-leave .td-command .command-field{animation:td-shrink 180ms cubic-bezier(.4,0,.2,1) 40ms forwards}
-#whendesk-command-first .cf-command-panel.command-leave .td-command .command-field input{animation:td-fade-out 70ms ease-in forwards}
-#whendesk-command-first .cf-command-panel.command-leave .command-brand{animation:td-mark-out 90ms cubic-bezier(.4,0,.2,1) 150ms forwards}
+#whendesk-command-first .cf-command-panel.command-leave .td-command .td-media{animation:td-shrink 130ms cubic-bezier(.4,0,.2,1) var(--leave-after) forwards}
+#whendesk-command-first .cf-command-panel.command-leave .td-command .td-media>*{animation:td-fade-out 60ms ease-in var(--leave-after) forwards}
+#whendesk-command-first .cf-command-panel.command-leave .td-command .command-field{animation:td-shrink 180ms cubic-bezier(.4,0,.2,1) calc(var(--leave-after) + 40ms) forwards}
+#whendesk-command-first .cf-command-panel.command-leave .td-command .command-field input{animation:td-fade-out 70ms ease-in var(--leave-after) forwards}
+#whendesk-command-first .cf-command-panel.command-leave .command-brand{animation:td-mark-out 90ms cubic-bezier(.4,0,.2,1) calc(var(--leave-after) + 150ms) forwards}
 /* 검색어를 지워 목록이 사라질 때: 카드가 위로 말려 올라간다(app.js가 160ms 뒤 숨기고 창을 줄인다). */
 #whendesk-command-first .cf-command-panel .td-command-results.list-exit{animation:td-rollup 150ms cubic-bezier(.5,0,.75,0) forwards}
 #whendesk-command-first .cf-command-panel .td-command-results.list-exit>*{animation:td-fade-out 90ms ease-in forwards}

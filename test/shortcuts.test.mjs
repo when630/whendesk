@@ -94,36 +94,30 @@ test('잘못된 단축키 설정은 기존 JSON을 변경하지 않고 유효한
  const temp=path.join(path.dirname(fileURLToPath(import.meta.url)),'.tmp');fs.mkdirSync(temp,{recursive:true});
  const dir=fs.mkdtempSync(path.join(temp,'shortcuts-'));
  try{
-  const file=path.join(dir,'preferences.json'),prefs=createPreferences(file);prefs.set({theme:'zen-kraft'});
+  const file=path.join(dir,'preferences.json'),prefs=createPreferences(file);prefs.set({taskMarker:'checkbox'});
   const before=fs.readFileSync(file,'utf8');
   assert.throws(()=>prefs.set({hotkey:'Alt+Space',captureHotkey:'Alt+Space'}));
-  assert.equal(fs.readFileSync(file,'utf8'),before);assert.equal(prefs.get().theme,'zen-kraft');
+  assert.equal(fs.readFileSync(file,'utf8'),before);assert.equal(prefs.get().taskMarker,'checkbox');
   prefs.set({hotkey:'ctrl+alt+f2',captureHotkey:''});
   const restarted=createPreferences(file);assert.equal(restarted.get().hotkey,'Control+Alt+F2');assert.equal(restarted.get().captureHotkey,'');
  }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
 
-test('테마가 스킨과 화면 모드를 정하고 옛 설정은 ZEN 테마로 옮긴다',()=>{
+test('테마는 브랜드 FOG 하나이고 Windows 밝기를 따르며, 옛 테마는 모두 FOG로 옮긴다',()=>{
  const temp=path.join(path.dirname(fileURLToPath(import.meta.url)),'.tmp');fs.mkdirSync(temp,{recursive:true});
  const dir=fs.mkdtempSync(path.join(temp,'theme-'));
  try{
   const file=path.join(dir,'preferences.json');
-  const fresh=createPreferences(file).get();assert.equal(fresh.theme,'zen-sage');assert.equal(fresh.skin,'zen');
-  fs.writeFileSync(file,JSON.stringify({skin:'paper',mode:'dark'}));
-  const legacy=createPreferences(file).get();assert.equal(legacy.theme,'zen-ink');assert.equal(legacy.skin,'zen');assert.equal(legacy.mode,'dark');
-  fs.writeFileSync(file,JSON.stringify({skin:'ink',mode:'system'}));
-  assert.equal(createPreferences(file).get().theme,'zen-sage');
-  fs.writeFileSync(file,JSON.stringify({theme:'dim',mode:'dark'}));
-  assert.equal(createPreferences(file).get().theme,'zen-dim','0.3.13 테마 id는 zen- 접두로 옮겨야 합니다.');
+  const fresh=createPreferences(file).get();assert.equal(fresh.theme,'zen-fog','새 설치는 브랜드 테마 FOG로 시작합니다.');assert.equal(fresh.mode,'system','FOG는 Windows 밝기를 따릅니다.');assert.equal(fresh.skin,'zen');
+  // 0.3.13 이전 값(skin·mode), 0.3.13의 짧은 id, 0.3.34까지의 ZEN 테마, 걷어낸 스킨의 테마 — 모두 FOG(system)로
+  for(const old of [{skin:'paper',mode:'dark'},{skin:'ink',mode:'system'},{theme:'dim',mode:'dark'},{theme:'zen-ink',mode:'dark'},{theme:'zen-sage',mode:'light'},{skin:'poster',theme:'poster-sumi',mode:'dark',skinThemes:{poster:'poster-sumi',zen:'zen-ink'}}]){
+   fs.writeFileSync(file,JSON.stringify(old));const value=createPreferences(file).get();
+   assert.equal(value.theme,'zen-fog',JSON.stringify(old));assert.equal(value.mode,'system',JSON.stringify(old));assert.equal(value.skin,'zen');assert.equal('skinThemes' in value,false);
+  }
   const prefs=createPreferences(file);
-  let value=prefs.set({theme:'zen-night'});assert.equal(value.skin,'zen');assert.equal(value.mode,'dark');
-  value=prefs.set({theme:'zen-paper'});assert.equal(value.mode,'light');
-  assert.equal(prefs.set({theme:'tui-amber',skin:'tui'}).theme,'zen-paper','걷어낸 스킨의 테마·스킨은 받지 않습니다.');
-  fs.writeFileSync(file,JSON.stringify({skin:'poster',theme:'poster-sumi',mode:'dark',skinThemes:{poster:'poster-sumi',zen:'zen-ink'}}));
-  const removed=createPreferences(file).get();assert.equal(removed.theme,'zen-ink','걷어낸 어두운 테마는 INK로 옮깁니다.');assert.equal(removed.skin,'zen');assert.equal('skinThemes' in removed,false);
-  fs.writeFileSync(file,JSON.stringify({skin:'soft',theme:'soft-light',mode:'light'}));
-  assert.equal(createPreferences(file).get().theme,'zen-sage','걷어낸 밝은 테마는 SAGE로 옮깁니다.');
-  assert.equal(prefs.get().appIcon,'brand');assert.equal(prefs.set({appIcon:'wordmark'}).appIcon,'wordmark');assert.equal(prefs.set({appIcon:'nope'}).appIcon,'wordmark');
-  prefs.replace({skin:'base',mode:'dark',skinThemes:{tui:'zen-sage'}});assert.equal(prefs.get().theme,'zen-ink');assert.equal('skinThemes' in prefs.get(),false);assert.equal(prefs.get().appIcon,'brand','모르는 아이콘 값은 기본 아이콘으로 되돌립니다.');
+  assert.equal(prefs.set({theme:'zen-paper'}).theme,'zen-fog','걷어낸 테마는 고를 수 없습니다.');
+  assert.equal(prefs.set({theme:'tui-amber',skin:'tui'}).theme,'zen-fog','걷어낸 스킨의 테마·스킨은 받지 않습니다.');
+  assert.equal(prefs.get().appIcon,'brand');assert.equal(prefs.set({appIcon:'wordmark'}).appIcon,'brand','걷어낸 아이콘은 고를 수 없습니다(브랜드 아이콘 하나).');
+  prefs.replace({skin:'base',mode:'dark',skinThemes:{tui:'zen-sage'}});assert.equal(prefs.get().theme,'zen-fog');assert.equal(prefs.get().mode,'system');assert.equal('skinThemes' in prefs.get(),false);assert.equal(prefs.get().appIcon,'brand','모르는 아이콘 값은 기본 아이콘으로 되돌립니다.');
  }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });

@@ -40,7 +40,7 @@ async function selectResult(expect){
   for(let step=0;step<index;step++)await press('ArrowDown');
   return index;
 }
-async function screenshot(name){const file=path.join(shots,name+'.png');await page.screenshot({path:file});screenshots.push(file);}
+async function screenshot(name){const file=path.join(shots,name+'.png');await page.screenshot({path:file,animations:'disabled'});screenshots.push(file);}
 async function test(name,action){const start=Date.now();try{await action();results.push({name,ok:true,durationMs:Date.now()-start});}catch(error){results.push({name,ok:false,durationMs:Date.now()-start,error:error.message});throw error;}}
 function normalize(value){return String(value).replace(/\\"/g,'"').replace(/"/g,'').replace(/\\/g,'/').toLowerCase();}
 async function closeApp(){

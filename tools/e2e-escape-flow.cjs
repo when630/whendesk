@@ -31,7 +31,7 @@ const commandInput = '.td-command input';
 const windowVisible = () => app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isVisible());
 async function showCommand(){await app.evaluate(({app})=>app.emit('second-instance'));await page.locator('#cf-command-panel').waitFor();await page.locator(commandInput).focus();}
 async function commandQuery(value){await page.locator(commandInput).fill('');await text(value);await waitUntil(()=>page.evaluate(()=>!document.querySelector('#cf-command-panel').hasAttribute('aria-busy')&&!!document.querySelector('.td-command-results [data-result]')),'Command 검색 결과가 나오지 않았습니다: '+value);}
-async function screenshot(name){const file=path.join(shots,name+'.png');await page.screenshot({path:file});screenshots.push(file);}
+async function screenshot(name){const file=path.join(shots,name+'.png');await page.screenshot({path:file,animations:'disabled'});screenshots.push(file);}
 async function test(name,action){const start=Date.now();try{await action();results.push({name,ok:true,durationMs:Date.now()-start});}catch(error){results.push({name,ok:false,durationMs:Date.now()-start,error:error.message});throw error;}}
 function normalize(value){return String(value).replace(/\\"/g,'"').replace(/"/g,'').replace(/\\/g,'/').toLowerCase();}
 async function closeApp(){
@@ -119,12 +119,12 @@ async function closeApp(){
       await press('Tab');await page.locator('#cf-dashboard-panel').waitFor();
       await page.evaluate(section=>window.__whendeskGo(section),'notes');await waitUntil(()=>within('.desk-notes-browser'),'메모 목록에 포커스가 없습니다.');
       const scope=page.locator('[data-note-scope]');
-      assert.equal(await scope.inputValue(),'active');
-      await press('Tab');await waitUntil(async()=>await scope.inputValue()==='archived','Tab이 보관함으로 가지 않았습니다.');
+      assert.equal(await scope.evaluate(element=>element.value),'active');
+      await press('Tab');await waitUntil(async()=>await scope.evaluate(element=>element.value)==='archived','Tab이 보관함으로 가지 않았습니다.');
       await waitUntil(()=>within('.desk-notes-browser'),'분류를 바꾼 뒤 목록 포커스를 잃었습니다.');
-      await press('Tab');await waitUntil(async()=>await scope.inputValue()==='trash','Tab이 휴지통으로 가지 않았습니다.');
-      await press('Shift+Tab');await waitUntil(async()=>await scope.inputValue()==='archived','Shift+Tab이 이전 분류로 가지 않았습니다.');
-      await press('Escape');await waitUntil(async()=>await scope.inputValue()==='active','Esc가 하위 분류에서 메모로 돌아오지 않았습니다.');
+      await press('Tab');await waitUntil(async()=>await scope.evaluate(element=>element.value)==='trash','Tab이 휴지통으로 가지 않았습니다.');
+      await press('Shift+Tab');await waitUntil(async()=>await scope.evaluate(element=>element.value)==='archived','Shift+Tab이 이전 분류로 가지 않았습니다.');
+      await press('Escape');await waitUntil(async()=>await scope.evaluate(element=>element.value)==='active','Esc가 하위 분류에서 메모로 돌아오지 않았습니다.');
       assert.equal(await visible('#cf-dashboard-panel'),true,'분류를 푸는 Esc가 대시보드까지 접었습니다.');
       await waitUntil(()=>within('.desk-notes-browser'),'메모로 돌아온 뒤 목록 포커스를 잃었습니다.');
       await press('Escape');await waitUntil(async()=>!await windowVisible(),'메모에서 마지막 Esc가 창을 숨기지 않았습니다.');

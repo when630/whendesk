@@ -7,17 +7,15 @@ const themeContext={};
 vm.runInNewContext(fs.readFileSync(new URL('../renderer/themes.js',import.meta.url),'utf8'),themeContext);
 const {THEMES:THEME_LIST,APP_ICONS}=themeContext.WhendeskThemes;
 const THEMES=new Map(THEME_LIST.map(theme=>[theme.id,theme]));
-/** 0.3.13의 ZEN 테마 id(sage·ink…)는 zen- 접두를 붙여 옮긴다. 그보다 옛 설정(skin·mode)과 0.3.34에 걷어낸 스킨의 테마(poster-sumi…)는 다크면 INK, 아니면 SAGE로 옮긴다. */
 function legacyTheme(data){
- if(THEMES.has(data?.theme))return data.theme;
- if(THEMES.has('zen-'+data?.theme))return 'zen-'+data.theme;
- return data?.mode==='dark'?'zen-ink':null;
+ // 0.3.35부터 테마는 브랜드 FOG 하나다. 옛 테마(zen-ink·sage…, 걷어낸 스킨의 테마, 0.3.13 이전 값)는 모두 FOG로 옮긴다.
+ return THEMES.has(data?.theme)?data.theme:null;
 }
 /** 테마가 스킨과 밝기를 정한다: skin은 테마의 스킨(지금은 늘 zen), mode(nativeTheme)는 테마의 밝기. */
 function withTheme(next,theme){
  const value=THEMES.get(theme);
  const {skinThemes,...rest}=next;
- return {...rest,theme,skin:value.skin,mode:value.dark?'dark':'light'};
+ return {...rest,theme,skin:value.skin,mode:value.auto?'system':value.dark?'dark':'light'}; // auto(FOG)는 OS 밝기를 따른다
 }
 function normalize(base,data){
  const merged={...base,...data};
@@ -25,7 +23,7 @@ function normalize(base,data){
  if(!['symbol','checkbox'].includes(merged.taskMarker))merged.taskMarker=base.taskMarker;
  return withTheme(merged,legacyTheme(data)||base.theme);
 }
-export const DEFAULTS=Object.freeze({skin:'zen',theme:'zen-sage',mode:'light',appIcon:'brand',hotkey:'Alt+Space',captureHotkey:'Control+Alt+Space',noteCaptureHotkey:'Control+Alt+M',mediaPlayHotkey:'Control+Alt+P',mediaRewindHotkey:'Control+Alt+Left',mediaForwardHotkey:'Control+Alt+Right',media:true,launchAtLogin:false,briefEnabled:true,briefAt:'09:00',lastBriefing:null,commandPosition:null,dashboardBounds:null,clipboardRow:true,taskMarker:'symbol'});
+export const DEFAULTS=Object.freeze({skin:'zen',theme:'zen-fog',mode:'system',appIcon:'brand',hotkey:'Alt+Space',captureHotkey:'Control+Alt+Space',noteCaptureHotkey:'Control+Alt+M',mediaPlayHotkey:'Control+Alt+P',mediaRewindHotkey:'Control+Alt+Left',mediaForwardHotkey:'Control+Alt+Right',media:true,launchAtLogin:false,briefEnabled:true,briefAt:'09:00',lastBriefing:null,commandPosition:null,dashboardBounds:null,clipboardRow:true,taskMarker:'symbol'});
 export function createPreferences(file){
  let values={...DEFAULTS};
  if(fs.existsSync(file)){

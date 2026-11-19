@@ -20,7 +20,7 @@ const emitMedia = value => app.evaluate((_electron,value)=>globalThis.__commandT
 const input = () => page.locator('.td-command input');
 async function waitUntil(predicate,message){const end=Date.now()+12000;while(Date.now()<end){if(await predicate())return;await page.waitForTimeout(30);}assert.fail(message);}
 async function test(name,action){const started=Date.now();try{await action();results.push({name,ok:true,durationMs:Date.now()-started});}catch(error){results.push({name,ok:false,durationMs:Date.now()-started,error:error.message});throw error;}}
-async function screenshot(name){const file=path.join(shots,name+'.png');await page.screenshot({path:file});screenshots.push(file);}
+async function screenshot(name){const file=path.join(shots,name+'.png');await page.screenshot({path:file,animations:'disabled'});screenshots.push(file);}
 function normalize(value){return String(value).replace(/\\"/g,'"').replace(/"/g,'').replace(/\\/g,'/').toLowerCase();}
 async function closeHarness(){
   if(!app)return;
@@ -145,11 +145,11 @@ const playing=session('fixture-playing','재생 중인 아주 긴 노래 제목 
       await page.evaluate(section=>window.__whendeskGo(section),'notes');await page.locator('.td-main-head h1').filter({hasText:'Note'}).waitFor();
       assert.equal(await page.locator('.td-main > .td-work-nav').isVisible(),false,'Note에서 Work 탭이 표시됩니다.');
       await page.keyboard.press('Control+k');await page.waitForFunction(()=>document.querySelector('.td-command input')===document.activeElement);assert.equal(await input().inputValue(),'ListSpec');
-      await page.keyboard.press('Control+Comma');await page.locator('.td-main-head h1').filter({hasText:'Settings'}).waitFor();await page.locator('[data-theme-pick=zen-dim]').click();
-      await waitUntil(async()=>{const preferences=await page.evaluate(()=>window.desk.call('preferences.get'));return preferences.theme==='zen-dim'&&preferences.mode==='dark';},'설정에서 테마 선택이 저장되지 않았습니다.');
+      await page.keyboard.press('Control+Comma');await page.locator('.td-main-head h1').filter({hasText:'Settings'}).waitFor();await page.locator('[data-pref="taskMarker"]').click();await page.locator('.td-pick-menu [data-value="checkbox"]').click();
+      await waitUntil(async()=>{const preferences=await page.evaluate(()=>window.desk.call('preferences.get'));return preferences.taskMarker==='checkbox';},'설정에서 외관(완료 표시 방식) 선택이 저장되지 않았습니다.');
       await page.evaluate(section=>window.__whendeskGo(section),'notes');await page.locator('.td-main-head h1').filter({hasText:'Note'}).waitFor();await page.locator('.desk-notes').waitFor();
       await page.keyboard.press('Control+k');await page.waitForFunction(()=>document.querySelector('.td-command input')===document.activeElement);
-      assert.equal(await input().inputValue(),'ListSpec');assert.equal(await page.locator('.td-app').getAttribute('data-theme'),'zen-dim');assert.equal(await page.locator('.td-app').evaluate(element=>getComputedStyle(element).colorScheme),'dark');
+      assert.equal(await input().inputValue(),'ListSpec');assert.equal(await page.locator('.td-app').getAttribute('data-theme'),'zen-fog');
       await screenshot('06-command-dark');
     });
 

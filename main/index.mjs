@@ -16,10 +16,15 @@ const argv=process.argv.slice(1);
 function option(name){const eq=argv.find(a=>a.startsWith(name+'='));if(eq)return eq.slice(name.length+1);const i=argv.indexOf(name);return i>=0?argv[i+1]:null;}
 /** 설정에서 고른 앱 아이콘(assets/icons/<id>.png). 창과 트레이에 바로 쓰고, 설치 파일 아이콘(assets/icon.png)은 따로 고정이다. */
 function iconFile(id){const file=path.join(ROOT,'assets','icons',id+'.png');return fs.existsSync(file)?file:path.join(ROOT,'assets','icon.png');}
-/** 트레이 아이콘: 고른 아이콘을 16px과 고DPI 배율로 줄여 넣는다(WHENTERMINAL makeTrayIcon과 같은 방식) */
+/** 트레이 아이콘: 배율마다(16·20·24·32px) 따로 그린 그림을 넣는다(tools/make-icon.mjs) — 큰 그림을 줄이면 16px에서 두 막대가 번져 붙는다.
+ *  그린 파일이 없으면 창 아이콘을 줄여 쓴다. */
 function trayIcon(id){
  const source=nativeImage.createFromPath(iconFile(id)),image=nativeImage.createEmpty();
- for(const scaleFactor of [1,1.25,1.5,2]){const size=Math.round(16*scaleFactor);image.addRepresentation({scaleFactor,buffer:source.resize({width:size,height:size,quality:'best'}).toPNG()});}
+ for(const scaleFactor of [1,1.25,1.5,2]){
+  const size=Math.round(16*scaleFactor),drawn=path.join(ROOT,'assets','icons',`tray-${size}.png`);
+  const buffer=fs.existsSync(drawn)?fs.readFileSync(drawn):source.resize({width:size,height:size,quality:'best'}).toPNG();
+  image.addRepresentation({scaleFactor,width:size,height:size,buffer});
+ }
  return image;
 }
 const testMode=argv.includes('--smoke')||argv.includes('--test');
@@ -93,7 +98,7 @@ async function bootstrap(){
  }
  /* Command는 사라질 때도 등장의 역순으로 접힌다: 렌더러에 command.leave를 보내 모션(motion.css .command-leave)을 재생하고 끝나면 숨긴다.
   * Esc·실행 뒤·단축키·포커스를 잃을 때 모두 여기로 온다. 접히는 중에 다시 부르면 summon이 숨기기를 취소하고 새로 등장시킨다. */
- const LEAVE_MS=250;let leaveTimer=null;
+ const LEAVE_MS=650;let leaveTimer=null; // 렌더러가 다 접었다고 알리면(window.left) 바로 숨긴다. 이 시간은 신호가 안 올 때의 안전장치
  function hideWindow(){
   if(!win||win.isDestroyed()||!win.isVisible())return;
   if(shellMode==='command'&&!testMode&&win.getOpacity()>=1){if(leaveTimer)return;send('command.leave');leaveTimer=setTimeout(hideNow,LEAVE_MS);return;}
@@ -295,6 +300,7 @@ async function bootstrap(){
   'window.minimize':()=>win.minimize(),
   'window.close':()=>hideWindow(),
   'window.painted':()=>reveal(),
+  'window.left':()=>{if(leaveTimer)hideNow();},
   'app.quit':()=>requestQuit(),
  };
  /* 스트림덱 플러그인(integrations/ulanzi)용 로컬 통로. 덱에서 한 변경도 화면과 같은 줄(mutationTail)에 선다. */

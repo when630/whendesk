@@ -11,12 +11,15 @@
 #whendesk-command-first .td-command :is(.command-brand,.command-field,.td-media){
   height:54px;background:var(--td-surface);box-shadow:inset 0 0 0 1px var(--td-line);
 }
-/* 동그란 마크: 창 손잡이. */
+/* 동그란 마크: 창 손잡이이자 시리즈 서명 — 먹색 틀 + 안개색 w + 라임 커서 점(whenwork docs/08_브랜드.md D-B02).
+ * 라임은 밝은 바탕 위에서 보이지 않으므로(대비 1.1) 테마와 상관없이 먹색 원 안에 둔다. 어두운 테마에서는 옅은 테두리로 원을 가른다. */
 #whendesk-command-first .td-command .command-brand{
-  flex:0 0 54px;width:54px;border-radius:50%;padding-right:2px;
-  font:650 24px/1 var(--td-font);letter-spacing:-2.5px;color:var(--td-text);
-  cursor:grab;-webkit-app-region:drag;
+  flex:0 0 54px;width:54px;border-radius:50%;
+  background:#151a21;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);color:#e8ecf0;
+  font:650 24px/1 var(--td-font);cursor:grab;-webkit-app-region:drag;
 }
+#whendesk-command-first .command-brand .brand-word{display:inline-flex;align-items:baseline;gap:2px;letter-spacing:-1px}
+#whendesk-command-first .command-brand .brand-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#c6ee3a}
 /* 입력 막대: 입력칸 자체는 배경이 막혀 있어(focus.css) 감싼 조각이 면을 갖는다. */
 #whendesk-command-first .td-command .command-field{
   flex:1 1 0%;min-width:0;display:flex;align-items:center;padding:0 16px;border-radius:20px;

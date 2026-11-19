@@ -30,7 +30,7 @@ async function waitWithin(selector){try{await waitUntil(()=>within(selector),'')
 const selectedNote = () => page.locator('[data-note-list] [aria-selected=true]').getAttribute('data-note-row');
 const note = async id => (await state()).notes.find(item=>item.id===id);
 const task = async id => (await state()).tasks.find(item=>item.id===id);
-async function screenshot(name){const file=path.join(shots,name+'.png');await page.screenshot({path:file});screenshots.push(file);}
+async function screenshot(name){const file=path.join(shots,name+'.png');await page.screenshot({path:file,animations:'disabled'});screenshots.push(file);}
 async function test(name,action){const start=Date.now();try{await action();results.push({name,ok:true,durationMs:Date.now()-start});}catch(error){results.push({name,ok:false,durationMs:Date.now()-start,error:error.message});throw error;}}
 function normalize(value){return String(value).replace(/\\"/g,'"').replace(/"/g,'').replace(/\\/g,'/').toLowerCase();}
 async function closeApp(){
@@ -183,9 +183,13 @@ async function closeApp(){
     await test('Ctrl+Tab·Ctrl+Shift+Tab은 머리 탭(Today·InBox·Journey·Note)을 순환한다',async()=>{
       const title=()=>page.locator('.td-main-head h1').innerText();
       await page.evaluate(section=>window.__whendeskGo(section),'inbox');await waitUntil(async()=>(await title())==='InBox','InBox로 가지 않았습니다.');
+      // 선택 알약(glide.js .tab-glide)은 탭을 바꿔도 같은 요소로 남아 이어 미끄러진다 — 막대를 새로 만들면 선택 배경이 먼저 깜빡인다.
+      await page.evaluate(()=>{window.__tabMarker=document.querySelector('.td-main-head .td-tabs>.tab-glide');});
       const visited=[];
       for(const key of ['Control+Tab','Control+Tab','Control+Tab','Control+Tab','Control+Shift+Tab']){const before=await title();await press(key);await waitUntil(async()=>await title()!==before,key+'가 탭을 바꾸지 않았습니다.');visited.push(await title());}
       measurements.menuCycle=visited;
+      measurements.tabMarker=await page.evaluate(()=>{const markers=document.querySelectorAll('.td-main-head .td-tabs>.tab-glide'),selected=document.querySelector('.td-main-head [role=tab][aria-selected=true]');return {count:markers.length,same:markers[0]===window.__tabMarker,selectedBackground:getComputedStyle(selected).backgroundColor};});
+      assert.deepEqual(measurements.tabMarker,{count:1,same:true,selectedBackground:'rgba(0, 0, 0, 0)'},'탭을 바꾸면 선택 알약이 새로 생기거나 선택 배경이 따로 칠해졌습니다: '+JSON.stringify(measurements.tabMarker));
       assert.deepEqual(visited,['Journey','Note','Today','InBox','Today'],'탭 순환 순서가 다릅니다: '+visited.join(' → '));
     });
 
