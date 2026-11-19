@@ -110,7 +110,7 @@ async function closeApp(){
    await waitUntil(async()=>{const note=(await state()).notes.find(note=>note.title===noteTitle);noteId=note?.id;return note?.body===noteBody;},'메모 본문이 저장되지 않았습니다.');
    await press('Control+Shift+3');await page.waitForTimeout(100);assert.equal(await page.locator('[data-note-scope]').evaluate(element=>element.value),'active','이전 Ctrl+Shift+3 숫자 키가 메모 범위를 바꿨습니다.');
    // Ctrl+S는 저장하고 보기 모드로 나온다. E가 다시 편집으로 들어간다.
-   await waitFocus('[data-note-preview]');assert.equal(await page.locator('[data-note-editor]').isVisible(),false,'Ctrl+S가 보기 모드로 나오지 않았습니다.');await press('e');await waitFocus('[data-note-editor]');
+   await waitFocus(`[data-note-row="${noteId}"]`);assert.equal(await page.locator('[data-note-editor]').isVisible(),false,'Ctrl+S가 보기 모드로 나오지 않았습니다.');await press('e');await waitFocus('[data-note-editor]'); // 목록의 E는 고른 메모를 편집으로 연다
    const editor=await page.$('[data-note-editor]');
    await press('Control+Home');await press('ArrowRight');await press('ArrowRight');for(let index=0;index<5;index++)await press('Shift+ArrowRight');
    const selection=await editor.evaluate(element=>[element.selectionStart,element.selectionEnd]);assert.deepEqual(selection,[2,7]);
@@ -150,7 +150,7 @@ async function closeApp(){
   await test('휴지통 메모 미리보기에서 Command로 활성 메모를 열면 범위·선택·편집 권한을 복원',async()=>{
    await press('Control+n');await waitFocus('[data-note-editor]');await text(trashNoteBody);await press('Control+s');
    await waitUntil(async()=>{const note=(await state()).notes.find(note=>note.title===trashNoteTitle);trashNoteId=note?.id;return note?.body===trashNoteBody;},'휴지통 범위 검증용 메모 B가 저장되지 않았습니다.');
-   await press('Escape');await waitFocus(`[data-note-row="${trashNoteId}"]`);await press('Delete');
+   await waitFocus(`[data-note-row="${trashNoteId}"]`);await press('Delete'); // Ctrl+S가 이미 목록의 그 줄로 보냈다
    await waitUntil(async()=>(await state()).notes.find(note=>note.id===trashNoteId)?.deleted===true,'메모 B가 휴지통으로 이동하지 않았습니다.');
    await press('Control+Shift+t');await page.locator(`[data-note-row="${trashNoteId}"]`).waitFor();await waitFocus(`[data-note-row="${trashNoteId}"]`);await press('Enter');await waitFocus('[data-note-preview]');
    assert.equal(await page.locator('[data-note-scope]').evaluate(element=>element.value),'trash');assert.ok((await page.locator('[data-note-preview]').textContent()).includes(trashNoteTitle));

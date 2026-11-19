@@ -126,7 +126,7 @@
     const left = clamp(from.x - bounds.x, bounds.width), top = clamp(from.y - bounds.y, bounds.height);
     const right = clamp(bounds.width - (from.x - bounds.x) - from.width, bounds.width - left), bottom = clamp(bounds.height - (from.y - bounds.y) - from.height, bounds.height - top);
     const ease = 'cubic-bezier(.4,0,.2,1)'; // 탭 알약과 같은 곡선: 부드럽게 출발해 부드럽게 선다(빠르게 튀어 나가지 않게)
-    const morph = app.animate([{ clipPath:`inset(${top}px ${right}px ${bottom}px ${left}px round 27px)` }, { clipPath:'inset(0px 0px 0px 0px round 0px)' }], { duration:340, easing:ease });
+    const morph = app.animate([{ clipPath:`inset(${top}px ${right}px ${bottom}px ${left}px round 27px)` }, { clipPath:'inset(0px 0px 0px 0px round 14px)' }], { duration:340, easing:ease }); // 끝은 대시보드의 둥근 모서리(brand.css 14px)
     const content = root.querySelector('#cf-dashboard-panel').animate([{ opacity:0, transform:'translateY(6px)' }, { opacity:1, transform:'none' }], { duration:220, delay:140, easing:ease, fill:'backwards' });
     const animations = [morph, content]; animations.forEach(animation => animation.pause());
     setTimeout(() => animations.forEach(animation => { if (animation.playState === 'paused') animation.play(); }), 400);
@@ -151,7 +151,7 @@
     commandInput.value = command.query;
     if (focus) { commandInput.focus({ preventScroll:true }); commandInput.setSelectionRange(command.start, command.end); }
     const content = dashboardPanel.animate([{ opacity:1 }, { opacity:0 }], { duration:120, easing:'ease-in', fill:'forwards' });
-    const morph = app.animate([{ clipPath:'inset(0px 0px 0px 0px round 0px)' }, { clipPath:plan.inset }], { duration:280, easing:'cubic-bezier(.4,0,.2,1)', fill:'forwards' });
+    const morph = app.animate([{ clipPath:'inset(0px 0px 0px 0px round 14px)' }, { clipPath:plan.inset }], { duration:280, easing:'cubic-bezier(.4,0,.2,1)', fill:'forwards' });
     morphAnimations = [content, morph];
     // 창이 가려져 화면 갱신이 멈추면 모프가 끝나지 않는다 — 0.4초가 지나면 끝난 것으로 보고 넘어간다(전환이 멈춰 서지 않게).
     await Promise.race([morph.finished.catch(() => {}), new Promise(resolve => setTimeout(resolve, 400))]);

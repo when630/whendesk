@@ -98,3 +98,10 @@
 #whendesk-command-first .td-app .help-group h3 small{font-size:10px;line-height:16px;padding:0 7px;border-radius:99px;background:var(--td-lime);color:var(--td-on-lime);font-weight:500}
 #whendesk-command-first .td-app .help-group dt{color:var(--td-text2)}
 #whendesk-command-first .td-app .help-group dl>div{border-bottom-color:color-mix(in srgb,var(--td-line) 70%,transparent)}
+
+/* ── 대시보드 창 모서리: 창이 투명이라 바깥을 둥글게 깎는다(14px). 가장자리 선은 두지 않는다.
+ *    Tab 펼침·Ctrl+K 접힘 모프도 이 둥글기에서 끝나고 시작한다(app.js morphDashboard·collapseToCommand). */
+#whendesk-command-first:not(.is-command) .td-app{border-radius:14px;overflow:hidden}
+
+/* ── 라임 포인트: 머리(화면 제목·탭)와 본문 사이 구분선 하나만 라임. 나머지 선은 그대로 회색 */
+#whendesk-command-first .td-app .td-main-head{border-bottom:2px solid var(--td-lime)}

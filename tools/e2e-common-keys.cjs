@@ -74,7 +74,7 @@ async function closeApp(){
       assert.equal(await page.locator('[data-note-editor]').isVisible(),false,'Enter가 보기가 아니라 편집으로 열었습니다.');
       // 보기 모드에서 E는 본문 밖(도구 막대)에 포커스가 있어도 편집으로 들어간다. Ctrl+S는 저장하고 보기로 나온다.
       await page.locator('[data-note-action=pin]').focus();await press('e');await waitFocus('[data-note-editor]');
-      await press('End');await page.keyboard.insertText(' 덧붙임');await press('Control+s');await waitFocus('[data-note-preview]');
+      await press('End');await page.keyboard.insertText(' 덧붙임');await press('Control+s');await waitFocus(`[data-note-row="${first}"]`); // 저장하고 보기로 나와 목록의 그 줄로
       assert.equal(await page.locator('[data-note-editor]').isVisible(),false,'Ctrl+S가 보기 모드로 나오지 않았습니다.');
       await waitUntil(async()=>(await note(first)).body.includes(' 덧붙임'),'Ctrl+S가 메모를 저장하지 않았습니다.');
       await press('e');await waitFocus('[data-note-editor]');
@@ -86,7 +86,7 @@ async function closeApp(){
       const count=(await state()).notes.length;
       await press('n');await waitFocus('[data-note-editor]');await page.keyboard.insertText('공통키 새 메모 '+runId);await press('Control+s');
       await waitUntil(async()=>(await state()).notes.length===count+1,'N이 새 메모를 만들지 않았습니다.');
-      await press('Escape');await waitWithin('[data-note-list]');
+      await waitWithin('[data-note-list]'); // Ctrl+S가 저장하고 목록으로 보냈다
     });
 
     await test('되돌리기 기록은 화면을 넘나든다: 메모 X 삭제·할 일 완료를 Work의 U로 최근 것부터 되돌린다',async()=>{

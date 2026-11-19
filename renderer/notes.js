@@ -330,8 +330,8 @@
       const consume = action => { event.preventDefault(); if (!event.repeat) safe(action); return true; };
       if (K.is(event,'app.new')) return consume(() => newNote());
       if (K.is(event,'note.search')) return consume(() => { search.focus({preventScroll:true}); search.select(); });
-      // Ctrl+S: 저장하고 보기 모드로 나온다. E가 다시 편집으로 들어간다(보기 ↔ 편집은 이 두 키로).
-      if (K.is(event,'app.save')) return consume(async () => { await flush(); if (state.note && !state.preview && !isDeleted(state.note)) setPreview(true); });
+      // Ctrl+S: 저장하고 보기 모드로 나와 목록의 그 메모 줄로 간다(다음 메모로 바로 옮겨 갈 수 있게). 목록에서 E가 다시 편집으로 연다.
+      if (K.is(event,'app.save')) return consume(async () => { await flush(); if (state.note && !state.preview && !isDeleted(state.note)) { setPreview(true,{focus:false}); focusList(); } });
       if (K.is(event,'note.preview') && state.note) return consume(() => setPreview(!state.preview));
       if (K.is(event,'note.pin')) return consume(() => toggleFlag('note.pin'));
       if (K.is(event,'note.archive')) return consume(() => toggleFlag('note.archive'));
