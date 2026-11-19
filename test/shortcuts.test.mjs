@@ -116,12 +116,14 @@ test('테마가 스킨과 화면 모드를 정하고 옛 설정은 ZEN 테마로
   fs.writeFileSync(file,JSON.stringify({theme:'dim',mode:'dark'}));
   assert.equal(createPreferences(file).get().theme,'zen-dim','0.3.13 테마 id는 zen- 접두로 옮겨야 합니다.');
   const prefs=createPreferences(file);
-  let value=prefs.set({theme:'tui-amber'});assert.equal(value.skin,'tui');assert.equal(value.mode,'dark');
-  value=prefs.set({skin:'soft'});assert.equal(value.theme,'soft-light','처음 고른 스킨은 첫 테마로 시작합니다.');assert.equal(value.mode,'light');
-  value=prefs.set({theme:'soft-dark'});value=prefs.set({skin:'tui'});assert.equal(value.theme,'tui-amber','스킨으로 돌아오면 마지막 테마를 되살립니다.');
-  value=prefs.set({skin:'soft'});assert.equal(value.theme,'soft-dark');
-  assert.equal(prefs.set({theme:'nope',skin:'nope'}).theme,'soft-dark');
+  let value=prefs.set({theme:'zen-night'});assert.equal(value.skin,'zen');assert.equal(value.mode,'dark');
+  value=prefs.set({theme:'zen-paper'});assert.equal(value.mode,'light');
+  assert.equal(prefs.set({theme:'tui-amber',skin:'tui'}).theme,'zen-paper','걷어낸 스킨의 테마·스킨은 받지 않습니다.');
+  fs.writeFileSync(file,JSON.stringify({skin:'poster',theme:'poster-sumi',mode:'dark',skinThemes:{poster:'poster-sumi',zen:'zen-ink'}}));
+  const removed=createPreferences(file).get();assert.equal(removed.theme,'zen-ink','걷어낸 어두운 테마는 INK로 옮깁니다.');assert.equal(removed.skin,'zen');assert.equal('skinThemes' in removed,false);
+  fs.writeFileSync(file,JSON.stringify({skin:'soft',theme:'soft-light',mode:'light'}));
+  assert.equal(createPreferences(file).get().theme,'zen-sage','걷어낸 밝은 테마는 SAGE로 옮깁니다.');
   assert.equal(prefs.get().appIcon,'brand');assert.equal(prefs.set({appIcon:'wordmark'}).appIcon,'wordmark');assert.equal(prefs.set({appIcon:'nope'}).appIcon,'wordmark');
-  prefs.replace({skin:'base',mode:'dark',skinThemes:{tui:'zen-sage'}});assert.equal(prefs.get().theme,'zen-ink');assert.deepEqual(prefs.get().skinThemes,{zen:'zen-ink'});assert.equal(prefs.get().appIcon,'brand','모르는 아이콘 값은 기본 아이콘으로 되돌립니다.');
+  prefs.replace({skin:'base',mode:'dark',skinThemes:{tui:'zen-sage'}});assert.equal(prefs.get().theme,'zen-ink');assert.equal('skinThemes' in prefs.get(),false);assert.equal(prefs.get().appIcon,'brand','모르는 아이콘 값은 기본 아이콘으로 되돌립니다.');
  }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });

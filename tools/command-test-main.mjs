@@ -125,7 +125,7 @@ globalThis.__commandTest = {
   },
 };
 win = new BrowserWindow({
-  width:560, height:54, frame:false, thickFrame:false, show:true, title:'WHENDESK Command 개발 검증',
+  width:560, height:54, frame:false, thickFrame:false, transparent:true, backgroundColor:'#00000000', show:true, title:'WHENDESK Command 개발 검증',
   webPreferences:{ preload:path.join(root,'main','preload.cjs'), contextIsolation:true, sandbox:true, nodeIntegration:false },
 });
 win.setMenu(null);

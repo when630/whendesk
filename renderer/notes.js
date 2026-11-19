@@ -12,7 +12,7 @@
     if (typeof call !== 'function') throw new Error('메모 API가 필요합니다.');
     const element = document.createElement('section');
     element.className = 'desk-notes'; element.setAttribute('aria-label','메모 작업 공간');
-    element.innerHTML = `<aside class="desk-notes-browser" aria-label="메모 목록"><div class="desk-notes-search"><i data-lucide="search" aria-hidden="true"></i><input type="search" data-note-search aria-label="메모 검색" placeholder="메모 검색" autocomplete="off" spellcheck="false"><button data-note-action="create" aria-label="새 메모">${icon('plus')}</button></div><div class="desk-notes-list-head"><select data-note-scope aria-label="메모 보기"><option value="active">메모</option><option value="archived">보관함</option><option value="trash">휴지통</option></select><span data-note-count></span></div><div class="desk-notes-list" data-note-list role="listbox" aria-label="메모 검색 결과" tabindex="0"></div><div class="desk-notes-tags" data-note-tags aria-label="태그"></div></aside><section class="desk-note-editor" aria-label="메모 편집"><div data-note-placeholder class="desk-note-placeholder">왼쪽에서 메모를 고르거나 N으로 새 메모를 만드세요.</div><div data-note-content hidden><div class="desk-note-toolbar"><span class="desk-note-title" data-note-title></span><span class="desk-note-mode" data-note-mode></span><div class="desk-note-tools"><button data-note-action="preview" title="미리보기 (Ctrl+E)" aria-label="마크다운 미리보기" aria-pressed="false">${icon('eye')}</button><button data-note-action="pin" title="고정 (Ctrl+P)" aria-label="메모 고정" aria-pressed="false">${icon('pin')}</button><button data-note-action="archive" title="보관 (Ctrl+Shift+A)" aria-label="메모 보관" aria-pressed="false">${icon('archive')}</button><button data-note-action="attach" title="이미지 첨부 (Ctrl+Shift+I)" aria-label="이미지 첨부">${icon('image-plus')}</button><button data-note-action="export" title="Markdown 내보내기 (Ctrl+Shift+E)" aria-label="메모 마크다운 내보내기">${icon('download')}</button><button data-note-action="delete" class="desk-note-danger" title="삭제 (X)" aria-label="메모 삭제">${icon('trash-2')}</button><button data-note-action="restore" title="복원" aria-label="메모 복원" hidden>${icon('undo-2')}</button></div></div><textarea class="desk-note-body" data-note-editor aria-label="메모 본문" placeholder="메모 내용" spellcheck="false"></textarea><div class="desk-note-preview" data-note-preview tabindex="0" role="region" aria-label="메모 미리보기" hidden></div><div class="desk-note-meta"><div data-note-meta></div><span class="desk-note-save" data-note-save role="status" aria-live="polite"></span></div><div class="desk-note-links" data-note-links></div></div></section>`;
+    element.innerHTML = `<aside class="desk-notes-browser" aria-label="메모 목록"><div class="desk-notes-search"><i data-lucide="search" aria-hidden="true"></i><input type="search" data-note-search aria-label="메모 검색" placeholder="메모 검색" autocomplete="off" spellcheck="false"></div><div class="desk-notes-list-head"><select data-note-scope aria-label="메모 보기"><option value="active">메모</option><option value="archived">보관함</option><option value="trash">휴지통</option></select><span data-note-count></span></div><div class="desk-notes-list" data-note-list role="listbox" aria-label="메모 검색 결과" tabindex="0"></div><div class="desk-notes-tags" data-note-tags aria-label="태그"></div></aside><section class="desk-note-editor" aria-label="메모 편집"><div data-note-placeholder class="desk-note-placeholder">왼쪽에서 메모를 고르거나 N으로 새 메모를 만드세요.</div><div data-note-content hidden><div class="desk-note-toolbar"><span class="desk-note-title" data-note-title></span><span class="desk-note-mode" data-note-mode></span><div class="desk-note-tools"><button data-note-action="preview" title="미리보기 (Ctrl+E)" aria-label="마크다운 미리보기" aria-pressed="false">${icon('eye')}</button><button data-note-action="pin" title="고정 (Ctrl+P)" aria-label="메모 고정" aria-pressed="false">${icon('pin')}</button><button data-note-action="archive" title="보관 (Ctrl+Shift+A)" aria-label="메모 보관" aria-pressed="false">${icon('archive')}</button><button data-note-action="attach" title="이미지 첨부 (Ctrl+Shift+I)" aria-label="이미지 첨부">${icon('image-plus')}</button><button data-note-action="export" title="Markdown 내보내기 (Ctrl+Shift+E)" aria-label="메모 마크다운 내보내기">${icon('download')}</button><button data-note-action="delete" class="desk-note-danger" title="삭제 (X)" aria-label="메모 삭제">${icon('trash-2')}</button><button data-note-action="restore" title="복원" aria-label="메모 복원" hidden>${icon('undo-2')}</button></div></div><textarea class="desk-note-body" data-note-editor aria-label="메모 본문" placeholder="메모 내용" spellcheck="false"></textarea><div class="desk-note-preview" data-note-preview tabindex="0" role="region" aria-label="메모 미리보기" hidden></div><div class="desk-note-meta"><div data-note-meta></div><span class="desk-note-save" data-note-save role="status" aria-live="polite"></span></div><div class="desk-note-links" data-note-links></div></div></section>`;
     const $ = selector => element.querySelector(selector);
     const search = $('[data-note-search]'), scope = $('[data-note-scope]'), list = $('[data-note-list]');
     const editor = $('[data-note-editor]'), preview = $('[data-note-preview]');
@@ -52,11 +52,12 @@
       const oldScroll = list.scrollTop;
       if (!state.results.some(note => note.id === state.selectedId)) state.selectedId = state.results[0]?.id || null;
       $('[data-note-count]').textContent = state.results.length ? `${state.results.length}` : '';
+      const flipBefore = window.WhendeskGlide?.measure(list); // 검색·보관·고정으로 줄이 바뀌면 남은 줄이 새 자리로 미끄러진다
       list.innerHTML = state.results.map((note,index) => {
         const draft = pending.get(note.id)?.body;
         return `<button id="desk-note-row-${index}" class="desk-note-row ${note.id === state.selectedId ? 'selected' : ''}" data-note-row="${esc(note.id)}" role="option" aria-selected="${note.id === state.selectedId}" tabindex="${note.id === state.selectedId ? '0' : '-1'}"><span class="desk-note-row-title">${isPinned(note) ? icon('pin') : ''}<span>${esc(draft == null ? note.title : titleOf(draft))}</span></span><small>${esc(plainSnippet(draft == null ? note.snippet || '' : draft.split('\n').slice(1).join('\n').slice(0,200)))}</small>${note.tags?.length ? `<span class="desk-note-row-tags">${esc(note.tags.map(tag => '#'+tag).join(' '))}</span>` : ''}</button>`;
       }).join('') || `<p class="desk-notes-empty" role="status">${state.searching ? '검색 중…' : state.query.trim() ? (state.scope === 'active' ? '찾는 메모가 없어요. Enter로 이 제목의 새 메모를 만듭니다.' : '찾는 메모가 없어요.') : ({active:'메모가 없어요. N 또는 + 로 새 메모를 만드세요.',archived:'보관한 메모가 없어요.',trash:'휴지통이 비었어요.'})[state.scope]}</p>`;
-      list.scrollTop = oldScroll; icons(); if (restore) focusList();
+      list.scrollTop = oldScroll; icons(); if (restore) focusList(); window.WhendeskGlide?.play(list, flipBefore); window.WhendeskGlide?.update();
     }
     /* 목록 미리보기는 읽는 글만: 체크박스·목록·제목·강조 기호와 #태그(태그 줄에 따로 보인다)를 뺀다. */
     function plainSnippet(text) {
@@ -110,11 +111,16 @@
       links.innerHTML = (note.backlinks || []).length ? `<span>연결된 메모</span>${note.backlinks.map(link => `<button data-note-open="${esc(link.id)}">${esc(link.title)}</button>`).join('')}` : '';
       saveStatus();
     }
+    let shownNoteId = null;
     function showNote() {
       $('[data-note-placeholder]').hidden = !!state.note;
       $('[data-note-content]').hidden = !state.note;
       element.classList.toggle('has-note',!!state.note);
       if (state.note) renderMeta();
+      // 다른 메모로 바뀔 때만 본문이 떠오르며 나타난다(motion.css). 같은 메모를 저장해 다시 그릴 때는 움직이지 않는다.
+      const shown = state.note?.id ?? null, content = $('[data-note-content]');
+      if (shown !== null && shown !== shownNoteId) { content.classList.remove('motion-enter'); void content.offsetWidth; content.classList.add('motion-enter'); }
+      shownNoteId = shown;
     }
     function markDirty() {
       if (!state.note || isDeleted(state.note)) return;
@@ -191,7 +197,8 @@
       const index = edge === 'first' ? 0 : edge === 'last' ? state.results.length-1 : (current+delta+state.results.length)%state.results.length;
       state.selectedId = state.results[index].id;
       list.querySelectorAll('[data-note-row]').forEach(row => { const selected = row.dataset.noteRow === state.selectedId; row.classList.toggle('selected',selected); row.setAttribute('aria-selected',String(selected)); row.tabIndex = selected ? 0 : -1; });
-      const row = list.querySelector('[aria-selected=true]'); row?.scrollIntoView({block:'nearest'});
+      const row = list.querySelector('[aria-selected=true]'); if (window.WhendeskGlide) window.WhendeskGlide.reveal(row); else row?.scrollIntoView({block:'nearest'});
+      window.WhendeskGlide?.update(); // 목록에 포커스가 있으면 포커스 면이 고른 줄로 미끄러진다
       if (list.contains(document.activeElement)) row?.focus({preventScroll:true});
       // 선택을 옮기면 오른쪽에 그 메모를 보기 모드로 바로 보여 준다(원본 WHENNOTE). 포커스는 목록에 둔다.
       clearTimeout(previewTimer); const target = state.selectedId;
@@ -233,6 +240,7 @@
     function setPreview(on,{focus:shouldFocus = true} = {}) {
       if (!state.note) return;
       state.preview = !!on; editor.hidden = state.preview; preview.hidden = !state.preview;
+      window.WhendeskGlide?.slide(state.preview ? preview : editor, 0, { duration:180 }); // 보기·편집 전환은 새 면이 살짝 떠오르며 바뀐다
       const button = $('[data-note-action=preview]');
       button.setAttribute('aria-pressed',String(state.preview)); button.setAttribute('aria-label',state.preview ? '메모 편집' : '마크다운 미리보기');
       button.innerHTML = icon(state.preview ? 'square-pen' : 'eye'); icons();

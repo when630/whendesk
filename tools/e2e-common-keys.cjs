@@ -192,7 +192,7 @@ async function closeApp(){
     await test('화면에 들어온 직후에는 포커스 표시가 없고 키로 움직이면 생긴다',async()=>{
       // 대시보드에서 시작한다 — Work의 Tab은 분류를 바꾸는 키라 앱이 둔 포커스가 다시 조용해진다.
       await page.evaluate(()=>window.__whendeskGo('dashboard'));await page.waitForTimeout(100);
-      const mark=()=>page.evaluate(()=>{const element=document.activeElement,style=getComputedStyle(element);return {quiet:document.getElementById('whendesk-command-first').classList.contains('focus-quiet'),tag:element.tagName,shown:(style.outlineStyle!=='none'&&parseFloat(style.outlineWidth)>0)||style.boxShadow!=='none'};});
+      const mark=()=>page.evaluate(()=>{const element=document.activeElement,style=getComputedStyle(element),row=element.closest('.cf-home-task'),painted=!!row&&getComputedStyle(row).backgroundColor!=='rgba(0, 0, 0, 0)'||[...document.querySelectorAll('.focus-glide.on')].some(glide=>{const g=glide.getBoundingClientRect(),r=element.getBoundingClientRect(),cy=r.top+r.height/2;return getComputedStyle(glide).opacity>0.5&&g.top<=cy&&g.bottom>=cy;});return {quiet:document.getElementById('whendesk-command-first').classList.contains('focus-quiet'),tag:element.tagName,shown:(style.outlineStyle!=='none'&&parseFloat(style.outlineWidth)>0)||style.boxShadow!=='none'||painted};});
       for(const key of ['Control+Tab','Control+Shift+Tab']){
         await press(key);await page.waitForTimeout(150);const landed=await mark();
         assert.equal(landed.quiet,true,key+' 뒤 앱이 둔 포커스가 조용하지 않습니다.');assert.equal(landed.shown,false,key+' 뒤 포커스 표시가 바로 보입니다: '+JSON.stringify(landed));

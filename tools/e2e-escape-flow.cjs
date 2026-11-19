@@ -63,7 +63,8 @@ async function closeApp(){
         assert.equal(await focused(commandInput),true,'추가한 뒤 입력 포커스를 잃었습니다.');
         assert.match(await page.locator(commandInput).getAttribute('placeholder'),/InBox에 담았습니다/);
       }
-      assert.equal(await page.locator('.td-command-results [data-result]').count(),0,'담은 뒤 이전 검색 결과가 남아 있습니다.');
+      // 목록은 말려 올라간 뒤(motion.css .list-exit, 약 0.16초) 사라진다.
+      await waitUntil(async()=>await page.locator('.td-command-results [data-result]').count()===0,'담은 뒤 이전 검색 결과가 남아 있습니다.');
       await waitUntil(async()=>(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].getBounds().height))===54,'담은 뒤 Command 창이 한 줄 높이로 돌아오지 않았습니다.');
       measurements.commandAfterCapture=await page.evaluate(()=>[...document.querySelectorAll('#cf-command-panel *, .td-feedback, .td-footer')].filter(element=>element.getClientRects().length&&element.children.length===0&&element.textContent.trim()).map(element=>element.className+':'+element.textContent.trim().slice(0,40)));
       await screenshot('01-command-capture-notice');
@@ -85,8 +86,10 @@ async function closeApp(){
       await waitUntil(()=>focused('[data-task-row]'),'편집기 Esc가 목록 행으로 돌아가지 않았습니다.');
       assert.equal(await page.locator('[data-editor]').count(),0,'편집기가 접히지 않았습니다.');
       assert.equal(await visible('#cf-dashboard-panel'),true);
-      measurements.rowFocusShadow=await page.evaluate(()=>getComputedStyle(document.activeElement).boxShadow);
-      assert.match(measurements.rowFocusShadow,/inset/,'키보드 포커스 행에 왼쪽 막대가 없습니다.');
+      // 포커스 면(glide.js)이 줄 뒤로 미끄러져 오는 데 0.18초쯤 걸린다.
+      await page.waitForFunction(()=>{const node=document.activeElement;return getComputedStyle(node).backgroundColor!=='rgba(0, 0, 0, 0)'||[...document.querySelectorAll('.focus-glide.on')].some(glide=>{const g=glide.getBoundingClientRect(),r=node.getBoundingClientRect(),cy=r.top+r.height/2;return getComputedStyle(glide).opacity>0.5&&g.top<=cy&&g.bottom>=cy;});},null,{timeout:3000}).catch(()=>{});
+      measurements.rowFocusFill=await page.evaluate(()=>{const node=document.activeElement;return [...document.querySelectorAll('.focus-glide.on')].some(glide=>{const g=glide.getBoundingClientRect(),r=node.getBoundingClientRect(),cy=r.top+r.height/2;return getComputedStyle(glide).opacity>0.5&&g.top<=cy&&g.bottom>=cy;})?'glide':getComputedStyle(node).backgroundColor;});
+      assert.notEqual(measurements.rowFocusFill,'rgba(0, 0, 0, 0)','키보드 포커스 행에 배경 면이 없습니다.');
       await press('/');await waitUntil(()=>focused('[data-work-search]'),'/로 검색에 가지 않았습니다.');
       await text('둘째');await press('Enter');await waitUntil(()=>focused('[data-task-row]'),'검색 Enter가 목록으로 가지 않았습니다.');
       assert.equal(await page.locator('[data-task-row]').count(),1,'검색이 적용되지 않았습니다.');
@@ -95,8 +98,8 @@ async function closeApp(){
       assert.equal(await visible('#cf-dashboard-panel'),true,'검색을 푸는 Esc가 대시보드까지 접었습니다.');
       await waitUntil(()=>focused('[data-task-row]'),'검색을 푼 뒤 목록 포커스를 잃었습니다.');
       await press('/');await waitUntil(()=>focused('[data-work-search]'),'/로 검색에 가지 않았습니다.');
-      measurements.cursorShadow=await page.evaluate(()=>getComputedStyle(document.querySelector('[data-task-row].keyboard-current')).boxShadow);
-      assert.match(measurements.cursorShadow,/inset/,'포커스가 목록 밖에 있을 때 목록 커서가 보이지 않습니다.');
+      measurements.cursorFill=await page.evaluate(()=>getComputedStyle(document.querySelector('[data-task-row].keyboard-current')).backgroundColor);
+      assert.notEqual(measurements.cursorFill,'rgba(0, 0, 0, 0)','포커스가 목록 밖에 있을 때 목록 커서가 보이지 않습니다.');
       await press('Escape');await waitUntil(()=>focused('[data-task-row]'),'빈 검색의 Esc가 목록으로 돌아가지 않았습니다.');
       assert.equal(await visible('#cf-dashboard-panel'),true);
       await screenshot('02-work-list-home');

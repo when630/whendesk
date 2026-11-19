@@ -41,10 +41,14 @@ async function closeApp(){
 // 측정하는 순간 화면이 다시 그려져 떨어진 요소를 잡으면 계산 스타일이 빈 값이다. 그때는 잠깐 뒤 다시 잰다.
 async function snapshot(locator){for(let attempt=0;;attempt++){const records=await measure(locator);if(attempt>=5||records[0]?.borders?.[0]?.[1])return records;await page.waitForTimeout(60);}}
 async function measure(locator){return locator.evaluate(element=>{
+  // 색 전환(motion.css)은 끝난 상태로 잰다 — 도착한 모양을 검사한다.
+  for(const animation of document.getAnimations())try{animation.finish();}catch{}
   const records=[];
   for(let node=element,depth=0;node&&depth<4;node=node.parentElement,depth++){
     const style=getComputedStyle(node);
-    records.push({tag:node.tagName,role:node.getAttribute('role'),classes:node.className,outlineStyle:style.outlineStyle,outlineWidth:style.outlineWidth,outlineColor:style.outlineColor,shadow:style.boxShadow,borders:['Top','Right','Bottom','Left'].map(side=>[style['border'+side+'Width'],style['border'+side+'Style'],style['border'+side+'Color']]),background:style.backgroundColor});
+    // 목록 줄은 줄 배경 대신 미끄러지는 포커스 면(glide.js .focus-glide)이 줄 뒤에 깔려 포커스를 알린다.
+    const glided=depth===0&&[...document.querySelectorAll('.focus-glide.on')].some(glide=>{const g=glide.getBoundingClientRect(),r=node.getBoundingClientRect(),cy=r.top+r.height/2;return getComputedStyle(glide).opacity>0.5&&g.top<=cy&&g.bottom>=cy;});
+    records.push({glided,tag:node.tagName,role:node.getAttribute('role'),classes:node.className,outlineStyle:style.outlineStyle,outlineWidth:style.outlineWidth,outlineColor:style.outlineColor,shadow:style.boxShadow,borders:['Top','Right','Bottom','Left'].map(side=>[style['border'+side+'Width'],style['border'+side+'Style'],style['border'+side+'Color']]),background:style.backgroundColor});
   }
   return records;
 });}
@@ -63,7 +67,7 @@ async function probe(selector,label,variant){
       const outline=current.outlineStyle!=='none'&&parseFloat(current.outlineWidth)>0,bar=current.shadow.includes('inset'),washed=current.background!==before[0].background,caret=['INPUT','TEXTAREA','SELECT'].includes(current.tag);
       // 탭은 포커스가 곧 선택이라 외곽선 없이 밑줄로 위치를 보여 준다.
       const underline=current.role==='tab'&&parseFloat(current.borders[2][0])>0&&!['none','hidden'].includes(current.borders[2][1]);
-      assert.ok(outline||bar||washed||caret||underline,prefix+' 키보드 포커스 위치가 보이지 않습니다: '+JSON.stringify(current));
+      assert.ok(outline||bar||washed||caret||underline||current.glided,prefix+' 키보드 포커스 위치가 보이지 않습니다: '+JSON.stringify(current));
       assert.ok(current.shadow==='none'||bar,prefix+' 바깥 그림자는 쓰지 않습니다.');
     }else{
       assert.equal(current.outlineStyle+current.outlineWidth,before[index].outlineStyle+before[index].outlineWidth,prefix+' 부모로 포커스 외곽선이 번졌습니다.');
@@ -80,8 +84,7 @@ async function probe(selector,label,variant){
   measurements.checks.push({variant,label,selector,focusVisible:await locator.evaluate(element=>element.matches(':focus-visible')),backgroundChanged:after[0].background!==before[0].background});
 }
 async function changeLook(theme,mode){
-  await section('s','[data-skin-pick]');
-  await page.locator(`[data-skin-pick=${theme.split('-')[0]}]`).click();
+  await section('s','[data-theme-pick]');
   await page.locator(`[data-theme-pick=${theme}]`).click();
   await waitUntil(async()=>{const preferences=await call('preferences.get');return preferences.theme===theme&&preferences.mode===mode;},'테마 설정 저장 실패');
   await page.waitForFunction(({theme,mode})=>{const app=document.querySelector('.td-app');return app.dataset.theme===theme&&getComputedStyle(app).colorScheme===mode;},{theme,mode});
@@ -182,11 +185,10 @@ async function withDelayedTaskSelection(run){
       measurements.selectionSaveFocus={delayMs:450,projectNextField:'note',kindNextField:'due',restoredSelection:false};
     });
 
-    for(const [theme,mode] of [['zen-sage','light'],['zen-dim','dark'],['poster-white','light'],['soft-dark','dark'],['tui-night','dark'],['glass-day','light'],['ide-dark','dark'],['sketch-paper','light']]){
+    for(const [theme,mode] of [['zen-sage','light'],['zen-dim','dark'],['zen-ink','dark'],['zen-snow','light']]){
       const variant=theme+'/'+mode;
       await test(variant+' 전 화면 키보드 포커스 표시·배치 유지',async()=>{
         await changeLook(theme,mode);measurements.matrix.push({theme,mode});
-        await probe('[data-skin-pick][aria-checked=true]','스킨 선택',variant);
         await probe('[data-theme-pick][aria-checked=true]','테마 선택',variant);
         await page.locator('[data-settings-tab=general]').focus();await press('ArrowRight');await page.locator('[data-settings-tab=projects][aria-selected=true]').waitFor();await press('ArrowRight');await page.locator('[data-shortcut=hotkey]').waitFor();
         await probe('[data-settings-tab=shortcuts]','설정 분류 탭',variant);

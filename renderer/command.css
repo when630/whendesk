@@ -1,0 +1,49 @@
+/* Command 창 모양: 투명 창 위에 떨어진 세 조각 — 동그란 마크 · 입력 막대 · 미디어 상자.
+ * 창은 투명(main/index.mjs transparent:true)이고 조각 사이 틈은 비어 있다. 마크를 끌면 창이 옮겨진다.
+ * 결과·동작·출력은 막대 아래 떨어진 카드로 놓인다. 대시보드는 .td-app이 바탕(--td-bg)을 칠해 그대로다. */
+#whendesk-command-first.is-command .td-app,
+#whendesk-command-first.is-command .cf-command-panel{background:transparent}
+
+#whendesk-command-first .cf-command-panel .td-command{gap:6px;padding:0;background:transparent;-webkit-app-region:no-drag}
+#whendesk-command-first .td-command .command-grip{display:none}
+
+/* 조각 공통: 같은 면색 + 옅은 테두리. */
+#whendesk-command-first .td-command :is(.command-brand,.command-field,.td-media){
+  height:54px;background:var(--td-surface);box-shadow:inset 0 0 0 1px var(--td-line);
+}
+/* 동그란 마크: 창 손잡이. */
+#whendesk-command-first .td-command .command-brand{
+  flex:0 0 54px;width:54px;border-radius:50%;padding-right:2px;
+  font:650 24px/1 var(--td-font);letter-spacing:-2.5px;color:var(--td-text);
+  cursor:grab;-webkit-app-region:drag;
+}
+/* 입력 막대: 입력칸 자체는 배경이 막혀 있어(focus.css) 감싼 조각이 면을 갖는다. */
+#whendesk-command-first .td-command .command-field{
+  flex:1 1 0%;min-width:0;display:flex;align-items:center;padding:0 16px;border-radius:20px;
+}
+#whendesk-command-first .td-command .command-field input{flex:1 1 auto;width:100%;min-width:0}
+/* 미디어 상자 */
+#whendesk-command-first .td-command .td-media{padding:0 10px;border-radius:20px}
+#whendesk-command-first .td-command .td-media[hidden]{display:none}
+
+/* 막대 아래 카드 */
+#whendesk-command-first.is-command :is(.td-command-results:not(:empty),.command-actions:not([hidden]),.command-output:not([hidden])){
+  margin-top:6px;padding:8px;border-radius:20px;background:var(--td-surface);box-shadow:inset 0 0 0 1px var(--td-line);
+}
+#whendesk-command-first.is-command .minimal-help-layer{border-radius:20px;box-shadow:inset 0 0 0 1px var(--td-line)}
+
+/* 결과 카드는 막대 아래 남은 창 높이를 채우고 넘치면 스스로 스크롤한다 — 막대가 투명 조각이라 패널 전체를 굴리면 틈으로 줄이 비친다.
+ * 창 높이는 카드의 내용 높이로 청한다(app.js resizeCommand, 최대 390px). */
+#whendesk-command-first.is-command #cf-command-panel{display:flex;flex-direction:column;overflow:hidden}
+#whendesk-command-first.is-command #cf-command-panel>*{flex:0 0 auto;order:0} /* 좁은 창용 옛 규칙(styles.css .td-command{order:3})이 flex에서 막대를 아래로 보내지 않게 */
+#whendesk-command-first.is-command #cf-command-panel>:is(.td-command-results,.command-actions,.command-output){flex:0 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
+/* 선택 면: 줄마다 칠하지 않고 하나의 면이 줄 사이를 미끄러진다(app.js placeCommandCursor). */
+/* 선택 면과 줄 위치(offsetTop)의 기준은 카드여야 카드와 함께 스크롤된다. 옛 규칙(styles.css .cf-command-panel .td-command-results{position:static})보다 강하게. */
+#whendesk-command-first .cf-command-panel .td-command-results{position:relative;inset:auto} /* 옛 떠 있는 결과창 오프셋(top·left·right)도 지운다 */
+#whendesk-command-first.is-command .td-command-results .td-command-result{position:relative;z-index:1;border-radius:12px}
+#whendesk-command-first.is-command .td-command-results .td-command-result.selected{background:transparent}
+#whendesk-command-first .command-cursor{position:absolute;top:0;left:8px;right:8px;z-index:0;border-radius:12px;background:var(--td-sel);pointer-events:none;will-change:transform;
+  transition:transform 160ms cubic-bezier(.16,1,.3,1),height 160ms cubic-bezier(.16,1,.3,1)}
+
+/* 대시보드 → Command 접힘 모프 중(app.js collapseToCommand): Command 패널은 입력을 받되 보이지 않게 비켜 있다. 대시보드 배치를 밀지 않도록 띄운다. */
+#whendesk-command-first.shell-morphing #cf-command-panel{position:absolute;top:0;left:0;width:560px;opacity:0;pointer-events:none}

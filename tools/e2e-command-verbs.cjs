@@ -200,8 +200,9 @@ async function closeApp(){
     await test('숨어 있다가 다시 불린 Command는 빈 입력줄로 시작하고, 대시보드에서 내려온 Command는 검색어를 유지한다',async()=>{
       await press('Control+k');await page.locator('#cf-command-panel').waitFor();
       await page.locator(commandInput).fill('');await text('남은 검색어');
-      await press('Tab');await page.locator('#cf-dashboard-panel').waitFor();
-      await press('Control+k');await page.locator('#cf-command-panel').waitFor();
+      await press('Tab');await page.locator('#cf-dashboard-panel').waitFor();await page.locator('#cf-command-panel').waitFor({state:'hidden'});
+      // 대시보드 → Command는 접힘 모프(약 0.3초) 뒤 대시보드가 숨는다. 그동안에도 입력은 Command로 간다.
+      await press('Control+k');await page.locator('#cf-command-panel').waitFor();await page.locator('#cf-dashboard-panel').waitFor({state:'hidden'});
       assert.equal(await page.locator(commandInput).inputValue(),'남은 검색어','대시보드에서 내려오며 검색어를 잃었습니다.');
       await signal({shell:'command',fresh:true});
       await waitUntil(async()=>await page.locator(commandInput).inputValue()==='','다시 불린 Command에 직전 검색어가 남았습니다(원본 PANEL-07).');

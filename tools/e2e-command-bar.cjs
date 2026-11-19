@@ -38,10 +38,13 @@ async function layout(){
     const rect=element=>{const r=element.getBoundingClientRect();return {x:r.x,y:r.y,right:r.right,bottom:r.bottom,width:r.width,height:r.height,centerY:r.y+r.height/2};};
     const bar=document.querySelector('.td-command'),brand=bar.querySelector('.command-brand'),query=bar.querySelector('input'),media=bar.querySelector('.td-media');
     const queryStyle=getComputedStyle(query);
-    return {bar:rect(bar),brand:rect(brand),input:rect(query),media:rect(media),mediaHidden:media.hidden,mediaCount:media.querySelectorAll('button').length,inputDecoration:{background:queryStyle.backgroundColor,outlineStyle:queryStyle.outlineStyle,outlineWidth:queryStyle.outlineWidth,borderWidth:queryStyle.borderWidth,boxShadow:queryStyle.boxShadow},innerWidth,innerHeight,scrollWidth:document.documentElement.scrollWidth,barScrollWidth:bar.scrollWidth,barClientWidth:bar.clientWidth};
+    const results=document.querySelector('.td-command-results');
+    return {results:results&&!results.hidden&&results.querySelector('[role=option]')?rect(results):null,bar:rect(bar),brand:rect(brand),input:rect(query),media:rect(media),mediaHidden:media.hidden,mediaCount:media.querySelectorAll('button').length,inputDecoration:{background:queryStyle.backgroundColor,outlineStyle:queryStyle.outlineStyle,outlineWidth:queryStyle.outlineWidth,borderWidth:queryStyle.borderWidth,boxShadow:queryStyle.boxShadow},innerWidth,innerHeight,scrollWidth:document.documentElement.scrollWidth,barScrollWidth:bar.scrollWidth,barClientWidth:bar.clientWidth};
   });
 }
 function sameRow(measurement){
+  assert.ok(Math.abs(measurement.bar.y)<=1,'입력 막대가 창 맨 위에 있지 않습니다: '+measurement.bar.y);
+  if(measurement.results){assert.ok(Math.abs(measurement.results.x-measurement.bar.x)<=1&&measurement.results.y>=measurement.bar.bottom&&measurement.results.y-measurement.bar.bottom<=10,'결과 카드가 막대 바로 아래에 붙어 있지 않습니다: '+JSON.stringify(measurement.results));}
   assert.ok(Math.abs(measurement.brand.centerY-measurement.input.centerY)<=3,'아이콘과 입력이 다른 행입니다.');
   assert.ok(measurement.input.x>=measurement.brand.right-1,'입력이 아이콘 왼쪽과 겹칩니다.');
   assert.ok(measurement.input.x-measurement.brand.right<=24,'아이콘과 입력 사이가 너무 멉니다.');
@@ -98,7 +101,7 @@ const playing=session('fixture-playing','재생 중인 아주 긴 노래 제목 
       await input().fill('ListSpec');await page.waitForFunction(()=>document.querySelectorAll('.td-command-results [role=option]').length===12);
       await waitUntil(async()=>(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].getBounds())).height===390,'12개 검색 결과의 Command 창 높이가 390px로 제한되지 않았습니다.');
       const resultHeights=await page.locator('.td-command-results [role=option]').evaluateAll(elements=>elements.map(element=>element.getBoundingClientRect().height));
-      assert.ok(resultHeights.every(height=>height===40),'검색 결과는 원본과 같은 40px 한 줄 높이여야 합니다.');measurements.resultHeights=resultHeights;
+      assert.ok(resultHeights.every(height=>Math.abs(height-40)<0.5),'검색 결과는 원본과 같은 40px 한 줄 높이여야 합니다: '+JSON.stringify(resultHeights));measurements.resultHeights=resultHeights;
       await input().press('ArrowDown');await input().press('ArrowDown');
       await input().evaluate(element=>{window.__commandBarInput=element;element.setSelectionRange(1,6);});
       const selected=await page.locator('.td-command-results [aria-selected=true]').getAttribute('data-result-key');

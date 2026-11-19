@@ -1,0 +1,115 @@
+/* 모션: 키보드가 먼저인 앱이라 짧고(100~170ms) 입력을 막지 않는다. opacity·transform·색만 움직인다.
+ * 화면 등장(.motion-enter)은 화면·메모가 실제로 바뀔 때만 JS가 한 번 켠다 — 저장 뒤 다시 그릴 때는 움직이지 않는다.
+ * 운영체제의 '애니메이션 줄이기'를 켜면 모두 끈다(맨 아래). */
+#whendesk-command-first{
+  --td-ease-out:cubic-bezier(.2,.8,.2,1);
+  --td-motion-fast:100ms;
+  --td-motion:150ms;
+}
+
+/* 화면 전환(Today · InBox · Journey · Note · 설정)과 메모 전환: 살짝 떠오르며 나타난다. */
+@keyframes td-enter{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+#whendesk-command-first .motion-enter{animation:td-enter var(--td-motion) var(--td-ease-out) both}
+
+/* 포커스·선택 면: 행을 옮길 때 면이 끊기지 않고 부드럽게 넘어간다. */
+#whendesk-command-first .td-app :is([data-task-row],[data-work-project-row],.desk-note-row,[data-event],.cf-home-task,.td-day,.theme-card,.td-command-result),
+#whendesk-command-first .td-app :is(.td-tabs,.cal-views) [role=tab],
+#whendesk-command-first .td-app .desk-note-tools button{
+  transition:background-color var(--td-motion-fast) ease-out,color var(--td-motion-fast) ease-out,box-shadow var(--td-motion-fast) ease-out;
+}
+
+/* 화면을 다시 그린 직후(app.js가 두 프레임 동안 .motion-settle)에는 색 전환을 끈다 — 새 줄에 붙는 커서 면이 투명에서 깜빡이지 않게. */
+#whendesk-command-first .td-body.motion-settle *{transition:none!important}
+
+/* 대화상자: 배경은 옅게 깔리고 상자는 살짝 커지며 나타난다. */
+@keyframes td-fade{from{opacity:0}to{opacity:1}}
+@keyframes td-pop{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
+#whendesk-command-first .td-modal-layer:not([hidden]){animation:td-fade var(--td-motion-fast) ease-out both}
+#whendesk-command-first .td-modal-layer:not([hidden]) .td-modal{animation:td-pop var(--td-motion) var(--td-ease-out) both}
+
+/* 알림: 아래에서 올라온다. 가운데 정렬 translateX(-50%)를 지킨다. */
+@keyframes td-toast{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
+#whendesk-command-first .td-feedback:not([hidden]){animation:td-toast var(--td-motion) var(--td-ease-out) both}
+
+/* 완료 기호: 누르는 순간 살짝 눌렸다 돌아온다. */
+#whendesk-command-first .td-app [data-mark]{transition:transform var(--td-motion-fast) ease-out}
+#whendesk-command-first .td-app [data-mark]:active{transform:scale(.86)}
+
+/* Command 창이 새로 불릴 때: 동그란 마크가 먼저 다 커진 뒤에야 입력 막대가 → 이어서 미디어 상자가 둥근 끝으로 늘어난다(겹치지 않는다).
+ * 모양이 먼저 늘어나고 안의 글자(입력 안내·미디어 버튼)는 뒤따라 옅게 나타난다. 합쳐 약 0.5초.
+ * 감속은 끝에서 길게 풀리는 곡선(--td-ease-expo), 마크는 아주 약하게만 튕긴다.
+ * 늘어남은 clip-path inset(… round)라 배치(getBoundingClientRect)는 처음부터 제자리다. 지연 동안은 from 상태로 숨어 있다(backwards).
+ * 입력은 처음부터 포커스를 받고 있어 늘어나는 중에도 바로 칠 수 있다. */
+#whendesk-command-first{--td-ease-expo:cubic-bezier(.16,1,.3,1);--td-ease-soft:cubic-bezier(.4,0,.2,1)} /* soft: 부드럽게 출발해 부드럽게 서는 곡선(탭처럼 옆으로 오가는 것) */
+@keyframes td-mark-in{from{opacity:0;transform:scale(.6)}60%{opacity:1}to{opacity:1;transform:none}}
+@keyframes td-stretch{from{clip-path:inset(0 100% 0 0 round 27px)}to{clip-path:inset(0 0 0 0 round 20px)}}
+@keyframes td-stretch-media{from{clip-path:inset(0 100% 0 0 round 27px)}to{clip-path:inset(0 0 0 0 round 20px)}}
+@keyframes td-content-in{from{opacity:0}to{opacity:1}}
+#whendesk-command-first .cf-command-panel.command-enter .command-brand{animation:td-mark-in 160ms cubic-bezier(.3,1.3,.6,1) backwards}
+#whendesk-command-first .cf-command-panel.command-enter .td-command .command-field{animation:td-stretch 260ms var(--td-ease-expo) 170ms backwards}
+#whendesk-command-first .cf-command-panel.command-enter .td-command .command-field input{animation:td-content-in 160ms ease-out 260ms backwards}
+#whendesk-command-first .cf-command-panel.command-enter .td-command .td-media{animation:td-stretch-media 220ms var(--td-ease-expo) 260ms backwards}
+#whendesk-command-first .cf-command-panel.command-enter .td-command .td-media>*{animation:td-content-in 160ms ease-out 330ms backwards}
+#whendesk-command-first .cf-command-panel.command-enter .td-command-results{animation:td-fade 200ms ease-out 320ms backwards}
+#whendesk-command-first .cf-command-panel.command-hold :is(.command-brand,.command-field,.command-field input,.td-media,.td-media>*,.td-command-results){animation-play-state:paused}
+
+/* 검색 결과가 비어 있다가 처음 생길 때(app.js): 카드를 숨긴 채(.list-pending) 창부터 키우고, 커진 뒤(.list-enter)
+ * 카드가 막대 아래에서 위→아래로 둥근 끝으로 펼쳐지고 줄이 위에서부터 차례로 떠오른다 — 입력 막대가 오른쪽으로 늘어나는 것과 같은 말투.
+ * 창이 막 불린 직후(command-enter)에는 위의 등장 순서를 따르고 여기는 쉰다. 선택 면은 위치를 transform으로 잡아 투명도만 움직인다. */
+@keyframes td-unroll{from{clip-path:inset(0 0 100% 0 round 20px)}to{clip-path:inset(0 0 0 0 round 20px)}}
+@keyframes td-row-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+#whendesk-command-first .cf-command-panel .td-command-results.list-pending{opacity:0}
+#whendesk-command-first .cf-command-panel:not(.command-enter) .td-command-results.list-enter{animation:td-unroll 280ms var(--td-ease-expo) backwards}
+#whendesk-command-first .cf-command-panel:not(.command-enter) .td-command-results.list-enter>.td-command-result{animation:td-row-in 240ms var(--td-ease-expo) 40ms backwards}
+#whendesk-command-first .cf-command-panel:not(.command-enter) .td-command-results.list-enter>.command-cursor{animation:td-fade 200ms ease-out 40ms backwards}
+#whendesk-command-first .td-command-results.list-enter>.td-command-result:nth-of-type(2){animation-delay:65ms}
+#whendesk-command-first .td-command-results.list-enter>.td-command-result:nth-of-type(3){animation-delay:90ms}
+#whendesk-command-first .td-command-results.list-enter>.td-command-result:nth-of-type(4){animation-delay:115ms}
+#whendesk-command-first .td-command-results.list-enter>.td-command-result:nth-of-type(5){animation-delay:140ms}
+#whendesk-command-first .td-command-results.list-enter>.td-command-result:nth-of-type(6){animation-delay:165ms}
+#whendesk-command-first .td-command-results.list-enter>.td-command-result:nth-of-type(7){animation-delay:190ms}
+#whendesk-command-first .td-command-results.list-enter>.td-command-result:nth-of-type(8){animation-delay:215ms}
+#whendesk-command-first .td-command-results.list-enter>.td-command-result:nth-of-type(n+9){animation-delay:240ms}
+
+/* 사라질 때는 등장의 역순으로, 더 빠르게(가속 곡선). 목록 카드가 말려 올라가고 → 미디어 상자와 입력 막대가 마크 쪽으로 줄어들고 → 마크가 작아진다.
+ * 합쳐 약 0.24초, main LEAVE_MS(250ms) 뒤 창이 숨는다. 끝 상태로 남아 있다가(forwards) 다시 불리면 지운다. */
+@keyframes td-mark-out{from{opacity:1;transform:none}to{opacity:0;transform:scale(.6)}}
+/* 줄어드는 조각은 폭 0까지 가지 않는다 — 폭이 높이보다 작아지면 원이 아니라 납작한 막대가 된다. 마크 크기의 원(54px)까지 줄어든 뒤 원 그대로 작아지며 사라진다. */
+@keyframes td-shrink{0%{clip-path:inset(0 0 0 0 round 20px);opacity:1;transform:none}65%{clip-path:inset(0 calc(100% - 54px) 0 0 round 27px);opacity:1;transform:none}100%{clip-path:inset(0 calc(100% - 54px) 0 0 round 27px);opacity:0;transform:scale(.6)}}
+@keyframes td-rollup{from{clip-path:inset(0 0 0 0 round 20px)}to{clip-path:inset(0 0 100% 0 round 20px)}}
+@keyframes td-fade-out{from{opacity:1}to{opacity:0}}
+#whendesk-command-first .cf-command-panel.command-leave :is(.td-command-results,.command-actions,.command-output){animation:td-rollup 130ms cubic-bezier(.5,0,.75,0) forwards}
+#whendesk-command-first .cf-command-panel.command-leave .td-command :is(.td-media,.command-field){transform-origin:27px 50%} /* 원이 왼쪽 끝 제자리에서 작아진다 */
+#whendesk-command-first .cf-command-panel.command-leave .td-command .td-media{animation:td-shrink 130ms cubic-bezier(.4,0,.2,1) forwards}
+#whendesk-command-first .cf-command-panel.command-leave .td-command .td-media>*{animation:td-fade-out 60ms ease-in forwards}
+#whendesk-command-first .cf-command-panel.command-leave .td-command .command-field{animation:td-shrink 180ms cubic-bezier(.4,0,.2,1) 40ms forwards}
+#whendesk-command-first .cf-command-panel.command-leave .td-command .command-field input{animation:td-fade-out 70ms ease-in forwards}
+#whendesk-command-first .cf-command-panel.command-leave .command-brand{animation:td-mark-out 90ms cubic-bezier(.4,0,.2,1) 150ms forwards}
+/* 검색어를 지워 목록이 사라질 때: 카드가 위로 말려 올라간다(app.js가 160ms 뒤 숨기고 창을 줄인다). */
+#whendesk-command-first .cf-command-panel .td-command-results.list-exit{animation:td-rollup 150ms cubic-bezier(.5,0,.75,0) forwards}
+#whendesk-command-first .cf-command-panel .td-command-results.list-exit>*{animation:td-fade-out 90ms ease-in forwards}
+
+@media (prefers-reduced-motion:reduce){
+  #whendesk-command-first *,#whendesk-command-first *::before,#whendesk-command-first *::after{
+    animation-duration:1ms!important;animation-iteration-count:1!important;transition-duration:0s!important;
+  }
+}
+
+/* ── 탭·메뉴·잔상(renderer/glide.js) ── */
+/* 선택 알약(.tab-glide)·고른 메뉴 줄(.pick-glide)이 하나의 면으로 옆·아래로 미끄러진다. 탭 자신의 선택 배경은 면이 대신한다. */
+#whendesk-command-first .mark-host{position:relative;isolation:isolate}
+#whendesk-command-first :is(.tab-glide,.pick-glide){position:absolute;top:0;left:0;z-index:-1;background:var(--td-sel);pointer-events:none;will-change:transform;
+  transition:transform 260ms var(--td-ease-soft),width 260ms var(--td-ease-soft),height 260ms var(--td-ease-soft)}
+#whendesk-command-first .tab-glide{border-radius:999px}
+#whendesk-command-first .pick-glide{border-radius:5px;transition-duration:140ms}
+#whendesk-command-first .td-app .mark-host:is(.td-tabs,.cal-views) [role=tab][aria-selected=true]{background:transparent}
+#whendesk-command-first .td-pick-menu.mark-host [data-pick-index].active{background:transparent}
+/* 열릴 때: 선택 메뉴는 버튼에서 살짝 내려오며, 도움말은 옅게, Command 동작 목록·출력은 막대 아래에서 펼쳐진다. */
+@keyframes td-pick-in{from{opacity:0;transform:translateY(-4px) scale(.98)}to{opacity:1;transform:none}}
+#whendesk-command-first .td-pick-menu{animation:td-pick-in 140ms var(--td-ease-expo);transform-origin:top center}
+#whendesk-command-first .minimal-help-layer:not([hidden]){animation:td-fade 160ms ease-out}
+#whendesk-command-first .cf-command-panel :is(.command-actions,.command-output):not([hidden]){animation:td-unroll 240ms var(--td-ease-expo)}
+/* 잔상(닫힐 때의 복제본)은 열림 모션을 다시 틀지 않는다. */
+#whendesk-command-first .motion-ghost,#whendesk-command-first .motion-ghost *{animation:none!important;transition:none!important}
+/* 테마를 바꾸는 동안(app.js pickTheme) 색만 부드럽게 넘어간다. */
+#whendesk-command-first.theme-shift,#whendesk-command-first.theme-shift *{transition:background-color 300ms ease,color 300ms ease,border-color 300ms ease,fill 300ms ease,stroke 300ms ease!important}

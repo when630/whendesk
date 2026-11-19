@@ -216,7 +216,7 @@ function setOwnedFixtureDoneDates(entries){
       await replaceText('#'+fixture.projectAName+' 마감있음 이름순');await waitUntil(async()=>{const ids=await page.locator('[data-task-row]').evaluateAll(rows=>rows.map(row=>row.dataset.taskRow));return ids.length===1&&ids[0]===fixture.todoA;},'프로젝트와 원본 검색 필터가 함께 적용되지 않습니다.');
       await press('Escape');await waitUntil(async()=>await page.locator('[data-work-search]').inputValue()==='','Esc로 검색어를 해제하지 못했습니다.');assert.equal(await page.locator('#cf-dashboard-panel').isVisible(),true);
       assert.deepEqual(await page.locator('[data-task-row]').evaluateAll(rows=>rows.map(row=>row.dataset.taskRow)).then(ids=>ids.includes(fixture.todoA)),false,'검색을 풀었는데 InBox에 할 일이 남았습니다.');
-      await press('Control+k');await waitFocus('.td-command input');assert.equal(await page.locator('#cf-dashboard-panel').isVisible(),false);await press('Tab');await page.locator('#cf-dashboard-panel').waitFor();
+      await press('Control+k');await waitFocus('.td-command input');await page.locator('#cf-dashboard-panel').waitFor({state:'hidden'}); // 접힘 모프(약 0.3초) 뒤 숨는다await press('Tab');await page.locator('#cf-dashboard-panel').waitFor();
       await screenshot('06-inbox-search');
     });
 

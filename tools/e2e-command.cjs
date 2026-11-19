@@ -174,8 +174,12 @@ async function closeHarness() {
         const selected=await page.locator('.td-command-results [aria-selected=true]').getAttribute('data-result-key');
         const distance=(rows.length-1-rows.indexOf(selected)+rows.length)%rows.length;
         for(let step=0;step<distance;step++)await input.press('ArrowDown');
-        const position=await page.locator('.td-command-results [aria-selected=true]').evaluate(element=>{const panel=element.closest('#cf-command-panel');return {key:element.dataset.resultKey,bottom:element.getBoundingClientRect().bottom,panelBottom:panel.getBoundingClientRect().bottom,scrollTop:panel.scrollTop};});
-        assert.equal(position.key,rows.at(-1));assert.ok(position.scrollTop>0);assert.ok(position.bottom<=position.panelBottom+1,'선택한 마지막 결과가 화면 밖에 남았습니다.');
+        // 결과 카드가 스스로 부드럽게 굴러간다(command.css·app.js scrollCommandTo). 굴러가기가 멈춘 뒤 잰다.
+        await page.waitForFunction(()=>{const card=document.querySelector('.td-command-results'),row=card.querySelector('[aria-selected=true]');return row.getBoundingClientRect().bottom<=card.getBoundingClientRect().bottom+1;});
+        const position=await page.locator('.td-command-results [aria-selected=true]').evaluate(element=>{const panel=element.closest('.td-command-results');return {key:element.dataset.resultKey,bottom:element.getBoundingClientRect().bottom,panelBottom:panel.getBoundingClientRect().bottom,scrollTop:panel.scrollTop};});
+        assert.equal(position.key,rows.at(-1));assert.ok(position.scrollTop>0,'결과 카드가 굴러가지 않았습니다: '+JSON.stringify(await page.evaluate(()=>{const c=document.querySelector('.td-command-results'),p=document.querySelector('#cf-command-panel');return {card:[c.clientHeight,c.scrollHeight,c.scrollTop,getComputedStyle(c).overflowY],panel:[p.clientHeight,p.scrollHeight,p.scrollTop,getComputedStyle(p).display],win:innerHeight};})));assert.ok(position.bottom<=position.panelBottom+1,'선택한 마지막 결과가 화면 밖에 남았습니다.');
+        // 선택 면(.command-cursor)은 하나가 줄 사이를 미끄러진다. 고른 줄 자리까지 따라왔는지 본다.
+        await page.waitForFunction(()=>{const cursor=document.querySelector('.td-command-results>.command-cursor'),row=document.querySelector('.td-command-results [aria-selected=true]');return !!cursor&&!!row&&cursor.offsetParent===cursor.parentElement&&row.offsetParent===cursor.parentElement&&Math.abs(new DOMMatrix(getComputedStyle(cursor).transform).m42-row.offsetTop)<1&&Math.abs(cursor.offsetHeight-row.offsetHeight)<1;},null,{timeout:3000});
         measurements.selectionScroll=position;await screenshot('02-selection-scroll');
       }finally{await app.evaluate(()=>globalThis.__commandTest.setCommandHeightLimit(700));}
       const before=(await records('command.run')).length;

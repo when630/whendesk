@@ -2,10 +2,9 @@
 #whendesk-command-first .desk-notes{display:grid;grid-template-columns:minmax(180px,28%) minmax(0,1fr);gap:26px;min-height:460px;height:calc(100dvh - 166px);font:13px/1.7 var(--td-font);color:var(--td-text)}
 #whendesk-command-first .desk-notes :where(button,input,select,textarea){font:inherit;color:inherit}
 #whendesk-command-first .desk-notes-browser{display:flex;flex-direction:column;min-width:0;min-height:0;border-right:1px solid var(--td-line);padding-right:20px}
-#whendesk-command-first .desk-notes-search{display:flex;align-items:center;gap:8px;padding:0 0 11px;border-bottom:1px solid var(--td-line)}
+#whendesk-command-first .desk-notes-search{display:flex;align-items:center;gap:8px;min-height:38px;padding:0 0 11px;border-bottom:1px solid var(--td-line)}
 #whendesk-command-first .desk-notes-search>svg{width:15px;height:15px;color:var(--td-muted)}
 #whendesk-command-first .desk-notes-search input{width:100%;min-width:0;border:0;background:none;padding:4px 0;font-size:13px}
-#whendesk-command-first .desk-notes-search>button{display:grid;place-items:center;width:27px;height:27px;flex-shrink:0;border-radius:var(--td-radius)}
 #whendesk-command-first .desk-notes-list-head{display:flex;align-items:center;justify-content:space-between;padding:13px 0 9px;gap:10px;font-size:11px;color:var(--td-muted)}
 #whendesk-command-first .desk-notes-list-head select{background:var(--td-surface);border:0;border-radius:var(--td-radius);padding:4px 0;max-width:125px;font-size:12px}
 #whendesk-command-first .desk-notes-list{overflow:auto;min-height:60px;flex:1;scrollbar-width:thin;outline-offset:2px}

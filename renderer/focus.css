@@ -1,6 +1,7 @@
 /* 포커스는 키보드로 옮겼을 때만 보인다(:focus-visible). 시리즈 공통 규칙:
- * 목록 행은 옅은 배경 + 왼쪽 2px 강조 막대, 버튼·탭·체크박스·링크는 2px 강조 외곽선.
- * 포커스가 목록 밖에 있어도 목록 커서(.keyboard-current·선택된 메모)는 흐린 막대로 남는다.
+ * 목록 행은 둥근 옅은 배경 알약(탭 선택과 같은 --td-sel), 버튼·탭·체크박스·링크는 2px 강조 외곽선.
+ * ZEN 테마는 강조색이 글자색이라 선 표시가 굵은 흰·검은 선으로 튀어서 면으로 바꿨다.
+ * 포커스가 목록 밖에 있어도 목록 커서(.keyboard-current·선택된 메모)는 더 옅은 면으로 남는다.
  * 테두리는 바꾸지 않아 포커스 이동으로 배치가 흔들리지 않는다. */
 #whendesk-command-first .td-app :is(:focus,:active):not(:focus-visible){
   outline:none!important;
@@ -18,16 +19,25 @@
 #whendesk-command-first .td-app :is([data-task-row],[data-work-project-row],.desk-note-row,[data-event]):focus-visible{
   outline:none!important;
   outline-width:0!important;
-  background-color:var(--td-wash);
+  background-color:var(--td-sel);
   color:var(--td-text);
-  box-shadow:inset 2px 0 0 var(--td-accent)!important;
+  border-radius:8px;
+  box-shadow:none!important;
+}
+/* 오늘(저널) 행은 행 안의 버튼이 포커스를 받는다. 버튼 밑줄 대신 행 전체를 알약으로 칠하고,
+ * 행에 좌우 여백이 없어 그림자로 양옆을 8px 넓힌다(배치는 그대로). */
+#whendesk-command-first:not(.focus-quiet) .td-app .cf-home-task:has(> :is([data-reveal],[data-event]):focus-visible){
+  background-color:var(--td-sel);
+  border-radius:8px;
+  box-shadow:-8px 0 0 var(--td-sel),8px 0 0 var(--td-sel);
 }
 #whendesk-command-first .td-app .td-day:focus-visible{
   outline-offset:-2px;
   background-color:var(--td-wash);
 }
 #whendesk-command-first .td-app :is([data-task-row].keyboard-current,.desk-notes-list .desk-note-row.selected):not(:focus-visible){
-  box-shadow:inset 2px 0 0 color-mix(in srgb,var(--td-accent) 40%,transparent);
+  background-color:var(--td-wash);
+  border-radius:8px;
 }
 /* 글자 입력칸은 캐럿이 위치를 알려 주므로 외곽선도 배경도 두지 않는다. */
 #whendesk-command-first .td-app :is(input:not([type=checkbox]):not([type=radio]),select,textarea):focus-visible{
@@ -65,8 +75,27 @@
   outline-width:0!important;
   box-shadow:none!important;
 }
-/* 메모 미리보기는 본문 영역이라 상자 외곽선 대신 행처럼 왼쪽 막대만 보인다. */
+/* 메모 미리보기는 본문 영역이라 상자 외곽선 대신 옅은 면만 깐다. */
 #whendesk-command-first .td-app .desk-note-preview:focus-visible{
   outline:none!important;
-  box-shadow:inset 2px 0 0 var(--td-accent);
+  box-shadow:none;
+  background-color:var(--td-wash);
 }
+/* 오늘 행 안의 버튼은 위 '버튼 밑줄' 규칙과 특정도가 같아 파일 끝에 둔다 — 행 알약이 표시를 대신한다. */
+#whendesk-command-first .td-app .cf-home-task > :is([data-reveal],[data-event]):focus-visible{
+  outline:none!important;
+  box-shadow:none!important;
+}
+/* 미끄러지는 포커스 면(renderer/glide.js): 줄이 속한 스크롤 영역 안에 면 하나가 깔려 줄 사이를 미끄러진다.
+ * 영역(.glide-host)이 기준이자 쌓임 맥락이라 면(z-index -1)은 영역 바탕 위, 줄 글자 아래에 그려진다.
+ * 면이 있는 동안(.glide-active) 줄 자신의 포커스 배경은 지운다 — 면이 대신 알린다. 목록 커서(.keyboard-current)의 옅은 면은 그대로. */
+#whendesk-command-first .td-app .glide-host{position:relative;isolation:isolate}
+#whendesk-command-first .td-app .focus-glide{position:absolute;top:0;left:0;z-index:-1;border-radius:8px;background:var(--td-sel);opacity:0;pointer-events:none;will-change:transform;
+  transition:transform 180ms cubic-bezier(.16,1,.3,1),width 180ms cubic-bezier(.16,1,.3,1),height 180ms cubic-bezier(.16,1,.3,1),opacity 120ms ease-out}
+#whendesk-command-first .td-app .focus-glide.on{opacity:1}
+#whendesk-command-first.glide-active .td-app :is([data-task-row],[data-work-project-row],.desk-note-row,.future-row):focus-visible{background-color:transparent!important}
+#whendesk-command-first.glide-active:not(.focus-quiet) .td-app .cf-home-task:has(> :is([data-reveal],[data-event]):focus-visible){background-color:transparent;box-shadow:none}
+#whendesk-command-first.glide-active .td-app .desk-notes-list:focus-visible .desk-note-row.selected{background-color:transparent}
+#whendesk-command-first.glide-active .td-app .future-row [data-reveal]:focus-visible{box-shadow:none!important}
+/* 달력 날짜 칸도 포커스 면이 미끄러진다(오른쪽 작은 달력). 칸 자신의 외곽선·배경은 면이 대신한다. */
+#whendesk-command-first.glide-active .td-app .td-day:focus-visible{outline:none!important;background-color:transparent!important}

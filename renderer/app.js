@@ -27,7 +27,15 @@
   }
   const state = { shell:'command', view:'dashboard', tab:'todo', calView:'future',settingsTab:'general', selected:null, project:null, dueOnly:false, year:new Date().getFullYear(), month:new Date().getMonth(), date:today, theme:'zen-sage', tasks:[], projects:[], events:[], holidays:{}, info:{}, prefs:{}, media:{ sessions:[] } };
   // 스킨·테마 목록은 themes.js(WHENTERMINAL과 같은 목록). 스킨은 모양, 테마는 그 스킨의 색
-  const { SKINS, THEMES, APP_ICONS, themesOf } = window.WhendeskThemes;
+  const { THEMES, APP_ICONS } = window.WhendeskThemes;
+  // 줄로 포커스를 옮기며 화면 밖이면 부드럽게 굴린다(glide.js). 없으면 브라우저 기본 스크롤.
+  const motion = window.WhendeskGlide;
+  const ghostOut = (element, kind) => motion?.ghost(element, kind); // 닫히는 모습만 복제해 사라지게 한다(로직은 즉시 닫힘)
+  // 화면 탭 순서: 오른쪽 탭으로 가면 오른쪽에서 들어온다.
+  const viewOrder = () => state.view === 'dashboard' ? 0 : state.view === 'tasks' && state.tab !== 'projects' ? 1 : state.view === 'calendar' ? 2 : state.view === 'notes' ? 3 : 4;
+  let lastViewOrder = null, lastEditorId = null, lastMonthKey = null, themeShiftTimer = null;
+  const glideFocus = element => { if (!element) return; if (window.WhendeskGlide) window.WhendeskGlide.focus(element); else element.focus({ preventScroll:false }); };
+  let shellMorph = null, shellMorphing = false, morphAnimations = [], cursorAt = null, commandEnterTimer = null, listReveal = false, listRevealTimer = null, listClosing = false, listCloseTimer = null; // Command 선택 면의 마지막 자리 · 등장 모션 정리 타이머
   const themeById = id => THEMES.find(theme => theme.id === id) || THEMES[0];
   const command = { seq:0, items:[], selected:0, pending:false, query:'', renderedQuery:null, request:null, running:false, activating:false, activation:0, composing:false, actions:null, more:null, waiters:new Set(), notice:'', start:0, end:0, timer:null };
   const pending = new Map();
@@ -66,24 +74,30 @@
     undoAction = action; if (action) { undoTimeline.push(action); if (undoTimeline.length > 50) undoTimeline.shift(); } element.classList.toggle('is-error', error);
     element.innerHTML = `<span>${esc(message)}</span>${action ? '<button data-action="undo">되돌리기</button>' : ''}<button data-action="dismiss" aria-label="알림 닫기">${icon('x')}</button>`;
     element.hidden = false; clearTimeout(feedbackTimer);
-    feedbackTimer = setTimeout(() => { element.hidden = true; undoAction = null; }, error ? 15000 : 7000); icons();
+    feedbackTimer = setTimeout(() => { ghostOut(element,'toast'); element.hidden = true; undoAction = null; }, error ? 15000 : 7000); icons();
   }
   function look() {
     const theme = themeById(state.theme); app.dataset.theme = theme.id; app.dataset.skin = theme.skin;
     const appIcon = state.prefs.appIcon || APP_ICONS[0].id;
-    root.querySelectorAll('[data-theme-pick],[data-skin-pick],[data-icon-pick]').forEach(card => { const on = card.dataset.iconPick ? card.dataset.iconPick === appIcon : card.dataset.themePick ? card.dataset.themePick === theme.id : card.dataset.skinPick === theme.skin; card.classList.toggle('on', on); card.setAttribute('aria-checked', String(on)); card.tabIndex = on ? 0 : -1; card.querySelector('.theme-on')?.toggleAttribute('hidden', !on); });
+    root.querySelectorAll('[data-theme-pick],[data-icon-pick]').forEach(card => { const on = card.dataset.iconPick ? card.dataset.iconPick === appIcon : card.dataset.themePick === theme.id; card.classList.toggle('on', on); card.setAttribute('aria-checked', String(on)); card.tabIndex = on ? 0 : -1; card.querySelector('.theme-on')?.toggleAttribute('hidden', !on); });
     resizeCommand();
   }
   function resizeCommand() {
     clearTimeout(resizeTimer);
-    if (state.shell !== 'command' || helpOpen) return;
+    if (state.shell !== 'command' || helpOpen || shellMorphing) return; // 접힘 모프 중에는 창을 줄이지 않는다(끝난 뒤 다시 잰다)
     resizeTimer = setTimeout(() => {
       if (state.shell !== 'command' || helpOpen) return;
       const panel = root.querySelector('#cf-command-panel');
-      const intrinsic=[...panel.children].filter(element=>!element.hidden).reduce((sum,element)=>{const style=getComputedStyle(element);return sum+element.offsetHeight+(parseFloat(style.marginTop)||0)+(parseFloat(style.marginBottom)||0);},0);
+      // 결과 카드는 남은 높이만큼 줄어들며 스스로 스크롤하므로(command.css) 줄어든 높이가 아니라 내용 높이(scrollHeight)로 창 높이를 청한다.
+      const intrinsic=[...panel.children].filter(element=>!element.hidden).reduce((sum,element)=>{const style=getComputedStyle(element);return sum+Math.max(element.offsetHeight,element.scrollHeight)+(parseFloat(style.marginTop)||0)+(parseFloat(style.marginBottom)||0);},0);
       const height = Math.ceil(intrinsic + root.querySelector('.td-footer').offsetHeight);
-      call('shell', { mode:'command', height:Math.max(54, Math.min(390, height)) }).catch(showError);
+      call('shell', { mode:'command', height:Math.max(54, Math.min(390, height)) }).catch(showError).finally(() => { if (listReveal) requestAnimationFrame(revealCommandList); });
     }, 25);
+  }
+  // 목록 카드를 숨겨 둔 채 창을 키운 뒤(resizeCommand) 펼친다(motion.css .list-enter). 창 크기 응답이 안 와도 300ms 뒤에는 펼친다.
+  function revealCommandList() {
+    clearTimeout(listRevealTimer); if (!listReveal) return; listReveal = false;
+    commandBox.classList.remove('list-pending'); void commandBox.offsetWidth; commandBox.classList.add('list-enter');
   }
   function captureFocus() {
     const element = document.activeElement;
@@ -100,20 +114,79 @@
     if (saved.start != null) { try { element.setSelectionRange(saved.start, saved.end); } catch {} }
     element.scrollTop = saved.scroll;
   }
-  async function shell(next, focus = true) {
+  function commandBarOnScreen() {
+    const rect = root.querySelector('.cf-command-panel .td-command')?.getBoundingClientRect();
+    return rect?.width ? { x:window.screenX + rect.left, y:window.screenY + rect.top, width:rect.width, height:rect.height } : null;
+  }
+  /* Tab 펼침 모프: 대시보드(.td-app)가 옛 입력 막대 자리의 알약(round 27px)에서 창 전체로 커지고, 안의 내용은 뒤따라 옅게 나타난다.
+   * 창은 투명이라 창 크기가 먼저 바뀌는 것은 보이지 않는다. 창이 보이는 순간(window.painted) 시작하도록 멈춘 채로 돌려준다. */
+  function morphDashboard(from, bounds) {
+    if (!from || !bounds || matchMedia('(prefers-reduced-motion: reduce)').matches) return [];
+    const clamp = (value, max) => Math.max(0, Math.min(max, Math.round(value)));
+    const left = clamp(from.x - bounds.x, bounds.width), top = clamp(from.y - bounds.y, bounds.height);
+    const right = clamp(bounds.width - (from.x - bounds.x) - from.width, bounds.width - left), bottom = clamp(bounds.height - (from.y - bounds.y) - from.height, bounds.height - top);
+    const ease = 'cubic-bezier(.4,0,.2,1)'; // 탭 알약과 같은 곡선: 부드럽게 출발해 부드럽게 선다(빠르게 튀어 나가지 않게)
+    const morph = app.animate([{ clipPath:`inset(${top}px ${right}px ${bottom}px ${left}px round 27px)` }, { clipPath:'inset(0px 0px 0px 0px round 0px)' }], { duration:340, easing:ease });
+    const content = root.querySelector('#cf-dashboard-panel').animate([{ opacity:0, transform:'translateY(6px)' }, { opacity:1, transform:'none' }], { duration:220, delay:140, easing:ease, fill:'backwards' });
+    const animations = [morph, content]; animations.forEach(animation => animation.pause());
+    setTimeout(() => animations.forEach(animation => { if (animation.playState === 'paused') animation.play(); }), 400);
+    return animations;
+  }
+  /* 대시보드 → Command 접힘 모프(펼침의 역순): 내용이 먼저 옅어지고, 대시보드가 Command 입력 막대가 놓일 자리의 알약으로 쪼그라든다.
+   * 상태는 누르는 순간 Command로 바꾸고 입력칸에 포커스를 준다 — 접히는 동안 친 글자는 입력칸으로, Tab은 접힘이 끝난 뒤 펼치기로 간다.
+   * 접히는 동안 Command 패널은 보이지 않게 비켜 있고(.shell-morphing) 대시보드는 손이 닿지 않는다(inert). 창은 접힘이 끝난 뒤 숨긴 채 줄인다.
+   * 이미 Command 크기 창(숨었다 불린 경우)이면 하지 않는다. */
+  async function collapsePlan() {
+    if (window.innerHeight <= 120 || matchMedia('(prefers-reduced-motion: reduce)').matches) return null;
+    const target = await call('shell.commandBounds').catch(() => null); if (!target) return null;
+    const width = window.innerWidth, height = window.innerHeight, clamp = (value, max) => Math.max(0, Math.min(max, Math.round(value)));
+    const left = clamp(target.x - window.screenX, width), top = clamp(target.y - window.screenY, height);
+    const right = clamp(width - (target.x - window.screenX) - target.width, width - left), bottom = clamp(height - (target.y - window.screenY) - 54, height - top);
+    return { inset:`inset(${top}px ${right}px ${bottom}px ${left}px round 27px)` };
+  }
+  async function collapseToCommand(plan, focus) {
+    const commandPanel = root.querySelector('#cf-command-panel'), dashboardPanel = root.querySelector('#cf-dashboard-panel');
+    state.shell = 'command'; shellMorphing = true; notes?.setActive(false);
+    root.classList.add('shell-morphing'); commandPanel.hidden = false; dashboardPanel.inert = true;
+    commandInput.value = command.query;
+    if (focus) { commandInput.focus({ preventScroll:true }); commandInput.setSelectionRange(command.start, command.end); }
+    const content = dashboardPanel.animate([{ opacity:1 }, { opacity:0 }], { duration:120, easing:'ease-in', fill:'forwards' });
+    const morph = app.animate([{ clipPath:'inset(0px 0px 0px 0px round 0px)' }, { clipPath:plan.inset }], { duration:280, easing:'cubic-bezier(.4,0,.2,1)', fill:'forwards' });
+    morphAnimations = [content, morph];
+    // 창이 가려져 화면 갱신이 멈추면 모프가 끝나지 않는다 — 0.4초가 지나면 끝난 것으로 보고 넘어간다(전환이 멈춰 서지 않게).
+    await Promise.race([morph.finished.catch(() => {}), new Promise(resolve => setTimeout(resolve, 400))]);
+    morphAnimations = [];
+    app.style.opacity = '0';
+    shellMorphing = false; root.classList.remove('shell-morphing'); root.classList.add('is-command'); dashboardPanel.hidden = true; dashboardPanel.inert = false;
+    root.querySelector('.cf-entry-name').textContent = 'WHENCOMMAND'; status(); icons(); syncHints();
+    await call('shell', { mode:'command' });
+    content.cancel(); morph.cancel();
+    renderCommand(); resizeCommand();
+    requestAnimationFrame(() => requestAnimationFrame(() => { app.style.opacity = ''; app.animate([{ opacity:0 }, { opacity:1 }], { duration:120, easing:'ease-out' }); }));
+  }
+  // 셸 전환은 한 줄로 선다: 접히는 중에 누른 Tab·Ctrl+K·새로 부르기는 앞 전환이 끝난 뒤 차례로 간다(섞이면 엉뚱한 화면에 도착한다).
+  let shellQueue = Promise.resolve();
+  function shell(next, focus = true) { const run = shellQueue.then(() => shellNow(next, focus)); shellQueue = run.catch(() => {}); return run; }
+  async function shellNow(next, focus = true) {
     if (next !== 'command') { cancelCommandActivation(); closeCommandActions(false); }
     if (state.shell === 'dashboard' && next === 'command') { dashboardFocus = captureFocus() || dashboardFocus; const element=document.activeElement; dashboardReturn={element,start:element?.selectionStart,end:element?.selectionEnd,scroll:element?.scrollTop}; }
     if (state.shell === 'command') { command.query = commandInput.value; command.start = commandInput.selectionStart || 0; command.end = commandInput.selectionEnd || 0; }
     // Command에서 펼칠 때는 창이 투명하게 커진 뒤에 대시보드를 그리고, 그린 다음 프레임에 나타낸다. 작은 창에 대시보드가 비치지 않는다.
+    if (state.shell === 'dashboard' && next === 'command') {
+      const plan = await collapsePlan();
+      if (plan) { shellMorph = collapseToCommand(plan, focus); try { await shellMorph; } finally { shellMorph = null; } return; }
+    }
     const expanding = state.shell === 'command' && next === 'dashboard';
-    if (expanding) await call('shell', { mode:next });
+    // 펼칠 때 입력 막대 줄의 화면 위치를 기억해 두었다가, 커진 창에서 대시보드가 그 자리의 둥근 막대에서 시작해 창 전체로 커지게 한다.
+    const morphFrom = expanding ? commandBarOnScreen() : null;
+    const resized = expanding ? await call('shell', { mode:next }) : null;
     state.shell = next; root.classList.toggle('is-command', next === 'command');
     notes?.setActive(next === 'dashboard' && state.view === 'notes');
     root.querySelector('#cf-command-panel').hidden = next !== 'command';
     root.querySelector('#cf-dashboard-panel').hidden = next !== 'dashboard';
     root.querySelector('.cf-entry-name').textContent = next === 'command' ? 'WHENCOMMAND' : '대시보드';
     status(); icons(); syncHints();
-    if (expanding) requestAnimationFrame(() => requestAnimationFrame(() => call('window.painted').catch(() => {})));
+    if (expanding) { const morph = morphDashboard(morphFrom, resized?.bounds); requestAnimationFrame(() => requestAnimationFrame(() => call('window.painted').catch(() => {}).finally(() => morph.forEach(animation => animation.play())))); }
     else await call('shell', { mode:next });
     if (next === 'command') {
       commandInput.value = command.query; renderCommand(); resizeCommand();
@@ -156,7 +229,7 @@
   async function closeHelp() {
     if (!helpOpen) return;
     const saved = helpReturn; helpOpen = false; helpReturn = null;
-    helpLayer.hidden = true; helpLayer.innerHTML = '';
+    ghostOut(helpLayer,'fade'); helpLayer.hidden = true; helpLayer.innerHTML = '';
     [...app.children].forEach(child => { child.inert = false; });
     if (saved?.element?.isConnected && saved.element.getClientRects().length) {
       saved.element.focus({ preventScroll:true });
@@ -287,11 +360,12 @@
   function movePick(index) {
     if(!pick)return;pick.index=Math.max(0,Math.min(pick.options.length-1,index));
     pick.menu.querySelectorAll('[data-pick-index]').forEach(option=>option.classList.toggle('active',Number(option.dataset.pickIndex)===pick.index));
+    motion?.mark(pick.menu,pick.menu.querySelector('.active'),'pick:'+(pick.button.getAttribute('aria-label')||''),'pick-glide'); // 고른 줄 표시가 미끄러진다
     pick.button.setAttribute('aria-activedescendant','td-pick-'+pick.index);
     pick.menu.querySelector('.active')?.scrollIntoView({block:'nearest'});
   }
   function closePick(focus=true) {
-    if(!pick)return;const {button,menu}=pick;pick=null;menu.remove();syncHints();
+    if(!pick)return;const {button,menu}=pick;pick=null;ghostOut(menu,'pick');menu.remove();syncHints();
     button.setAttribute('aria-expanded','false');button.removeAttribute('aria-activedescendant');button.removeAttribute('aria-controls');
     if(focus&&button.isConnected)button.focus({preventScroll:true});
   }
@@ -468,10 +542,17 @@
     if (key === 'journey') { await flushPending(); state.view = 'calendar'; state.project = null; state.selected = null; renderNav(); await setCalView('future'); await shell('dashboard', false); return; }
     return goSection({ today:'dashboard', inbox:'inbox', note:'notes' }[key]);
   }
+  let lastViewKey = null;
   function renderMainView() {
     syncDay();
     if (pick && !pick.button.isConnected) closePick(false);
     const focus = captureFocus();
+    // 목록 행·버튼에 있던 포커스는 captureFocus가 다루지 않는다. 같은 화면을 다시 그릴 때(저장 반영 등) 그 자리로 되돌린다 —
+    // 안 그러면 화면에 들어온 직후 한 번 더 그려질 때 포커스가 BODY로 빠진다(InBox 진입 직후 드물게 재현).
+    const activeKey = body.contains(document.activeElement) && document.activeElement.matches('[data-task-row],.cf-home-task [data-reveal]') ? controlSelector(document.activeElement) : null;
+    const sameView = [state.view,state.tab,state.project,state.workTrash,state.settingsTab].join('|') === lastViewKey;
+    // 같은 화면을 다시 그리면 줄이 이전 자리에서 새 자리로 미끄러진다(glide.js FLIP). 다시 그리기 전에 자리를 재 둔다.
+    const flipBefore = sameView ? window.WhendeskGlide?.measure(body) : null;
     notes?.setActive(state.view === 'notes' && state.shell === 'dashboard');
     // 오른쪽 작은 달력은 네 탭 모두에 있다. 설정(프로젝트 관리 포함)에만 없다.
     const settingsLike = state.view === 'settings' || state.view === 'tasks' && state.tab === 'projects';
@@ -481,7 +562,7 @@
     root.querySelector('.td-quick').hidden = state.view !== 'tasks' || state.tab !== 'inbox';
     const title = settingsLike ? 'Settings' : state.view === 'dashboard' ? 'Today' : state.view === 'calendar' ? 'Journey' : state.view === 'notes' ? 'Note' : state.tab === 'done' ? '완료 기록' : state.projects.find(p => p.id === state.project)?.name || 'InBox';
     const subtitle = settingsLike ? '외관 · 프로젝트 · 단축키' : state.view === 'dashboard' ? new Date().toLocaleDateString('ko-KR', { year:'numeric', month:'long', day:'numeric', weekday:'long' }) : state.view === 'calendar' ? '앞으로 여섯 달 · 반복 일정 제외' : state.view === 'notes' ? '긴 글 · 한 줄 메모는 Today에 –로' : state.tab === 'done' ? '마친 일의 기록 · Esc로 Today' : '담아둔 일을 분류하세요';
-    const actions = `${state.view === 'notes' ? `<button class="td-primary" data-action="new-note">${icon('plus')}Note</button>` : ''}${state.view === 'tasks' && Number.isInteger(state.project) ? `<button class="td-secondary" data-edit-project="${state.project}">프로젝트 관리</button>` : ''}<button class="td-settings-button" data-action="settings" aria-label="설정 (Ctrl+,)" title="설정 (Ctrl+,)">${icon('settings-2')}</button>`;
+    const actions = `${state.view === 'tasks' && Number.isInteger(state.project) ? `<button class="td-secondary" data-edit-project="${state.project}">프로젝트 관리</button>` : ''}<button class="td-settings-button" data-action="settings" aria-label="설정 (Ctrl+,)" title="설정 (Ctrl+,)">${icon('settings-2')}</button>`;
     root.querySelector('.td-main-head').innerHTML = `<span class="drag-grip head-grip" aria-hidden="true" title="끌어서 창 옮기기">${icon('grip-horizontal')}</span><div><h1>${esc(title)}</h1><p>${esc(subtitle)}</p></div>${topTabs()}<div class="td-main-actions">${actions}</div>`;
     if (state.view === 'dashboard') body.innerHTML = home();
     else if (state.view === 'settings') body.innerHTML = settingsView();
@@ -491,7 +572,24 @@
     }
     else body.innerHTML = (state.tab === 'projects' ? settingsTabsBar() : '') + workView();
     restoreFocus(focus); icons();
+    // 새로 그린 줄에 커서·선택 표시가 붙을 때 색 전환(motion.css)이 투명에서 다시 칠해져 깜빡이지 않게, 그린 직후 두 프레임은 전환을 끈다.
+    body.classList.add('motion-settle'); requestAnimationFrame(() => requestAnimationFrame(() => body.classList.remove('motion-settle')));
     if(state.view==='tasks'){syncTaskCursor();syncProjectCursor();}
+    // 줄의 tabindex는 syncTaskCursor가 붙이므로 그 뒤에 되돌린다.
+    if (sameView && activeKey && !body.contains(document.activeElement)) body.querySelector(activeKey)?.focus({ preventScroll:true });
+    if (sameView) window.WhendeskGlide?.play(body, flipBefore); else { window.WhendeskGlide?.reset(body); window.WhendeskGlide?.enter(body); }
+    // 화면이 실제로 바뀔 때만 등장 모션을 한 번 켠다(motion.css). 저장 뒤 다시 그릴 때는 움직이지 않는다.
+    const viewKey=[state.view,state.tab,state.project,state.workTrash,state.settingsTab].join('|');
+    motion?.tabs(root); // 머리 탭·설정 분류 탭의 선택 알약이 옆 탭으로 미끄러진다
+    if(viewKey!==lastViewKey){
+      // 화면이 바뀌면 본문·제목이 탭 방향에서 밀려 들어온다(처음 그릴 때는 아래에서 떠오른다).
+      const order=viewOrder(),direction=lastViewOrder==null||order===lastViewOrder?0:Math.sign(order-lastViewOrder);
+      lastViewKey=viewKey;lastViewOrder=order;motion?.slide(body,direction);motion?.slide(root.querySelector('.td-main-head h1'),direction,{distance:4,duration:200});
+    }
+    // 할 일 편집기가 새로 펼쳐질 때만 아래로 열린다(자동 저장으로 다시 그릴 때는 움직이지 않는다).
+    const editorId=body.querySelector('[data-editor]')?.dataset.editor||null;
+    if(editorId&&editorId!==lastEditorId&&!matchMedia('(prefers-reduced-motion: reduce)').matches)body.querySelector(`[data-editor="${CSS.escape(editorId)}"] .td-inline`)?.animate([{opacity:0,clipPath:'inset(0 0 100% 0)'},{opacity:1,clipPath:'inset(0 0 0 0)'}],{duration:240,easing:'cubic-bezier(.16,1,.3,1)'});
+    lastEditorId=editorId;
   }
   /* 그날에 걸친 일정인가. 여러 날·자정을 넘는 일정은 걸친 날 모두에 보인다(원본 WHENCALENDAR daySpan). 끝은 배타적이다. */
   function occursOn(event, key) {
@@ -596,6 +694,8 @@
     const focused=root.querySelector('.td-calendar-side').contains(document.activeElement)?controlSelector(document.activeElement):null;
     root.querySelector('.td-calendar-side').innerHTML = `${calendarMonth()}<div class="td-cal-legend"><i class="td-event-mark"></i>일정 <i class="td-task-mark"></i>할 일 마감</div><section class="td-day-detail"><div class="td-cal-head"><h2>${Number(state.date.slice(5,7))}월 ${Number(state.date.slice(8))}일 일정</h2><button data-action="new-event" aria-label="선택한 날짜에 일정 추가">${icon('plus')}</button></div>${eventRows(state.date)}<div class="td-deadlines"><small>이날 마감인 할 일</small>${deadlineRows(state.date) || '<small>마감 없음</small>'}</div></section><p class="td-calendar-hint">할 일을 날짜로 끌어놓으면 마감이 바뀝니다.</p>`; icons();
     if(focused)root.querySelector('.td-calendar-side').querySelector(focused)?.focus({preventScroll:true});
+    // 달을 넘기면 날짜 칸이 넘긴 쪽에서 밀려 들어온다.
+    const monthKey=state.year*12+state.month;if(lastMonthKey!=null&&monthKey!==lastMonthKey)motion?.slide(root.querySelector('.td-calendar-side .td-cal-head')?.nextElementSibling,Math.sign(monthKey-lastMonthKey),{distance:8,duration:220});lastMonthKey=monthKey;
   }
   async function reveal(id) {
     await flushPending(); const task = state.tasks.find(t => String(t.id) === String(id)); if (!task) return;
@@ -611,12 +711,20 @@
     renderNav(); renderMainView(); await shell('dashboard', false); focusTask(task.id); taskModal(task.id);
   }
   async function navigate(route = {}) {
+    // 접히는 중에 새로 불리면(단축키·트레이) 접힘을 바로 끝내고 이어 간다.
+    if (shellMorphing) morphAnimations.forEach(animation => animation.finish());
     if (route.shell === 'command') {
       await flushPending(); await shell('command');
       if (route.capture) enterCapture(route.capture); else exitCapture();
       // 숨어 있다가 다시 불렸으면 빈 입력줄로 시작한다(원본 WHENCOMMAND PANEL-07). 대시보드에서 내려온 경우는 검색어를 유지한다.
+      // 접혔다가 다시 불리면 지난 목록이 말려 올라가는 모션 없이 바로 비운다.
+      if (route.fresh) { clearTimeout(listCloseTimer); listClosing = false; commandBox.classList.remove('list-exit','list-enter','list-pending'); commandBox.innerHTML = ''; commandBox.hidden = true; cursorAt = null; }
       if (route.fresh && !route.capture) { commandInput.value = ''; clearCommandNotice(); closeCommandActions(false); clearCommandOutput(); queueCommandQuery('', 0, true); commandInput.focus({ preventScroll:true }); }
-      if (route.fresh) requestAnimationFrame(() => requestAnimationFrame(() => call('window.painted').catch(() => {})));
+      // 새로 불렸을 때만 마크 → 입력 막대 → 미디어 순서로 펼친다(motion.css). 창은 그린 뒤(window.painted) 보이므로
+      // 그때까지 모션을 첫 장면에 멈춰 두었다가(command-hold) 보이는 순간 시작한다 — 마크가 뜨는 장면을 놓치지 않게.
+      const panel = route.fresh ? root.querySelector('.cf-command-panel') : null;
+      if (panel) { panel.classList.remove('command-enter','command-leave'); void panel.offsetWidth; panel.classList.add('command-enter','command-hold'); setTimeout(() => panel.classList.remove('command-hold'), 400); clearTimeout(commandEnterTimer); commandEnterTimer = setTimeout(() => panel.classList.remove('command-enter'), 1000); }
+      if (route.fresh) requestAnimationFrame(() => requestAnimationFrame(() => call('window.painted').catch(() => {}).finally(() => panel?.classList.remove('command-hold'))));
       return;
     }
     if (route.view === 'work' || route.view === 'tasks' && route.tab && !route.id) state.project=null;
@@ -652,7 +760,7 @@
     if (modalDirty && modalLayer.querySelector('form') && Date.now() - discardArmedAt > 3000) { discardArmedAt = Date.now(); feedback('저장하지 않은 내용이 있어요. Esc를 한 번 더 누르면 버립니다.'); return; }
     closeModal();
   }
-  function closeModal() { const editedTask = modalLayer.querySelector('.task-form')?.dataset.editor; if (editedTask) { modalLayer.hidden = true; modalLayer.innerHTML = ''; modalDirty = false; safe(() => afterTaskModal(editedTask)); return; } modalDirty = false; discardArmedAt = 0; modalLayer.hidden = true; modalLayer.innerHTML = ''; editingEvent = null; if (returnFocus?.isConnected && root.contains(returnFocus)) returnFocus.focus({ preventScroll:true }); else if(modalReturnEditor&&body.querySelector(`[data-editor="${CSS.escape(modalReturnEditor.id)}"] [data-field="${modalReturnEditor.field}"]`))restoreFocus(modalReturnEditor);else if(modalReturnKey&&root.querySelector(modalReturnKey)?.getClientRects().length)root.querySelector(modalReturnKey).focus({preventScroll:true});else focusView(); }
+  function closeModal() { const editedTask = modalLayer.querySelector('.task-form')?.dataset.editor; if (editedTask) { ghostOut(modalLayer,'modal'); modalLayer.hidden = true; modalLayer.innerHTML = ''; modalDirty = false; safe(() => afterTaskModal(editedTask)); return; } modalDirty = false; discardArmedAt = 0; ghostOut(modalLayer,'modal'); modalLayer.hidden = true; modalLayer.innerHTML = ''; editingEvent = null; if (returnFocus?.isConnected && root.contains(returnFocus)) returnFocus.focus({ preventScroll:true }); else if(modalReturnEditor&&body.querySelector(`[data-editor="${CSS.escape(modalReturnEditor.id)}"] [data-field="${modalReturnEditor.field}"]`))restoreFocus(modalReturnEditor);else if(modalReturnKey&&root.querySelector(modalReturnKey)?.getClientRects().length)root.querySelector(modalReturnKey).focus({preventScroll:true});else focusView(); }
   const pad2 = value => String(value).padStart(2, '0');
   const clockOf = date => `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
   const shiftDateKey = (key, days) => { const date = new Date(key + 'T12:00:00'); date.setDate(date.getDate() + days); return dateKey(date); };
@@ -924,8 +1032,7 @@
   }
   function themeCards(){
     const current = themeById(state.theme);
-    return `<h3>스킨</h3><div class="theme-grid" role="radiogroup" aria-label="스킨">${SKINS.map(skin => lookCard('skin',skin.id,skin.name,skin.note,themesOf(skin.id)[0].colors,skin.id,skin.id === current.skin)).join('')}</div>
-      <h3>테마</h3><div class="theme-grid" role="radiogroup" aria-label="색 테마" data-theme-grid>${themesOf(current.skin).map(theme => lookCard('theme',theme.id,theme.name,theme.note,theme.colors,theme.skin,theme.id === current.id)).join('')}</div>`;
+    return `<h3>테마</h3><div class="theme-grid" role="radiogroup" aria-label="색 테마" data-theme-grid>${THEMES.map(theme => lookCard('theme',theme.id,theme.name,theme.note,theme.colors,theme.skin,theme.id === current.id)).join('')}</div>`;
   }
   // 앱 아이콘: 고르면 창·트레이 아이콘이 바로 바뀐다(메인 applyAppIcon). 설치 파일 아이콘은 첫 아이콘으로 고정
   function iconCards(){
@@ -938,16 +1045,9 @@
   }
   async function pickTheme(id){
     if(id===state.theme||!THEMES.some(theme=>theme.id===id))return;
+    // 테마를 바꾸는 0.3초 동안만 모든 색이 부드럽게 넘어간다(motion.css .theme-shift).
+    if(!matchMedia('(prefers-reduced-motion: reduce)').matches){clearTimeout(themeShiftTimer);root.classList.add('theme-shift');themeShiftTimer=setTimeout(()=>root.classList.remove('theme-shift'),320);}
     state.theme=id; look(); state.prefs=await call('preferences.set',{theme:id});
-  }
-  // 스킨을 고르면 그 스킨에서 마지막으로 고른 테마(없으면 첫 테마)로 바꾸고 테마 목록을 그 스킨 것으로 다시 그린다
-  async function pickSkin(skin){
-    if(skin===themeById(state.theme).skin||!SKINS.some(value=>value.id===skin))return;
-    const remembered=state.prefs.skinThemes?.[skin];
-    state.theme=themesOf(skin).some(theme=>theme.id===remembered)?remembered:themesOf(skin)[0].id;
-    const grid=body.querySelector('[data-theme-grid]');
-    if(grid)grid.innerHTML=themesOf(skin).map(theme=>lookCard('theme',theme.id,theme.name,theme.note,theme.colors,theme.skin,theme.id===state.theme)).join('');
-    look(); state.prefs=await call('preferences.set',{skin});
   }
 
   /* 설정 분류: 일반 · 프로젝트 · 단축키. 프로젝트는 원래 Work의 Projects 목록(키·되돌리기 그대로)을 설정 머리 아래에 둔 것이다. */
@@ -1025,17 +1125,32 @@
       if (file && iconImages.get(file)) row.querySelector('.command-icon,svg,i')?.replaceWith(Object.assign(document.createElement('span'), { innerHTML:commandAvatar(item) }).firstElementChild);
     });
   }
-  function renderCommand() {
+  function renderCommand({ closed = false } = {}) {
     // 담기 모드의 결과 자리는 접두 기호 미리보기 한 줄만 쓴다(검색하지 않는다).
     if (command.capture) { commandBox.innerHTML = capturePreview; commandBox.hidden = !capturePreview; icons(); resizeCommand(); return; }
+    // 목록이 비게 되면(검색어를 지움) 카드가 말려 올라간 뒤 숨는다. 접히는 중에 다시 결과가 생기면 취소하고 그대로 그린다.
+    const willHide = !command.actions && !command.items.length && !command.query.trim() && !command.pending;
+    const panelBusy = root.querySelector('.cf-command-panel').matches('.command-leave,.command-hold');
+    if (willHide && !closed && !panelBusy && !commandBox.hidden && commandBox.querySelector('[data-result]') && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      if (listClosing) return;
+      listClosing = true; listReveal = false; commandBox.classList.remove('list-enter','list-pending'); commandBox.classList.add('list-exit');
+      listCloseTimer = setTimeout(() => { listClosing = false; commandBox.classList.remove('list-exit'); renderCommand({ closed:true }); }, 160);
+      return;
+    }
+    if (listClosing) { clearTimeout(listCloseTimer); listClosing = false; commandBox.classList.remove('list-exit'); }
     command.selected = Math.max(0, Math.min(command.selected, Math.max(0, command.items.length-1)));
-    const scrollTop = root.querySelector('#cf-command-panel').scrollTop;
+    const scrollTop = commandBox.scrollTop, hadRows = !commandBox.hidden && !!commandBox.querySelector('[data-result]');
     commandBox.innerHTML = `${command.items.map((item,index) => `<button id="command-option-${index}" class="td-command-result ${index === command.selected ? 'selected' : ''}" data-result="${index}" data-result-key="${esc(item.key)}" role="option" aria-selected="${index === command.selected}" tabindex="-1" ${command.running ? 'disabled' : ''}>${commandAvatar(item)}<span class="command-result-text"><span class="command-result-title">${highlightTitle(item.title, item.positions)}</span>${item.subtitle ? `<small class="command-subtitle" title="${esc(item.subtitle)}">${esc(item.subtitle)}</small>` : ''}</span><small>${esc(item.memo ? '메모' : ({apps:'앱',files:'파일',calc:'계산',tasks:'할 일',work:'할 일',events:'일정',calendar:'일정',notes:'메모',scripts:'명령',system:'시스템',builtin:'명령',clip:'클립보드'})[item.source] || (item.key?.startsWith('clip:') ? '클립보드' : ''))}</small></button>`).join('')}${command.items.length || !command.query.trim() && !command.pending ? '' : `<div class="command-empty" role="status">${command.pending ? '검색 중…' : '결과 없음'}</div>`}`;
     if(command.notice&&command.query.trim())commandBox.insertAdjacentHTML('beforeend','<div class="command-notice" role="status">'+esc(command.notice)+'</div>');
     commandBox.hidden = !!command.actions || !command.items.length && !command.query.trim() && !command.pending;
     if (command.actions) renderCommandActions();
+    // 결과가 비어 있다가 처음 생길 때만 카드와 줄이 차례로 떠오른다(motion.css). 검색어를 고칠 때마다 다시 그려도 움직이지 않는다.
+    const hasRows = !commandBox.hidden && !!commandBox.querySelector('[data-result]');
+    if (!hasRows) cursorAt = null;
+    // 창은 내용 높이로 커진 뒤에야 카드가 보인다 — 54px 창 안에서 모션이 잘려 지나가고 창이 커질 때 툭 나타나지 않게. 창은 투명이라 커지는 것 자체는 안 보인다.
+    else if (!hadRows) { commandBox.classList.remove('list-enter'); commandBox.classList.add('list-pending'); listReveal = true; clearTimeout(listRevealTimer); listRevealTimer = setTimeout(revealCommandList, 300); }
     syncCommandSelection();
-    root.querySelector('#cf-command-panel').scrollTop = scrollTop;
+    commandBox.scrollTop = scrollTop;
     icons(); resizeCommand(); safe(fetchCommandIcons);
   }
   function syncCommandSelection(visible = false) {
@@ -1047,7 +1162,28 @@
     commandInput.setAttribute('aria-expanded', String(!!rows.length));
     if (rows[selected]) commandInput.setAttribute('aria-activedescendant', rows[selected].id);
     else commandInput.removeAttribute('aria-activedescendant');
-    if (visible && rows[selected]) rows[selected].scrollIntoView({ block:'nearest' });
+    if (!actions) placeCommandCursor(rows[selected]);
+    if (visible && rows[selected]) { if (actions) rows[selected].scrollIntoView({ block:'nearest' }); else scrollCommandTo(rows[selected]); }
+  }
+  /* 선택 면은 줄마다 칠하지 않고 하나의 면(.command-cursor)이 줄 사이를 미끄러진다. 결과를 다시 그리면 면도 새로 생기는데,
+   * 그때는 이전 자리(cursorAt)에서 바로 시작해 새 자리로 미끄러진다 — 다시 그린 티가 나지 않게. */
+  function placeCommandCursor(row) {
+    let cursor = commandBox.querySelector(':scope>.command-cursor');
+    if (!row) { cursor?.remove(); cursorAt = null; return; }
+    if (!cursor) {
+      cursor = document.createElement('div'); cursor.className = 'command-cursor'; cursor.setAttribute('aria-hidden','true'); commandBox.prepend(cursor);
+      const from = cursorAt || { y:row.offsetTop, h:row.offsetHeight };
+      cursor.style.transition = 'none'; cursor.style.transform = `translateY(${from.y}px)`; cursor.style.height = from.h+'px'; void cursor.offsetWidth; cursor.style.transition = '';
+    }
+    cursorAt = { y:row.offsetTop, h:row.offsetHeight };
+    cursor.style.transform = `translateY(${cursorAt.y}px)`; cursor.style.height = cursorAt.h+'px';
+  }
+  // 고른 줄이 카드 밖에 있으면 카드를 부드럽게 굴려 보이게 한다. 키를 누르고 있으면 목표만 바뀌며 이어서 굴러간다.
+  function scrollCommandTo(row) {
+    const pad = 8, top = row.offsetTop - pad, bottom = row.offsetTop + row.offsetHeight + pad;
+    const behavior = matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+    if (top < commandBox.scrollTop) commandBox.scrollTo({ top, behavior });
+    else if (bottom > commandBox.scrollTop + commandBox.clientHeight) commandBox.scrollTo({ top:bottom - commandBox.clientHeight, behavior });
   }
   function moveCommandSelection(delta) {
     const menu = command.actions, length = menu ? menu.item.actions.length : command.items.length;
@@ -1069,7 +1205,7 @@
   }
   function clearCommandOutput() {
     command.output = null;
-    const output = root.querySelector('.command-output'); output.hidden = true; output.replaceChildren();
+    const output = root.querySelector('.command-output'); ghostOut(output,'rollup'); output.hidden = true; output.replaceChildren();
   }
   function outputKeys(event) {
     const output = command.output; if (!output || state.shell !== 'command') return false;
@@ -1080,7 +1216,7 @@
   }
   function closeCommandActions(focus = true) {
     if (!command.actions) return;
-    command.actions = null; commandActions.hidden = true; commandActions.replaceChildren(); renderCommand();
+    command.actions = null; ghostOut(commandActions,'rollup'); commandActions.hidden = true; commandActions.replaceChildren(); renderCommand();
     if (focus && state.shell === 'command') commandInput.focus({ preventScroll:true });
   }
   function renderCommandActions() {
@@ -1146,7 +1282,7 @@
     // 입력을 시작하면 자리 표시 문구가 사라지므로, 어디에 담기는지는 입력줄 오른쪽에 계속 보인다.
     root.querySelector('.td-command').dataset.captureLabel = kind === 'note' ? '메모에 담기 · Enter' : 'InBox에 담기 · Enter';
     // 대시보드에서 남은 알림이 담기 미리보기 줄을 덮지 않게 닫는다. 되돌리기는 U 타임라인에 남아 있다.
-    root.querySelector('.td-feedback').hidden = true;
+    ghostOut(root.querySelector('.td-feedback'),'toast'); root.querySelector('.td-feedback').hidden = true;
     commandInput.value = ''; queueCommandQuery('', 0, true); clearCommandNotice(); commandInput.focus({ preventScroll:true });
   }
   function exitCapture() { if (!command.capture) return; command.capture = null; root.classList.remove('is-capture'); clearCommandNotice(); capturePreviewSeq++; capturePreview = ''; }
@@ -1306,12 +1442,12 @@
   function focusWorkProject(id=projectCursor) {
     projectCursor=id==null?null:String(id);syncProjectCursor();
     const row=body.querySelector(`[data-work-project-row="${CSS.escape(projectCursor||'')}"]`);
-    row?.focus({preventScroll:true});row?.scrollIntoView({block:'nearest'});
+    glideFocus(row);
     // 프로젝트가 없으면 설정의 '프로젝트' 분류 탭에 선다.
     if(!row)(body.querySelector('[data-settings-tab=projects]')||root.querySelector('.td-tabs [aria-selected=true]'))?.focus({preventScroll:true});
   }
   function focusTask(id=taskCursor) {
-    taskCursor=id;syncTaskCursor();if(taskCursor)workCursors.set(workCursorKey(),taskCursor);const row=body.querySelector(`[data-task-row="${CSS.escape(taskCursor||'')}"]`);row?.focus({preventScroll:true});row?.scrollIntoView({block:'nearest'});
+    taskCursor=id;syncTaskCursor();if(taskCursor)workCursors.set(workCursorKey(),taskCursor);const row=body.querySelector(`[data-task-row="${CSS.escape(taskCursor||'')}"]`);glideFocus(row);
     // 마지막 항목을 옮기거나 지워 목록이 비면 포커스가 사라져 Tab이 InBox 입력칸으로 갔다. 지금 분류 탭에 두어 Tab으로 다른 분류로 넘어가게 한다.
     if(!row&&state.view==='tasks'&&state.tab!=='projects'&&!body.contains(document.activeElement)&&modalLayer.hidden)root.querySelector('.td-tabs [aria-selected=true]')?.focus({preventScroll:true});
   }
@@ -1363,7 +1499,7 @@
   }
   async function goSection(section) {
     // 할 일 편집 대화상자는 자동 저장이라 화면을 옮기면 조용히 닫는다(저장은 아래 flushPending).
-    if(modalLayer.querySelector('.task-form')){modalLayer.hidden=true;modalLayer.innerHTML='';modalDirty=false;taskModalKind=null;}
+    if(modalLayer.querySelector('.task-form')){ghostOut(modalLayer,'modal');modalLayer.hidden=true;modalLayer.innerHTML='';modalDirty=false;taskModalKind=null;}
     if(section==='projects'){await flushPending();return setSettingsTab('projects');}
     if(section==='settings'||section==='shortcuts')state.settingsTab=section==='shortcuts'?'shortcuts':'general';
     const route={settings:{settings:true,view:'settings'},shortcuts:{settings:true,view:'settings'},dashboard:{view:'dashboard'},work:{view:'tasks',tab:'inbox'},todo:{view:'dashboard'},inbox:{view:'tasks',tab:'inbox'},waiting:{view:'dashboard'},done:{view:'tasks',tab:'done'},notes:{view:'notes'},calendar:{view:'calendar'},journey:{view:'calendar'}}[section];
@@ -1395,7 +1531,7 @@
   }
   async function undoLastAction() {
     const action=undoTimeline.pop();if(!action){feedback('되돌릴 작업이 없어요.');return;}
-    if(undoAction===action){undoAction=null;root.querySelector('.td-feedback').hidden=true;}
+    if(undoAction===action){undoAction=null;ghostOut(root.querySelector('.td-feedback'),'toast');root.querySelector('.td-feedback').hidden=true;}
     await action();if(state.view!=='notes')focusView();
   }
   /* 1~9: 활성 프로젝트 목록 순서로 바로 지정한다(원본 WHENWORK). InBox 항목은 도메인 규칙대로 ToDo로 옮겨진다. */
@@ -1494,7 +1630,7 @@
     const items=dashboardItems();if(!items.length)return false;
     const current=event.target.closest('[data-reveal],[data-event]'),index=items.indexOf(current);
     const to=K.is(event,'list.up')?index-1:K.is(event,'list.down')?index+1:K.is(event,'list.first')?0:K.is(event,'list.last')?items.length-1:null;
-    if(to!==null){event.preventDefault();items[index<0?0:Math.max(0,Math.min(items.length-1,to))].focus({preventScroll:false});return true;}
+    if(to!==null){event.preventDefault();glideFocus(items[index<0?0:Math.max(0,Math.min(items.length-1,to))]);return true;}
     const id=current?.closest('.cf-home-task')&&current.dataset.reveal,task=id&&state.tasks.find(item=>item.id===id);
     // 같은 할 일이 다른 칸으로 옮겨 가도(넘길 일 → 오늘) 그 줄을 따라간다. 사라졌으면 같은 자리로.
     const keep=run=>{event.preventDefault();if(!event.repeat)safe(async()=>{await run();const again=id&&body.querySelector(`.cf-home-task [data-reveal="${CSS.escape(id)}"]`),rest=dashboardItems();(again||rest[Math.max(0,Math.min(index,rest.length-1))])?.focus({preventScroll:false});});return true;};
@@ -1516,7 +1652,7 @@
   function futureKeys(event) {
     const target=event.target,rows=[...body.querySelectorAll('.cal-future [data-future-row]')],current=target.closest('[data-future-row]'),index=rows.indexOf(current);
     const to=K.is(event,'agenda.up')?index-1:K.is(event,'agenda.down')?index+1:K.is(event,'agenda.first')?0:K.is(event,'agenda.last')?rows.length-1:null;
-    if(to!==null){event.preventDefault();rows[index<0?0:Math.max(0,Math.min(rows.length-1,to))]?.focus({preventScroll:false});return true;}
+    if(to!==null){event.preventDefault();glideFocus(rows[index<0?0:Math.max(0,Math.min(rows.length-1,to))]);return true;}
     if(K.is(event,'agenda.new')){event.preventDefault();quickEventModal();return true;}
     const id=current?.dataset.reveal;if(!id)return false;
     const keep=run=>{event.preventDefault();if(!event.repeat)safe(async()=>{await run();const again=body.querySelector(`.cal-future [data-reveal="${CSS.escape(id)}"]`),rest=[...body.querySelectorAll('.cal-future [data-future-row]')];(again||rest[Math.max(0,Math.min(index,rest.length-1))]||body.querySelector('[data-cal-home]'))?.focus({preventScroll:false});});return true;};
@@ -1541,10 +1677,10 @@
     // H: 완료 기록(Today·InBox 어디서든). Esc로 Today에 돌아온다.
     if((state.view==='dashboard'||state.view==='tasks'&&state.tab==='inbox')&&!editingTarget(target)&&K.is(event,'work.doneHistory')){event.preventDefault();if(!event.repeat)safe(()=>goSection('done'));return true;}
     if((state.view==='settings'||state.view==='tasks'&&state.tab==='projects')&&target.closest('.settings-tabs')){const order=SETTINGS_TABS.map(([tab])=>tab),index=order.indexOf(state.settingsTab),to=K.is(event,'settings.next')?index+1:K.is(event,'settings.prev')?index-1:null;if(to!==null){event.preventDefault();setSettingsTab(order[(to+order.length)%order.length]);return true;}}
-    if(state.view==='settings'&&target.matches('[data-theme-pick],[data-skin-pick],[data-icon-pick]')&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(event.key)&&!event.ctrlKey&&!event.altKey&&!event.metaKey){
+    if(state.view==='settings'&&target.matches('[data-theme-pick],[data-icon-pick]')&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(event.key)&&!event.ctrlKey&&!event.altKey&&!event.metaKey){
       event.preventDefault();const cards=[...target.closest('.theme-grid').querySelectorAll('.theme-card')],index=cards.indexOf(target),columns=Math.max(1,cards.filter(card=>card.offsetTop===cards[0].offsetTop).length);
       const to={ArrowLeft:index-1,ArrowRight:index+1,ArrowUp:index-columns,ArrowDown:index+columns,Home:0,End:cards.length-1}[event.key];
-      const next=cards[Math.min(cards.length-1,Math.max(0,to))];if(next&&next!==target){next.focus({preventScroll:false});safe(()=>next.dataset.iconPick?pickIcon(next.dataset.iconPick):next.dataset.skinPick?pickSkin(next.dataset.skinPick):pickTheme(next.dataset.themePick));}return true;
+      const next=cards[Math.min(cards.length-1,Math.max(0,to))];if(next&&next!==target){next.focus({preventScroll:false});safe(()=>next.dataset.iconPick?pickIcon(next.dataset.iconPick):pickTheme(next.dataset.themePick));}return true;
     }
     if(workKeys(event))return true;
     if(state.view==='calendar'&&state.calView==='future'&&!editingTarget(target)&&target.closest('.cal-future')&&futureKeys(event))return true;
@@ -1599,7 +1735,6 @@
     if (data.topTab) return setTopTab(data.topTab);
     if (data.settingsTab) return setSettingsTab(data.settingsTab);
     if (data.themePick) return pickTheme(data.themePick);
-    if (data.skinPick) return pickSkin(data.skinPick);
     if (data.iconPick) return pickIcon(data.iconPick);
     if (data.tab) return switchWorkTab(data.tab,{focus:button.closest('.td-work-nav')?'tab':'list',clearProject:state.view!=='tasks'});
     if (button.classList.contains('td-drag-handle')) return;
@@ -1620,7 +1755,7 @@
     if (data.event) return eventModal(data.event);
     if (data.result !== undefined) return executeCommand({ key:data.resultKey });
     if (data.commandAction && command.actions) return executeCommand({ item:command.actions.item, query:command.actions.query, actionId:data.commandAction });
-    if (data.deleteTask) { if (button.closest('.task-form')) { modalLayer.hidden = true; modalLayer.innerHTML = ''; taskModalKind = null; } return deleteTask(data.deleteTask); }
+    if (data.deleteTask) { if (button.closest('.task-form')) { ghostOut(modalLayer,'modal'); modalLayer.hidden = true; modalLayer.innerHTML = ''; taskModalKind = null; } return deleteTask(data.deleteTask); }
     // 편집 대화상자의 완료·취소: 대화상자를 닫고(자동 저장 반영) 목록의 Space·C와 같은 동작을 한다.
     if (data.completeTask || data.cancelTask) { const id=data.completeTask||data.cancelTask; if (button.closest('.task-form')) { closeModal(); await flushPending(); } const task=state.tasks.find(item=>item.id===id); if(!task)return; if(data.cancelTask)return toggleCancel(id); await mutate('task.complete',{id,done:!task.done}); rememberWorkUndo(task.title,restoreClosure(task),task.done?'완료를 해제했어요.':'완료했어요.'); return; }
     if (data.nudge) return nudgeTask(data.nudge);
@@ -1644,8 +1779,8 @@
       case 'close-modal': closeModal(); break;
       case 'delete-event': { const selected=editingEvent; if (!selected) return; if(selected.rrule||selected.recurrenceId){closeModal();scopeModal(selected);break;} await mutate('event.delete',{id:selected.id,scope:'all'}); closeModal(); feedback('일정을 삭제했어요.',()=>mutate('event.restore',{id:selected.id})); break; }
       case 'pick-scope': { const form=modalLayer.querySelector('.scope-form'),selected=form&&findEvent(form.dataset.event),scope=button.dataset.scope,run=scopeRun; if(!selected||!run||!['one','future','all'].includes(scope))return; scopeRun=null; closeModal(); await run(selected,scope); break; }
-      case 'undo': { const action=undoAction; if(action){ const index=undoTimeline.lastIndexOf(action); if(index>=0)undoTimeline.splice(index,1); undoAction=null; root.querySelector('.td-feedback').hidden=true; await action(); } break; }
-      case 'dismiss': root.querySelector('.td-feedback').hidden=true; break;
+      case 'undo': { const action=undoAction; if(action){ const index=undoTimeline.lastIndexOf(action); if(index>=0)undoTimeline.splice(index,1); undoAction=null; ghostOut(root.querySelector('.td-feedback'),'toast');root.querySelector('.td-feedback').hidden=true; await action(); } break; }
+      case 'dismiss': ghostOut(root.querySelector('.td-feedback'),'toast');root.querySelector('.td-feedback').hidden=true; break;
       case 'settings': await flushPending(); state.prefs=await call('preferences.get'); state.info=await call('app.info'); state.view='settings'; renderNav(); renderMainView(); await shell('dashboard',false); focusView();break;
       case 'help': return openHelp();
       case 'close-actions': closeCommandActions(); break;
@@ -1825,6 +1960,8 @@
   root.addEventListener('drop',event=>{const target=event.target.closest('[data-date]');if(target){event.preventDefault();safe(()=>changeDue(event.dataTransfer.getData('text/plain'),target.dataset.date));}});
   api.on('command.more',message=>{if(message.ready){if(!command.running&&!command.activating&&!command.actions&&!command.composing)safe(()=>queryCommand(commandInput.value,true));return;}if(message.error){command.notice=message.error;renderCommand();return;}applyCommandMore(message);});
   api.on('navigate',route=>safe(()=>navigate(route)));
+  // 창이 숨기 전에 등장의 역순으로 접힌다(main hideWindow → motion.css .command-leave).
+  api.on('command.leave',()=>{const panel=root.querySelector('.cf-command-panel');clearTimeout(commandEnterTimer);panel.classList.remove('command-enter','command-hold');panel.classList.add('command-leave');});
   // 자정이 지나면 오늘 일정·넘길 일·마감 배지를 새 날짜로 다시 불러온다.
   setInterval(()=>{if(syncDay())safe(()=>loadState());},60_000);
   api.on('media.changed',media=>renderMedia(media));

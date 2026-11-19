@@ -75,6 +75,7 @@ async function noPersistentKeycaps(screen) {
 
 async function commandRestored(value, selection) {
   await page.locator('.minimal-help-layer').waitFor({ state: 'hidden' });
+  await page.locator('#cf-dashboard-panel').waitFor({ state: 'hidden' }); // 대시보드에서 내려올 때는 접힘 모프(약 0.3초) 뒤 숨는다
   await page.waitForFunction(() => document.querySelector('.td-command input') === document.activeElement);
   const input = page.locator('.td-command input');
   assert.equal(await input.inputValue(), value);
@@ -267,41 +268,10 @@ function durableData(state) {
       assert.deepEqual(durableData(await call('state', {})), before);
       await screenshot('07-settings-paper');
 
-      // 스킨: 처음 고르면 그 스킨의 첫 테마, 다른 스킨에 갔다 돌아오면 마지막 테마를 되살린다
-      await page.locator('[data-skin-pick=tui]').click();
-      await waitUntil(async () => (await call('preferences.get')).theme === 'tui-night', 'TUI 스킨의 첫 테마로 바뀌지 않았습니다.');
-      assert.equal(await page.locator('.td-app').getAttribute('data-skin'), 'tui');
-      assert.equal(await page.locator('[data-theme-pick]').count(), 4, 'TUI 스킨의 테마 4개가 보여야 합니다.');
-      assert.equal((await call('preferences.get')).mode, 'dark');
-      await page.locator('[data-theme-pick=tui-paper]').click();
-      await waitUntil(async () => (await call('preferences.get')).theme === 'tui-paper', 'TUI 테마 변경이 저장되지 않았습니다.');
-      await page.locator('[data-skin-pick=zen]').focus();
-      await page.keyboard.press('ArrowRight');
-      await waitUntil(async () => (await call('preferences.get')).skin === 'poster', '→로 다음 스킨이 골라지지 않았습니다.');
-      assert.equal((await call('preferences.get')).theme, 'poster-white');
-      await page.locator('[data-skin-pick=tui]').click();
-      await waitUntil(async () => (await call('preferences.get')).theme === 'tui-paper', '돌아온 스킨의 마지막 테마를 되살리지 않았습니다.');
-      for (const skin of ['soft', 'glass', 'ide', 'sketch', 'poster', 'tui']) {
-        await page.locator(`[data-skin-pick=${skin}]`).click();
-        await waitUntil(async () => (await call('preferences.get')).skin === skin, skin + ' 스킨 변경이 저장되지 않았습니다.');
-        await screenshot('07-skin-' + skin);
-        await page.evaluate(section=>window.__whendeskGo(section),'dashboard');
-        await page.locator('.td-main-head h1').filter({ hasText: 'Today' }).waitFor();
-        await screenshot('07-skin-' + skin + '-dashboard');
-        await page.keyboard.press('Control+k');
-        await page.waitForFunction(() => document.activeElement === document.querySelector('.td-command input'));
-        const kept = await page.locator('.td-command input').inputValue();
-        const keptRange = await page.locator('.td-command input').evaluate(element => [element.selectionStart, element.selectionEnd]);
-        await page.keyboard.press('Control+a'); await page.keyboard.insertText('스킨');
-        await page.locator('.td-command-result').first().waitFor();
-        await page.waitForFunction(() => innerHeight > 60, null, { timeout: 3000 }).catch(() => {});
-        await screenshot('07-skin-' + skin + '-command');
-        await page.keyboard.press('Control+a');
-        if (kept) await page.keyboard.insertText(kept); else await page.keyboard.press('Backspace');
-        await page.locator('.td-command input').evaluate((element, [start, end]) => element.setSelectionRange(start, end), keptRange);
-        await page.keyboard.press('Control+Comma');
-        await page.locator('[data-skin-pick]').first().waitFor();
-      }
+      // 스킨은 ZEN 하나라 스킨 고르기가 없고, 테마 9개만 보인다
+      assert.equal(await page.locator('[data-skin-pick]').count(), 0, '스킨 고르기가 남아 있습니다.');
+      assert.equal(await page.locator('[data-theme-pick]').count(), 9, 'ZEN 테마 9개가 보여야 합니다.');
+      assert.equal(await page.locator('.td-app').getAttribute('data-skin'), 'zen');
       // 앱 아이콘: 6개 중 하나를 고르면 저장되고, 화살표로 옆 아이콘을 바로 고른다
       assert.equal(await page.locator('[data-icon-pick]').count(), 6);
       assert.equal(await page.locator('[data-icon-pick=brand]').getAttribute('aria-checked'), 'true');
@@ -313,8 +283,7 @@ function durableData(state) {
       await screenshot('07-app-icon');
       await page.locator('[data-icon-pick=brand]').click();
       await waitUntil(async () => (await call('preferences.get')).appIcon === 'brand', '기본 아이콘으로 돌아가지 않았습니다.');
-      await page.locator('[data-skin-pick=zen]').click();
-      await waitUntil(async () => (await call('preferences.get')).theme === 'zen-paper', 'ZEN의 마지막 테마를 되살리지 않았습니다.');
+      assert.equal((await call('preferences.get')).theme, 'zen-paper', '아이콘을 바꿔도 테마는 그대로여야 합니다.');
       assert.deepEqual(durableData(await call('state', {})), before);
 
       await page.locator('[data-settings-tab=shortcuts]').click();

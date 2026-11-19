@@ -91,12 +91,22 @@ async function bootstrap(){
   if(!idleSince)idleSince=Date.now();
   if(Date.now()-idleSince>=60_000&&!dataBusy)installUpdate({quiet:true});else setTimeout(installWhenIdle,61_000);
  }
- function hideWindow(){if(!win||win.isDestroyed()||!win.isVisible())return;clearTimeout(revealTimer);revealTimer=null;if(!testMode)win.minimize();win.hide();win.setOpacity(1);}
+ /* Command는 사라질 때도 등장의 역순으로 접힌다: 렌더러에 command.leave를 보내 모션(motion.css .command-leave)을 재생하고 끝나면 숨긴다.
+  * Esc·실행 뒤·단축키·포커스를 잃을 때 모두 여기로 온다. 접히는 중에 다시 부르면 summon이 숨기기를 취소하고 새로 등장시킨다. */
+ const LEAVE_MS=250;let leaveTimer=null;
+ function hideWindow(){
+  if(!win||win.isDestroyed()||!win.isVisible())return;
+  if(shellMode==='command'&&!testMode&&win.getOpacity()>=1){if(leaveTimer)return;send('command.leave');leaveTimer=setTimeout(hideNow,LEAVE_MS);return;}
+  hideNow();
+ }
+ // 최소화는 포커스를 원래 앱에 돌려주려고 거친다(b14ec39). 그 순간 Windows 최소화 애니메이션이 투명 창의 사각 흔적을 보이지 않게 먼저 완전히 투명하게 한다.
+ function hideNow(){clearTimeout(leaveTimer);leaveTimer=null;if(!win||win.isDestroyed()||!win.isVisible())return;clearTimeout(revealTimer);revealTimer=null;if(!testMode){win.setOpacity(0);win.minimize();}win.hide();win.setOpacity(1);}
  function summon(payload){
   if(!win||win.isDestroyed())return;
   // 대시보드가 다른 창 뒤에 떠 있을 때 Command를 불러도 새로 부르는 것과 같다. 대시보드가 앞으로 나왔다가 Command로 바뀌며 깜박이지 않게
   // 투명한 채 Command 자리·크기로 먼저 바꾸고, 렌더러가 Command를 그린 뒤(window.painted) 나타낸다.
-  const fresh=!win.isVisible()||win.isMinimized()||(payload.shell==='command'&&shellMode==='dashboard');
+  const leaving=!!leaveTimer;if(leaving){clearTimeout(leaveTimer);leaveTimer=null;}
+  const fresh=leaving||!win.isVisible()||win.isMinimized()||(payload.shell==='command'&&shellMode==='dashboard');
   if(fresh&&!payload.capture&&command){try{command.setClipboard(preferences.get().clipboardRow!==false&&!testMode?clipboard.readText():'');}catch{command.setClipboard('');}}
   if(fresh){
    if(!testMode)win.setOpacity(0);
@@ -132,7 +142,7 @@ async function bootstrap(){
    if(entering||placeOnCommand)win.setBounds(commandBoundsFor(width,h));else{const [x,y]=win.getPosition();win.setBounds({x,y,width,height:h});}placeOnCommand=false;
    win.setAlwaysOnTop(true,'screen-saver');win.setVisibleOnAllWorkspaces(true,{visibleOnFullScreen:true});win.setSkipTaskbar(true);
   }
-  shellMode=mode==='dashboard'?'dashboard':'command';return {mode:shellMode};
+  shellMode=mode==='dashboard'?'dashboard':'command';return {mode:shellMode,bounds:win.getContentBounds()}; // bounds: 렌더러가 펼침 모프의 출발 자리를 새 창 기준으로 옮길 때 쓴다
  }
  function showCommand(){summon({shell:'command'});}
  /* 덱 키처럼 다른 프로세스가 부를 때(WHENTERMINAL showFromBackground와 같은 방식). Windows는 사용자가 다른 앱에서 막 입력하던 중이면
@@ -178,7 +188,7 @@ async function bootstrap(){
  }});
  function registerShortcuts(values=preferences.get()){return shortcutManager.update(values);}
  const area=workArea();
- win=new BrowserWindow({icon:iconFile(preferences.get().appIcon),width:560,height:54,x:Math.round(area.x+(area.width-560)/2),y:Math.round(area.y+area.height*.22),minWidth:360,minHeight:54,frame:false,thickFrame:false,skipTaskbar:true,hasShadow:false,show:false,resizable:true,backgroundColor:'#20252c',title:'WHENDESK',icon:path.join(ROOT,'assets','icon.png'),webPreferences:{preload:path.join(ROOT,'main','preload.cjs'),contextIsolation:true,sandbox:true,nodeIntegration:false,webSecurity:true}});
+ win=new BrowserWindow({icon:iconFile(preferences.get().appIcon),width:560,height:54,x:Math.round(area.x+(area.width-560)/2),y:Math.round(area.y+area.height*.22),minWidth:360,minHeight:54,frame:false,thickFrame:false,skipTaskbar:true,hasShadow:false,show:false,resizable:true,transparent:true,backgroundColor:'#00000000',title:'WHENDESK',icon:path.join(ROOT,'assets','icon.png'),webPreferences:{preload:path.join(ROOT,'main','preload.cjs'),contextIsolation:true,sandbox:true,nodeIntegration:false,webSecurity:true}});
  win.setMenu(null);
  win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
  win.webContents.on('will-navigate',(event,url)=>{if(url!==rendererURL)event.preventDefault();});
@@ -242,6 +252,8 @@ async function bootstrap(){
   'command.icons':async payload=>(await iconCache()).get(Array.isArray(payload?.paths)?payload.paths.filter(item=>typeof item==='string').slice(0,16):[]),
   'command.refresh':()=>command.refresh(),
   shell:payload=>setShell(payload?.mode,payload?.height),
+  // 대시보드 → Command 접힘 모프의 목적지: 창을 줄이기 전에 Command 입력 막대가 놓일 화면 자리를 미리 알려 준다(setShell과 같은 계산).
+  'shell.commandBounds':()=>{if(!win||win.isDestroyed())return null;const area=screen.getDisplayMatching(win.getBounds()).workArea;return commandBoundsFor(Math.min(560,area.width),54);},
   'preferences.get':()=>preferences.get(),
   'preferences.set':async payload=>{
    const patch=payload&&typeof payload==='object'&&!Array.isArray(payload)?payload:{};

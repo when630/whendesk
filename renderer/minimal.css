@@ -99,22 +99,8 @@
 #whendesk-command-first .sw-lines i{display:block;height:3px;width:100%}
 #whendesk-command-first .sw-band{position:absolute;left:0;right:0;bottom:0;height:4px}
 /* 스킨 견본: 그 스킨의 모양을 한 가지씩 흉내 낸다 */
-#whendesk-command-first .sw-poster{box-shadow:inset 0 0 0 2px currentColor}
-#whendesk-command-first .sw-poster .sw-key{font-family:'WD Display',Pretendard,sans-serif;font-weight:400}
-#whendesk-command-first .sw-poster .sw-lines i{height:4px}
-#whendesk-command-first .sw-soft{border-radius:9px}
-#whendesk-command-first .sw-soft .sw-lines i{border-radius:2px}
-#whendesk-command-first .sw-tui{border-radius:0}
-#whendesk-command-first .sw-tui .sw-key{font:400 26px/.8 Consolas,monospace}
-#whendesk-command-first .sw-tui .sw-lines i{height:2px}
 #whendesk-command-first .sw-zen .sw-lines{gap:6px}
 #whendesk-command-first .sw-zen .sw-lines i{height:2px;opacity:.6}
-#whendesk-command-first .sw-glass .sw-lines{padding:5px;border-radius:8px;background:rgba(255,255,255,.45);box-shadow:inset 0 0 0 1px rgba(255,255,255,.7)}
-#whendesk-command-first .sw-glass .sw-lines i{border-radius:2px}
-#whendesk-command-first .sw-ide{border-radius:2px}
-#whendesk-command-first .sw-ide .sw-band{left:0;right:auto;top:0;width:4px;height:auto}
-#whendesk-command-first .sw-sketch .sw-key{font-family:Gaegu,cursive;font-weight:700}
-#whendesk-command-first .sw-sketch .sw-lines i{height:2px;border-radius:2px;transform:rotate(-1deg)}
 #whendesk-command-first .theme-name{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;line-height:1.2}
 #whendesk-command-first .theme-card.on .theme-name{font-weight:700}
 #whendesk-command-first .theme-on{font-size:11px;font-weight:400;line-height:1}
@@ -140,7 +126,7 @@
 
 /* Command는 앱 아이콘·입력·대상이 있는 미디어만 한 줄에 둔다. */
 #whendesk-command-first .cf-command-panel .td-command{height:54px;min-height:54px;width:100%;max-width:none;padding:0 16px;gap:11px;flex-wrap:nowrap;border:0;background:var(--td-surface);-webkit-app-region:drag}
-#whendesk-command-first .command-brand{display:grid;place-items:center;flex:0 0 20px;width:20px;height:20px;font:500 20px/1 var(--td-font);letter-spacing:-3px;padding-right:3px;color:var(--td-text);user-select:none}
+#whendesk-command-first .command-brand{display:grid;place-items:center;user-select:none}
 #whendesk-command-first .cf-command-panel .td-command input{flex:1 1 0%;width:0;min-width:70px;padding:0;font-size:16.5px;line-height:1.4;letter-spacing:-.2px;-webkit-app-region:no-drag}
 #whendesk-command-first .cf-command-panel .td-command input,#whendesk-command-first .cf-command-panel .td-command input:is(:focus,:focus-visible,:active){outline:none!important;outline-width:0!important;outline-offset:0!important;border:0!important;box-shadow:none!important;appearance:none;-webkit-appearance:none}
 #whendesk-command-first .td-command .td-media{display:flex;align-items:center;flex:0 0 auto;flex-wrap:nowrap;gap:2px;margin:0;-webkit-app-region:no-drag}

@@ -238,7 +238,7 @@
     workQuick:[[null,'담기','Enter'],['back','목록']],
     projects:[['project.add','추가'],['project.rename','이름'],['project.moveUp','순서','Shift + ↑↓'],['project.trash','보관함']],
     notes:[['note.open','보기'],['note.edit','편집'],['note.new','새 메모'],['note.scope.cycle','분류','Tab']],
-    noteSearch:[['note.open','열기','Enter'],['note.down','목록'],['back','검색 지우기']],
+    noteSearch:[['note.open','열기','Enter'],['note.open','새 메모','Shift+Enter'],['note.down','목록'],['back','검색 지우기']],
     noteEditor:[['note.preview','보기'],['app.save','저장'],['back','목록']],
     notePreview:[['note.edit','편집'],['back','목록']],
     pick:[['pick.down','고르기','↑↓'],['pick.choose','확정','Enter'],['back','닫기']],
