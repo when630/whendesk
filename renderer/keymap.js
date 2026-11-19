@@ -215,7 +215,7 @@
       ['프로젝트 보관 · 보관함 보기',['project.archive','project.trash']],['보관된 프로젝트 복원',['project.open']],
     ] },
     { title:'메모', rows:[
-      ['새 메모 · 검색 · 저장',['note.new','app.new','note.find','note.search','app.save']],['보기 · 편집 · 편집 전환',['note.open','note.edit','note.preview']],['목록 이동',['note.up','note.down','note.cursorUp','note.cursorDown']],['고정 · 보관',['note.pin','note.archive']],
+      ['새 메모 · 검색 · 저장',['note.new','app.new','note.find','note.search','app.save']],['보기 · 편집 · 저장하고 보기',['note.open','note.edit','app.save']],['목록 이동',['note.up','note.down','note.cursorUp','note.cursorDown']],['고정 · 보관',['note.pin','note.archive']],
       ['메모 · 보관함 · 휴지통',['note.scope.cycle','note.scope.active','note.scope.archived','note.scope.trash']],['목록에서 삭제 · 되돌리기 · 휴지통에서 복원',['note.delete','note.undo','note.restore']],
       ['이미지 첨부 · Markdown 내보내기',['note.attach','note.export']],
     ] },
@@ -239,7 +239,7 @@
     projects:[['project.add','추가'],['project.rename','이름'],['project.moveUp','순서','Shift + ↑↓'],['project.trash','보관함']],
     notes:[['note.open','보기'],['note.edit','편집'],['note.new','새 메모'],['note.scope.cycle','분류','Tab']],
     noteSearch:[['note.open','열기','Enter'],['note.open','새 메모','Shift+Enter'],['note.down','목록'],['back','검색 지우기']],
-    noteEditor:[['note.preview','보기'],['app.save','저장'],['back','목록']],
+    noteEditor:[['app.save','저장 · 보기'],['back','목록']],
     notePreview:[['note.edit','편집'],['back','목록']],
     pick:[['pick.down','고르기','↑↓'],['pick.choose','확정','Enter'],['back','닫기']],
     pickNumbered:[['pick.down','고르기','↑↓'],[null,'번호로 바로','1 ~ 9'],['pick.choose','확정','Enter'],['back','닫기']],

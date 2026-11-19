@@ -108,7 +108,9 @@ async function closeApp(){
   await test('메모 작성·저장과 도움말·스킨·모드 왕복에서 본문과 커서를 유지',async()=>{
    await section('notes');await press('Control+n');await waitFocus('[data-note-editor]');await text(noteBody);await press('Control+s');
    await waitUntil(async()=>{const note=(await state()).notes.find(note=>note.title===noteTitle);noteId=note?.id;return note?.body===noteBody;},'메모 본문이 저장되지 않았습니다.');
-   await press('Control+Shift+3');await page.waitForTimeout(100);assert.equal(await page.locator('[data-note-scope]').evaluate(element=>element.value),'active','이전 Ctrl+Shift+3 숫자 키가 메모 범위를 바꿨습니다.');await waitFocus('[data-note-editor]');
+   await press('Control+Shift+3');await page.waitForTimeout(100);assert.equal(await page.locator('[data-note-scope]').evaluate(element=>element.value),'active','이전 Ctrl+Shift+3 숫자 키가 메모 범위를 바꿨습니다.');
+   // Ctrl+S는 저장하고 보기 모드로 나온다. E가 다시 편집으로 들어간다.
+   await waitFocus('[data-note-preview]');assert.equal(await page.locator('[data-note-editor]').isVisible(),false,'Ctrl+S가 보기 모드로 나오지 않았습니다.');await press('e');await waitFocus('[data-note-editor]');
    const editor=await page.$('[data-note-editor]');
    await press('Control+Home');await press('ArrowRight');await press('ArrowRight');for(let index=0;index<5;index++)await press('Shift+ArrowRight');
    const selection=await editor.evaluate(element=>[element.selectionStart,element.selectionEnd]);assert.deepEqual(selection,[2,7]);

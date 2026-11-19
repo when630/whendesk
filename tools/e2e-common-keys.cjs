@@ -72,6 +72,11 @@ async function closeApp(){
       await press('k');await waitUntil(async()=>await selectedNote()===first,'K가 선택을 되돌리지 않았습니다.');
       await press('Enter');await waitFocus('[data-note-preview]');
       assert.equal(await page.locator('[data-note-editor]').isVisible(),false,'Enter가 보기가 아니라 편집으로 열었습니다.');
+      // 보기 모드에서 E는 본문 밖(도구 막대)에 포커스가 있어도 편집으로 들어간다. Ctrl+S는 저장하고 보기로 나온다.
+      await page.locator('[data-note-action=pin]').focus();await press('e');await waitFocus('[data-note-editor]');
+      await press('End');await page.keyboard.insertText(' 덧붙임');await press('Control+s');await waitFocus('[data-note-preview]');
+      assert.equal(await page.locator('[data-note-editor]').isVisible(),false,'Ctrl+S가 보기 모드로 나오지 않았습니다.');
+      await waitUntil(async()=>(await note(first)).body.includes(' 덧붙임'),'Ctrl+S가 메모를 저장하지 않았습니다.');
       await press('e');await waitFocus('[data-note-editor]');
       await press('Escape');await waitWithin('[data-note-list]');
       await press('e');await waitFocus('[data-note-editor]');

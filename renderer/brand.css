@@ -87,3 +87,14 @@
 #whendesk-command-first .td-app .td-tabs [aria-selected=true] small{background:var(--td-lime);color:var(--td-on-lime)}
 #whendesk-command-first .td-app .td-day.selected{background:var(--td-sel);color:var(--td-text);border-radius:var(--R-row)}
 #whendesk-command-first .td-app .td-primary{background:var(--td-lime)!important;color:var(--td-on-lime)!important}
+
+/* ── 단축키 도움말(Ctrl+/): whenwork 키맵 패널(#keys)의 말투 — 안개 바탕 위 카드 묶음.
+ * 머리는 바탕과 같은 색으로 붙인다(카드색 띠가 본문 폭에 묶여 양옆이 비어 보였다). 묶음은 카드색 + 테두리 + 둥글기 10px.
+ * 지금 화면의 묶음은 굵은 세로선 대신 포인트색 테두리와 라임 칩. */
+#whendesk-command-first:not(.is-command) .td-app .minimal-help-head{background:var(--td-bg);border-bottom-color:var(--td-line)}
+#whendesk-command-first .td-app .help-group{background:var(--td-surface);border:1px solid var(--td-line);border-radius:var(--R-card);padding:12px 16px 4px;box-shadow:none}
+#whendesk-command-first .td-app .help-group.is-current{border-color:var(--td-focus);box-shadow:none}
+#whendesk-command-first .td-app .minimal-help .help-group h3{font-size:12px;color:var(--td-text)}
+#whendesk-command-first .td-app .help-group h3 small{font-size:10px;line-height:16px;padding:0 7px;border-radius:99px;background:var(--td-lime);color:var(--td-on-lime);font-weight:500}
+#whendesk-command-first .td-app .help-group dt{color:var(--td-text2)}
+#whendesk-command-first .td-app .help-group dl>div{border-bottom-color:color-mix(in srgb,var(--td-line) 70%,transparent)}
