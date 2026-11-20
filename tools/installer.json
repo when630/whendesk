@@ -8,6 +8,7 @@
     "modules/**/*",
     "vendor/**/*",
     "assets/**/*",
+    "mcp/**/*",
     "!**/*.md"
   ],
   "extraFiles": [

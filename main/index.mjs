@@ -11,6 +11,7 @@ import {createToast} from './toast.mjs';
 import {briefDecision,briefingLines,dayKey,STALE_WAITING_DAYS} from '../modules/work/main/brief.mjs';
 import {exportWorkspace,prepareRestore,prepareLegacy,installPrepared} from './data.mjs';
 import {DeckBridge,summarize as deckSummary,captureIntent} from './deck.mjs';
+import {serverSpec,claudeCodeCommand,claudeDesktopSnippet} from '../mcp/connect.mjs';
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const argv=process.argv.slice(1);
 function option(name){const eq=argv.find(a=>a.startsWith(name+'='));if(eq)return eq.slice(name.length+1);const i=argv.indexOf(name);return i>=0?argv[i+1]:null;}
@@ -254,6 +255,8 @@ async function bootstrap(){
   'command.query':async payload=>{if(dataBusy)return {items:[],notice:'데이터를 가져오는 중입니다.'};const result=await command.query(payload?.q||'',payload?.seq||0);if(!commandReady&&!result.notice)result.notice=commandFailure||'앱 목록을 준비하고 있습니다.';return result;},
   'command.run':async payload=>{if(dataBusy)throw new Error('데이터 작업 중입니다.');const result=await enqueueMutation(()=>command.run(payload?.key,payload?.actionId,{query:payload?.query}));if(result?.route)changed();if(result?.toast&&!testMode)(toast??=createToast()).show(result.toast);if(result?.reshow&&win&&!win.isDestroyed()&&!win.isVisible()){if(win.isMinimized())win.restore();win.show();win.focus();}return result;},
   'command.copy':payload=>{clipboard.writeText(String(payload?.text??'').slice(0,100_000));return true;},
+  // Claude(MCP) 연결 — 이 실행 파일과 데이터 폴더를 가리키는 등록 글을 클립보드에 넣는다. 서버는 읽기 전용이다(mcp/server.mjs).
+  'mcp.copy':payload=>{const spec=serverSpec({execPath:process.execPath,appPath:ROOT,dataDir});const text=payload?.client==='desktop'?claudeDesktopSnippet(spec):claudeCodeCommand(spec);clipboard.writeText(text);return {text};},
   'command.icons':async payload=>(await iconCache()).get(Array.isArray(payload?.paths)?payload.paths.filter(item=>typeof item==='string').slice(0,16):[]),
   'command.refresh':()=>command.refresh(),
   shell:payload=>setShell(payload?.mode,payload?.height),

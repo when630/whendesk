@@ -12,9 +12,9 @@ if(!destination.startsWith(path.resolve(dist)+path.sep))throw new Error('잘못�
 fs.mkdirSync(destination,{recursive:true});
 if(!fs.existsSync(path.join(destination,'WHENDESK.exe'))){fs.cpSync(runtime,destination,{recursive:true});fs.renameSync(path.join(destination,'electron.exe'),path.join(destination,'WHENDESK.exe'));}
 const appDir=path.join(destination,'resources','app');fs.mkdirSync(appDir,{recursive:true});
-for(const folder of ['main','renderer','vendor','assets'])fs.cpSync(path.join(root,folder),path.join(appDir,folder),{recursive:true});
+for(const folder of ['main','renderer','vendor','assets','mcp'])fs.cpSync(path.join(root,folder),path.join(appDir,folder),{recursive:true});
 for(const module of ['work','note','calendar','command'])fs.cpSync(path.join(root,'modules',module),path.join(appDir,'modules',module),{recursive:true});
-fs.mkdirSync(path.join(appDir,'node_modules'),{recursive:true});fs.cpSync(path.join(root,'node_modules','ical.js'),path.join(appDir,'node_modules','ical.js'),{recursive:true});
+fs.mkdirSync(path.join(appDir,'node_modules'),{recursive:true});for(const name of ['ical.js','@modelcontextprotocol/server','@modelcontextprotocol/core','zod'])fs.cpSync(path.join(root,'node_modules',name),path.join(appDir,'node_modules',name),{recursive:true}); // MCP 서버(mcp/)가 SDK·zod를 쓴다
 const packaged={...pkg};delete packaged.devDependencies;delete packaged.scripts;fs.writeFileSync(path.join(appDir,'package.json'),JSON.stringify(packaged,null,2));
 for(const file of ['README.md','NOTICE.md'])if(fs.existsSync(path.join(root,file)))fs.copyFileSync(path.join(root,file),path.join(destination,file));
 const executable=path.join(destination,'WHENDESK.exe');const hash=crypto.createHash('sha256').update(fs.readFileSync(executable)).digest('hex');

@@ -10,4 +10,4 @@
 
 기존 프로젝트 코드는 각 원본의 MIT 라이선스 안내를 따릅니다. 원본 경로는 개발 PC의 `D:\when630\whenwork`, `whencalendar`, `whencommand`, `whenmusic`입니다. 배포 실행은 이 경로에 의존하지 않습니다.
 
-Pretendard 글꼴은 `renderer/fonts/PretendardOFL.txt`의 SIL Open Font License 1.1을 따릅니다. 앱 아이콘 "한 줄"은 WHENDESK 시리즈 브랜드 아이콘(whenwork `tools/make-icon.mjs`와 같은 도형 정의)입니다. Lucide는 ISC 라이선스입니다. ical.js 2.2.1은 MPL-2.0 라이선스이며 번들된 패키지의 LICENSE를 참고하세요. 공휴일 데이터 @hyunbinseo/holidays-kr 5.2027.2(관보 기준)는 MIT 라이선스입니다. Electron과 Chromium의 라이선스 문서는 배포 폴더에 포함됩니다. Windows SMTC 네이티브 애드온 출처·버전·MIT 라이선스 안내는 `vendor/README.md`에 있습니다.
+Pretendard 글꼴은 `renderer/fonts/PretendardOFL.txt`의 SIL Open Font License 1.1을 따릅니다. 앱 아이콘 "한 줄"은 WHENDESK 시리즈 브랜드 아이콘(whenwork `tools/make-icon.mjs`와 같은 도형 정의)입니다. Lucide는 ISC 라이선스입니다. ical.js 2.2.1은 MPL-2.0 라이선스이며 번들된 패키지의 LICENSE를 참고하세요. 공휴일 데이터 @hyunbinseo/holidays-kr 5.2027.2(관보 기준)는 MIT 라이선스입니다. Claude 연결(MCP)에 쓰는 @modelcontextprotocol/server·@modelcontextprotocol/core 2.4.0은 Apache-2.0, zod 4.6.7은 MIT 라이선스이며 번들된 각 패키지의 LICENSE를 참고하세요. Electron과 Chromium의 라이선스 문서는 배포 폴더에 포함됩니다. Windows SMTC 네이티브 애드온 출처·버전·MIT 라이선스 안내는 `vendor/README.md`에 있습니다.

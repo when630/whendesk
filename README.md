@@ -59,6 +59,17 @@ Work 검색은 초성·제목·본문·프로젝트·대기 상대를 지원합�
 
 `integrations/ulanzi/`의 플러그인을 Ulanzi Studio에 넣으면 키에 오늘 할 일·다음 일정·인박스 개수를 보여 주고, 키를 눌러 할 일을 완료·취소하거나 클립보드 글을 창 없이 담습니다. 앱은 `127.0.0.1:37632`에서만 덱 통로를 엽니다. 설치와 액션은 [integrations/ulanzi/README.md](integrations/ulanzi/README.md)를 보세요.
 
+## Claude 연결 (MCP, 읽기 전용)
+
+Claude Code·Claude Desktop이 할 일·일정·메모를 **읽기만** 하도록 연결합니다. 설정 › 일반 › Claude 연결에서 등록 글을 복사합니다.
+
+- **Claude Code**: 복사한 `claude mcp add --scope user …` 명령을 터미널에서 한 번 실행합니다. 모든 폴더에서 쓸 수 있습니다.
+- **Claude Desktop**: 설정 › 개발자 › 구성 편집에서 `claude_desktop_config.json`의 `mcpServers`에 붙여 넣고 Desktop을 다시 시작합니다.
+
+서버(`mcp/server.mjs`)는 `WHENDESK.exe`를 `ELECTRON_RUN_AS_NODE=1`로 띄워 실행하므로 Node를 따로 설치할 필요가 없습니다. 매번 DB를 읽기 전용으로 열었다 닫으므로 앱이 켜져 있든 꺼져 있든 동작하고, 앱 데이터는 바꾸지 않습니다. 도구는 `today`(대시보드와 같은 하루 저널) · `list_tasks` · `get_task` · `list_events` · `list_projects` · `search_notes` · `get_note` · `list_note_tags`입니다.
+
+지운 항목은 보내지 않습니다. 보관한 메모와 첨부파일 이름은 기본으로 숨기고, 서버 인자 `--include-archived`·`--include-attachments`를 붙일 때만 보냅니다. 앱 위치를 옮기면 다시 등록하세요.
+
 ## 실행
 
 [릴리스](https://github.com/when630/whendesk/releases/latest)의 `WHENDESK-<버전>-win-x64.exe`로 설치합니다. 사용자 폴더(`%LOCALAPPDATA%ProgramsWHENDESK`)에 설치되어 관리자 권한이 필요 없고, 서명되지 않은 설치 파일이라 Windows SmartScreen이 경고하면 "추가 정보 → 실행"을 누릅니다.
